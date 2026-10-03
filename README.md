@@ -1,3 +1,5 @@
+<a name="x4lifesigns-top"></a>
+
 <div align="center">
 
 # X4: LIFE SIGNS
@@ -263,12 +265,12 @@ Different games could potentially receive their own implementations while sharin
 
 <div align="center">
 
-<a href="https://github.com/yeahmyusernameis32characterslong/LifeSigns#readme">
+<a href="https://github.com/yeahmyusernameis32characterslong/LifeSigns#lifesigns-top">
   <img src="assets/lifesigns-hub-banner.png" alt="Life Signs" width="900">
 </a>
 
 **Part of the Life Signs project.**
 
-[Visit the Life Signs hub](https://github.com/yeahmyusernameis32characterslong/LifeSigns)
+[Visit the Life Signs hub](https://github.com/yeahmyusernameis32characterslong/LifeSigns#lifesigns-top)
 
 </div>
