@@ -4,11 +4,11 @@
 
 ### Make the universe remember you.
 
-<img src="assets/x4lifesigns-poster.png" alt="X4: Life Signs" width="900">
+<img src="assets/x4lifesigns-poster.png" alt="X4: Life Signs poster" width="900">
 
 <br>
 
-**An experimental X4: Foundations mod that gives the universe memory, personality and a sense that its people actually live there.**
+**An experimental X4: Foundations mod that gives the universe memory, personality, and a sense that its people actually live there.**
 
 </div>
 
@@ -16,7 +16,7 @@
 
 ## What is Life Signs?
 
-**X4LifeSigns** is an experimental mod project for **X4: Foundations** designed around a simple idea:
+**X4LifeSigns** is an experimental mod project for **X4: Foundations** built around a simple idea:
 
 > What if the people in X4 could actually remember what happened to them?
 
@@ -28,7 +28,7 @@ A captain whose ship you saved might recognise you later.
 
 A trader you repeatedly helped could gradually become familiar with you.
 
-Crew members could remember where they served, what happened around them and who they encountered.
+Crew members could remember where they served, what happened around them, and who they encountered.
 
 Characters could talk about things that genuinely happened in your universe rather than selecting another isolated line from a dialogue table.
 
@@ -40,7 +40,7 @@ Life Signs aims to give the simulation something it has never really had:
 
 ## A Living Universe
 
-Life Signs is intended to build persistent histories around the people, ships and stations already present in X4.
+Life Signs is intended to build persistent histories around the people, ships, and stations already present in X4.
 
 The system can potentially remember things such as:
 
@@ -70,7 +70,7 @@ Life Signs is not intended to generate random AI dialogue for the sake of having
 
 The important part is **context**.
 
-Before an NPC responds, the system can look at who they are, where they are, what has happened to them and what relationship they have with the player.
+Before an NPC responds, the system can look at who they are, where they are, what has happened to them, and what relationship they have with the player.
 
 That information can then be given to a language model.
 
@@ -94,9 +94,8 @@ Life Signs is being designed around local speech as well as text.
 
 The planned voice system includes:
 
-**faster-whisper** for speech recognition, allowing the player to speak naturally.
-
-**Kokoro** for local speech synthesis, allowing characters to answer with generated voices.
+- **faster-whisper** for speech recognition, allowing the player to speak naturally
+- **Kokoro** for local speech synthesis, allowing characters to answer with generated voices
 
 Voice processing is intended to happen asynchronously so the game does not have to stop while speech is generated.
 
@@ -112,7 +111,7 @@ Some characters, however, may justify something more sophisticated.
 
 **Aria** is the first planned example.
 
-Rather than being another generic AI-controlled NPC, Aria is intended to be a richer persistent character capable of longer conversations, deeper reasoning and a stronger individual personality.
+Rather than being another generic AI controlled NPC, Aria is intended to be a richer persistent character capable of longer conversations, deeper reasoning, and a stronger individual personality.
 
 For characters like Aria, Life Signs may use ChatGPT rather than the smaller local model.
 
@@ -122,41 +121,34 @@ This allows routine NPC interaction to remain local and fast while selected char
 
 ## How It Works
 
-At a high level:
+Life Signs sits between **X4: Foundations** and the AI systems that generate context aware interaction.
 
-```text
-X4: Foundations
-      │
-      ▼
-Mission Director / Lua
-      │
-      ▼
-   Node.js
-      │
-      ├──── SQLite
-      │     Memories
-      │     Relationships
-      │     Characters
-      │     Events
-      │
-      ├──── Local LLM
-      │     Ollama
-      │
-      ├──── Speech Recognition
-      │     faster-whisper
-      │
-      ├──── Speech Synthesis
-      │     Kokoro
-      │
-      └──── ChatGPT
-            Selected richer characters
-```
+X4 creates the events. Life Signs observes them, remembers what matters, and turns that context into natural responses.
 
-X4 remains responsible for the actual universe.
+<div align="center">
+  <img src="assets/x4lifesigns-how-it-works.png" alt="How X4LifeSigns works" width="100%">
+</div>
 
-Life Signs observes relevant events, associates them with persistent X4 identities and stores useful information locally.
+### What the diagram shows
 
-When conversation or AI behaviour is required, Node.js assembles the relevant context and sends it to the appropriate model.
+The expected flow is:
+
+- **X4: Foundations** provides the game world and events
+- **Mission Director / Lua** detects events, handles game side control, and passes relevant information onward
+- **Node.js** acts as the central orchestrator, managing context, dialogue flow, and communication between systems
+- **SQLite** stores persistent memories, relationships, events, and character data
+- **Ollama** handles routine local NPC interaction
+- **ChatGPT** is reserved for selected richer characters such as Aria
+- **faster-whisper** converts player microphone input into text
+- **Kokoro** turns generated dialogue into spoken NPC voice output
+
+The goal is not simply to generate dialogue.
+
+The goal is to allow characters to respond based on who they are, what has happened to them, and what they remember.
+
+In short:
+
+> **X4 creates events. Life Signs remembers them. AI turns that context into natural interaction.**
 
 ---
 
@@ -164,7 +156,7 @@ When conversation or AI behaviour is required, Node.js assembles the relevant co
 
 One of the most important parts of the project is keeping track of **who is who**.
 
-Life Signs intends to use X4's internal identities for ships, stations, crew and other entities wherever practical.
+Life Signs intends to use X4's internal identities for ships, stations, crew, and other entities wherever practical.
 
 That means the database can connect events across time.
 
@@ -198,7 +190,7 @@ The reference development machine currently uses an **NVIDIA RTX 5080 with 16 GB
 
 The project will deliberately favour responsive models over simply using the largest model that fits.
 
-X4, the language model and the voice system all need to live on the same machine without fighting each other to death.
+X4, the language model, and the voice system all need to live on the same machine without fighting each other to death.
 
 ---
 
@@ -210,17 +202,12 @@ The interesting part is not that an AI can produce a sentence.
 
 It is that the sentence can be influenced by:
 
-**who said it**
-
-**who they are speaking to**
-
-**where they are**
-
-**what they have experienced**
-
-**what happened previously**
-
-**how they feel about the people involved**
+- who said it
+- who they are speaking to
+- where they are
+- what they have experienced
+- what happened previously
+- how they feel about the people involved
 
 and potentially years of history inside the same X4 universe.
 
@@ -268,7 +255,7 @@ Different games could potentially receive their own implementations while sharin
 
 <div align="center">
 
-### X4LifeSigns
+## X4LifeSigns
 
 **Because a living universe should remember what happened in it.**
 
