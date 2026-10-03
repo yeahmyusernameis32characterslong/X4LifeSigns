@@ -259,4 +259,16 @@ Different games could potentially receive their own implementations while sharin
 
 **Because a living universe should remember what happened in it.**
 
+---
+
+<div align="center">
+
+<a href="https://github.com/yeahmyusernameis32characterslong/LifeSigns">
+  <img src="assets/lifesigns-hub-banner.png" alt="Life Signs" width="900">
+</a>
+
+**Part of the Life Signs project.**
+
+[Visit the Life Signs hub](https://github.com/yeahmyusernameis32characterslong/LifeSigns)
+
 </div>
