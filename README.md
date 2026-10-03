@@ -263,7 +263,7 @@ Different games could potentially receive their own implementations while sharin
 
 <div align="center">
 
-<a href="https://github.com/yeahmyusernameis32characterslong/LifeSigns">
+<a href="https://github.com/yeahmyusernameis32characterslong/LifeSigns#readme">
   <img src="assets/lifesigns-hub-banner.png" alt="Life Signs" width="900">
 </a>
 
