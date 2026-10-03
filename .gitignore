@@ -1,0 +1,11 @@
+.env
+.env.*
+node_modules/
+logs/
+*.log
+*.db
+*.db-shm
+*.db-wal
+dist/
+temp/
+tmp/
