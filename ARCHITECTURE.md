@@ -1,5 +1,18 @@
 # X4LifeSigns Architecture
 
+## Design status
+
+This document describes the proposed system. No game integration, Node.js service, database or AI/voice integration has been implemented in this repository.
+
+The following boundaries remain unproven:
+
+- capturing a suitable real X4 event through MD or Lua
+- communicating between X4 and the external service
+- obtaining and preserving entity identity across the required lifetime
+- returning responses to X4
+
+No transport, message format or supported game hook has been selected and verified. The flows below describe intent, not working connections. Record exact interfaces and version-specific evidence when implementation establishes them.
+
 ## Purpose
 
 X4LifeSigns is a mod and supporting local software system for X4: Foundations.
@@ -10,7 +23,7 @@ Its purpose is to make the game world feel more alive by allowing NPCs, ships, s
 
 ### X4 MD and Lua
 
-Mission Director and Lua code provide the connection to X4: Foundations.
+Mission Director and Lua code are intended to provide the connection to X4: Foundations.
 
 Their responsibilities may include:
 
@@ -26,7 +39,7 @@ Game-side code should remain as lightweight as practical.
 
 ### Node.js server
 
-Node.js provides the main local application layer and acts as the central orchestrator.
+Node.js is intended to provide the main local application layer and act as the central orchestrator.
 
 Responsibilities may include:
 
@@ -44,7 +57,7 @@ Responsibilities may include:
 
 ### SQLite
 
-SQLite stores persistent Life Signs data.
+SQLite is intended to store persistent Life Signs data.
 
 Possible stored information includes:
 
@@ -58,7 +71,7 @@ Possible stored information includes:
 - conversation history
 - reputation or sentiment data
 
-Exact schema details belong in DATABASE.md.
+No schema exists yet. Requirements and eventual schema details belong in DATABASE.md.
 
 ### Local LLM
 
