@@ -72,11 +72,11 @@ Do not commit:
 - temporary files
 - generated databases unless specifically approved
 
-The authoritative repository is the private GitHub repository X4LifeSigns.
+The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns).
 
 ## Database rules
 
-SQLite is used for persistent Life Signs data.
+SQLite is the intended store for persistent Life Signs data; no database implementation or schema exists yet.
 
 Database changes must be deliberate and documented.
 

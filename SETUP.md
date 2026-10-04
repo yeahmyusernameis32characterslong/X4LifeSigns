@@ -1,5 +1,11 @@
 # X4LifeSigns Development Setup
 
+## Current status
+
+The repository contains design documentation and artwork only. There is no runnable application, dependency manifest, deployment script or automated test suite.
+
+This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
+
 ## Operating system
 
 Windows
@@ -8,7 +14,13 @@ Windows
 
 C:\Projects\X4LifeSigns
 
-## Required software
+## Tools recorded as installed
+
+The existing setup notes record DB Browser for SQLite and Codex CLI as installed. Codex CLI 0.160.0 was the version recorded during initial setup, not a verified current version.
+
+Installation status for the other tools below is not established by this repository. Verify locally when implementation requires them.
+
+## Development tools and intended dependencies
 
 ### Git
 
@@ -40,9 +52,9 @@ npm --version
 
 ### SQLite
 
-SQLite is used by the Node.js application for persistent storage.
+SQLite is intended to provide persistent storage for the planned Node.js application.
 
-DB Browser for SQLite is installed for manual inspection of development databases.
+DB Browser for SQLite was recorded as installed for manual inspection of development databases.
 
 ### Ollama
 
@@ -76,7 +88,7 @@ Piper may be installed later as a lightweight fallback text-to-speech engine if 
 
 ### Codex
 
-OpenAI Codex CLI is installed.
+OpenAI Codex CLI was recorded as installed.
 
 Check with:
 
@@ -115,6 +127,10 @@ Use environment variables or .env files where required.
 
 The repository .gitignore excludes .env files.
 
+## Versions and integration setup
+
+Tested dependency versions, speech model choices and installation commands will be documented with the first implementation that uses them. The bridge, database library and voice integration methods are not yet established.
+
 ## X4 installation
 
 The exact X4 installation path and development extension deployment path will be added once confirmed.
@@ -122,6 +138,8 @@ The exact X4 installation path and development extension deployment path will be
 ## Starting the project
 
 The final development startup commands have not yet been defined.
+
+The following are illustrative future commands. They cannot currently start or test this project because no application or npm scripts exist yet.
 
 The aim is eventually to provide simple commands such as:
 

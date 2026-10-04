@@ -123,9 +123,9 @@ This allows routine NPC interaction to remain local and fast while selected char
 
 ## How It Works
 
-Life Signs sits between **X4: Foundations** and the AI systems that generate context aware interaction.
+Life Signs is intended to sit between **X4: Foundations** and the AI systems that generate context aware interaction.
 
-X4 creates the events. Life Signs observes them, remembers what matters, and turns that context into natural responses.
+In the proposed design, X4 creates the events. Life Signs would observe them, remember what matters, and turn that context into natural responses.
 
 <div align="center">
   <img src="assets/x4lifesigns-how-it-works.png" alt="How X4LifeSigns works" width="100%">
@@ -219,13 +219,15 @@ The language model is simply the thing that turns that information back into nat
 
 ## Project Status
 
-> **Very early development**
+> **Design stage; first working proof of concept planned**
 
-The architecture and development environment are currently being built.
+The repository currently contains design documentation and artwork. No runnable mod or supporting service has been implemented.
+
+The architecture describes the intended system. The game integration and supporting services have not been verified.
 
 Major systems are still subject to change.
 
-Current work includes:
+Planned work includes:
 
 - development environment
 - X4 integration design
@@ -238,6 +240,8 @@ Current work includes:
 - development and testing workflows
 
 This is not currently a playable release.
+
+The proposed first milestone is **Remember one real event**: capture one real X4 event, send it to a minimal Node.js service, store it in SQLite and display text based on the stored record. The record must remain available after a service restart and associated with the same entity. Docking is a candidate event pending verification of its game hook and bridge. See [the acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
 
 ---
 
