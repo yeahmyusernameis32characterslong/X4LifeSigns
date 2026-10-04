@@ -9,3 +9,6 @@ logs/
 dist/
 temp/
 tmp/
+
+# Private machine-specific setup notes
+SETUP.local.md

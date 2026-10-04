@@ -20,9 +20,7 @@ The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernamei
 
 ## Local development folder
 
-The main local repository path is:
-
-C:\Projects\X4LifeSigns
+Choose a local repository folder, for example `C:\Projects\X4LifeSigns`. This is a generic example rather than a required path. Keep actual machine-specific paths in the ignored `SETUP.local.md` file; see [SETUP.md](SETUP.md#private-local-setup-notes).
 
 The repository should not be stored inside OneDrive or another synchronised folder.
 

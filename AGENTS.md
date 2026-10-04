@@ -71,6 +71,9 @@ Do not commit:
 - logs
 - temporary files
 - generated databases unless specifically approved
+- personal local paths, Windows usernames, OneDrive account paths or X4 profile IDs
+
+Keep machine-specific setup notes in the ignored `SETUP.local.md` file. Use portable placeholders in shared documentation and sanitise PR descriptions, issues and diagnostic extracts before publishing. See [SETUP.md](SETUP.md#private-local-setup-notes).
 
 The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns).
 
