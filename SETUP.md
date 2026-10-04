@@ -12,7 +12,7 @@ Windows
 
 ## Main project folder
 
-C:\Projects\X4LifeSigns
+Choose a local checkout folder outside synchronised storage, for example `C:\Projects\X4LifeSigns`. This is a generic example, not a required machine path. Record your actual location only in `SETUP.local.md`.
 
 ## Tools recorded as installed
 
@@ -133,7 +133,32 @@ Tested dependency versions, speech model choices and installation commands will 
 
 ## X4 installation
 
-The exact X4 installation path and development extension deployment path will be added once confirmed.
+A generic Steam installation example is `C:\Program Files (x86)\Steam\steamapps\common\X4 Foundations`. Record your actual installation and test extension deployment paths in the ignored `SETUP.local.md` file.
+
+Use `<X4 user data folder>` in public instructions for the folder containing your X4 profile's debug log and saves. For example:
+
+- Debug log: `<X4 user data folder>\debuglog.txt`
+- Separate test save: `<X4 user data folder>\save\<test save filename>`
+
+A conventional user-data location can be written as `%USERPROFILE%\Documents\Egosoft\X4\<X4 profile id>`. Documents may be redirected, including into OneDrive, so verify the actual location locally rather than assuming this example applies.
+
+`%USERPROFILE%` is Windows Command Prompt environment-variable syntax; use `$env:USERPROFILE` in PowerShell. Angle-bracket placeholders must be replaced locally and are not runnable paths.
+
+## Private local setup notes
+
+Create `SETUP.local.md` at the repository root for actual checkout, game, log, profile and test-save paths. Git ignores this filename. Keep the published guidance portable; never copy personal usernames, OneDrive account paths, profile IDs or raw logs into commits, issues, PR descriptions or screenshots.
+
+If environment configuration is needed later, `.env.local` is also ignored. No configuration loader is implemented; these files are a local documentation/configuration convention only.
+
+Before committing, check:
+
+```text
+git check-ignore SETUP.local.md .env.local
+git status --short
+git diff --cached
+```
+
+Ignore rules do not protect an already tracked file. Do not force-add local files. Review any shared extracts and replace personal values with placeholders first.
 
 ## Starting the project
 
