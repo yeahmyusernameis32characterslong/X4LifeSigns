@@ -219,6 +219,13 @@ The language model is simply the thing that turns that information back into nat
 
 ## Project Status
 
+The first contained experiment observes completed docking while the player is
+personally piloting, writes a marked X4 debug record and acknowledges it in a
+Node.js console. **Implemented, live X4 verification pending.** See
+[the experiment instructions](docs/BRIDGE_EXPERIMENT.md) for installed X4 9.00
+evidence, automated tests and the manual test. This adds no persistent memories
+or AI interaction yet.
+
 > **Very early development**
 
 The architecture and development environment are currently being built.

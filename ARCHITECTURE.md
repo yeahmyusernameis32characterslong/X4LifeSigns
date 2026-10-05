@@ -6,6 +6,15 @@ X4LifeSigns is a mod and supporting local software system for X4: Foundations.
 
 Its purpose is to make the game world feel more alive by allowing NPCs, ships, stations and other entities to maintain persistent relationships, memories and reactions to events.
 
+## First implementation experiment
+
+The contained docking experiment follows completed personally controlled ship
+docking -> Mission Director -> marked debug log -> read-only Node.js reader ->
+console acknowledgement. It uses no Lua or return path. Status: **Implemented,
+live X4 verification pending.** This is experimental observation, not the
+production transport or a persistent identity design. See
+[BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for evidence and limitations.
+
 ## Main components
 
 ### X4 MD and Lua

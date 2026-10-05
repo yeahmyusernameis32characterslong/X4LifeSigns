@@ -117,11 +117,27 @@ The repository .gitignore excludes .env files.
 
 ## X4 installation
 
-The exact X4 installation path and development extension deployment path will be added once confirmed.
+Supply your local installation with `-GamePath` to
+`scripts/deploy-bridge-probe.ps1`. The experiment deploys only into
+`extensions\lifesigns_bridge_probe`. Machine-specific game and log paths are
+kept out of the experimental files.
 
 ## Starting the project
 
-The final development startup commands have not yet been defined.
+The first experiment requires Node.js 22 or newer and no npm dependencies:
+
+```powershell
+npm.cmd --prefix bridge test
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION'
+node .\bridge\src\read-events.js --log 'YOUR_CONFIRMED_DEBUG_LOG'
+```
+
+Launch X4 with logging enabled before starting the reader, and start the reader
+before performing a new docking. See
+[BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for deployment, logging and
+the manual in-game test. **Implemented, live X4 verification pending.**
+
+The wider system's startup commands have not yet been defined.
 
 The aim is eventually to provide simple commands such as:
 

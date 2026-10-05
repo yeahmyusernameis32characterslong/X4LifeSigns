@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="lifesigns_bridge_probe" name="Life Signs Bridge Probe" description="Experimental player-controlled docking debug-log probe." version="100" author="Life Signs" enabled="1" save="0">
+  <dependency version="900" />
+</content>

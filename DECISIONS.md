@@ -2,6 +2,17 @@
 
 This document records important project decisions so they are not accidentally reversed later.
 
+## First docking experiment
+
+Prove only personally controlled completed docking through an MD debug record
+and a read-only Node.js console acknowledgement. Use the installed X4 9.00
+controlled-group and instantiated-cue pattern. Use game-derived `idcode` strings
+for this diagnostic record; this does not decide permanent database identities.
+Debug-log polling is experimental transport. No SQLite, AI, voice, networking,
+Lua or communication back into X4 is added. The probe uses `save="0"` and a
+separate test save. Status: **Implemented, live X4 verification pending.**
+Details and installed evidence: [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md).
+
 ## Repository naming
 
 The X4 implementation is called:
