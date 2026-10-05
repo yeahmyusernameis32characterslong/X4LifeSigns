@@ -226,6 +226,13 @@ Node.js console. **Experimental docking bridge verified in live X4.** See
 evidence, automated tests and the manual test. This adds no persistent memories
 or AI interaction yet.
 
+Optional `--db` mode now commits each docking to SQLite and acknowledges the
+stored row. A separate read-only command retrieves rows after Node stops.
+**Persistence experiment: Verified with live X4 docking across Node.js restarts.** Keep X4
+running during the Node restart test and use a fresh database after a game
+reload or for another save/universe. See
+[the persistence instructions](docs/PERSISTENCE_EXPERIMENT.md).
+
 > **Very early implementation; experimental docking bridge verified in live X4**
 
 The repository contains design documentation, artwork and the experimental MD
@@ -253,8 +260,10 @@ The wider proposed milestone is **Remember one real event**: capture one real X4
 event, send it to a minimal Node.js service, store it in SQLite and display text
 based on the stored record. The record must remain available after a service
 restart and associated with the same entity. The current experiment isolates
-personally controlled docking capture and acknowledgement first; persistence is
-not implemented. See [the wider acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
+personally controlled docking capture, acknowledgement and optional SQLite
+storage first. Controlled-session persistence across Node.js restarts is now
+verified from owner-reported live testing. See
+[the wider acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
 
 ---
 

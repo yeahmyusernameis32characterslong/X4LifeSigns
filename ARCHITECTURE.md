@@ -4,7 +4,8 @@
 
 This document describes the proposed wider system. A contained MD docking probe
 and Node.js debug-log reader have automated checks and owner-reported live X4
-verification. No database or AI/voice integration is implemented.
+verification. Optional docking SQLite persistence has automated checks and owner-reported
+live verification across Node.js restarts while X4 stayed running. No AI/voice integration is implemented.
 
 The following boundaries remain unproven:
 
@@ -33,6 +34,16 @@ production transport or a persistent identity design. See
 [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for evidence and limitations.
 
 ## Main components
+
+### Controlled-session persistence experiment
+
+Optional `--db` mode commits each parsed docking into file-backed SQLite,
+selects it back and prints the stored fields. A separate read-only command
+retrieves rows without X4 or its log. Reuse one manually selected database
+across Node restarts while X4 stays running; choose a fresh file for another
+save/universe or a game reload. No permanent identity or production delivery
+guarantee is established. See
+[PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
 
 ### X4 MD and Lua
 
@@ -84,7 +95,9 @@ Possible stored information includes:
 - conversation history
 - reputation or sentiment data
 
-No schema exists yet. Requirements and eventual schema details belong in DATABASE.md.
+The controlled docking experiment implements a version-1 `docking_events` schema.
+Wider memory schemas remain planned. See [DATABASE.md](DATABASE.md) for the
+implemented schema, requirements and experimental limitations.
 
 ### Local LLM
 

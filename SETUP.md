@@ -7,6 +7,10 @@ a deployment script and automated tests alongside design documentation and
 artwork. **Experimental docking bridge verified in live X4.** Wider services remain
 planned. The reader was tested locally with Node.js v24.21.0.
 
+Optional docking persistence now uses built-in `node:sqlite` on that recorded
+version. **Verified with live X4 docking across Node.js restarts.** No database server or
+npm database dependency is needed.
+
 This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
 
 ## Operating system
@@ -55,7 +59,9 @@ npm --version
 
 ### SQLite
 
-SQLite is intended to provide persistent storage for the planned Node.js application.
+The docking experiment uses Node's built-in SQLite on Node.js v24.21.0. The
+package targets `>=24.21.0 <25`. The module is a release candidate in the official
+v24 documentation. Wider persistence remains planned.
 
 DB Browser for SQLite was recorded as installed for manual inspection of development databases.
 
@@ -134,7 +140,9 @@ The repository .gitignore excludes .env files.
 
 The first experimental bridge uses Node.js built-ins and an X4 debug-log reader;
 see [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md). Production transport,
-database library, speech model choices and voice integration remain undecided.
+speech model choices and voice integration remain undecided. The optional
+persistence mode uses built-in `node:sqlite`; see
+[PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
 
 ## X4 installation
 
@@ -172,7 +180,7 @@ Ignore rules do not protect an already tracked file. Do not force-add local file
 
 ## Starting the project
 
-The first experiment requires Node.js 22 or newer and no npm dependencies:
+The package now targets Node.js v24.21.0 and needs no npm dependencies:
 
 ```powershell
 npm.cmd --prefix bridge test
@@ -184,6 +192,19 @@ Launch X4 with logging enabled before starting the reader, and start the reader
 before performing a new docking. See
 [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for deployment, logging and
 the manual in-game test. **Experimental docking bridge verified in live X4.**
+
+Optional persistence commands (replace the log placeholder locally):
+
+```powershell
+node .\bridge\src\read-events.js --log '<X4 user data folder>\debuglog.txt' --db '.\local-data\docking-test.db'
+node .\bridge\src\read-stored-events.js --db '.\local-data\docking-test.db'
+```
+
+The writer creates the database folder if missing. Keep actual paths in ignored
+SETUP.local.md. Use a fresh database for another save/universe or game reload;
+reuse the same database only for Node restarts while X4 remains running in the
+controlled history. No probe redeployment is needed. Follow
+[PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md) for the live test procedure and completed verification record.
 
 The wider system's startup commands have not yet been defined.
 
