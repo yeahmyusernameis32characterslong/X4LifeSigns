@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": { "node": ">=24.21.0 <25" },
   "scripts": {
     "start": "node src/read-events.js",
-    "test": "node --test test/read-events.test.js"
+    "test": "node --test test/*.test.js"
   }
 }

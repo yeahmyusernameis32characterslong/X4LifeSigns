@@ -2,8 +2,9 @@
 
 ## Current status
 
-The docking experiment has an automated test suite, with 19 local tests passing.
-**Experimental docking bridge verified in live X4.** Wider persistence, AI and voice
+The bridge/persistence suite has 42 local tests passing on Node.js v24.21.0.
+**Experimental docking bridge verified in live X4.** Optional SQLite persistence
+is **Implemented, live X4 verification pending.** Wider AI and voice
 criteria below describe future verification, not completed results.
 
 ## Docking bridge experiment
@@ -19,12 +20,28 @@ The completed owner-reported live results, tested revision and limitations are
 recorded in [the live verification record](docs/BRIDGE_EXPERIMENT.md#live-verification-record-5-october-2026).
 Only the experimental docking bridge is verified, not the wider milestone.
 
+## Docking persistence experiment
+
+Run `npm.cmd --prefix bridge test` to run all test files, using temporary
+databases and synthetic logs. Checks include committed readback, a separate
+process after graceful shutdown, restart without replay, repeated dockings as
+separate rows, manual database separation, incompatible/corrupt files remaining
+unchanged, read-only missing-file refusal and real write-lock failures with no
+false success. The original reader/deployment tests still pass.
+
+Keep X4 running during the initial live test: one docking -> stop writer ->
+separate readback -> restart without docking -> unchanged count -> another
+docking -> two distinct record IDs. Choose a fresh file for another save/universe
+or game reload. See [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
+This establishes no identity continuity across game reloads.
+
 ## Proposed first milestone: Remember one real event
 
 Use one real X4 event involving one identifiable entity. The current contained
 docking experiment tests the capture-to-console boundary first, using an
 installed-schema/shipped-code hook. Its live docking path has passed the
-owner-reported checks; persistence and permanent identity still require verification.
+owner-reported checks. SQLite persistence has automated checks and awaits live
+verification; permanent identity remains unverified.
 
 Acceptance criteria:
 
@@ -41,8 +58,8 @@ A simulated event can test external handling and persistence, but it does not pr
 
 The wider milestone uses text and does not require a language model or voice.
 The current experiment's commands and in-game steps are in
-[BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md); persistence checks will be
-added with that implementation.
+[BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md); persistence checks are
+documented in [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
 
 ## Future voice and combined AI checks
 

@@ -6,6 +6,8 @@ logs/
 *.db
 *.db-shm
 *.db-wal
+*.db-journal
+local-data/
 dist/
 temp/
 tmp/

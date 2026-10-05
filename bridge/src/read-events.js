@@ -1,4 +1,4 @@
-import { open } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -17,10 +17,16 @@ export function parseRecord(line) {
 }
 
 export function parseArgs(args) {
-  if (args.length !== 2 || args[0] !== '--log' || !args[1] || args[1].startsWith('--')) {
-    throw new Error('Usage: node bridge/src/read-events.js --log <path>');
+  const options = {};
+  for (let i = 0; i < args.length; i += 2) {
+    const key = args[i];
+    if (!['--log', '--db'].includes(key) || options[key] || !args[i + 1] || args[i + 1].startsWith('--')) {
+      throw new Error('Usage: node bridge/src/read-events.js --log <path> [--db <database>]');
+    }
+    options[key] = resolve(args[i + 1]);
   }
-  return resolve(args[1]);
+  if (!options['--log']) throw new Error('Usage: node bridge/src/read-events.js --log <path> [--db <database>]');
+  return { logPath: options['--log'], dbPath: options['--db'] };
 }
 
 async function readAt(handle, position, length) {
@@ -65,12 +71,14 @@ export async function createTail(logPath, { onRecord = () => {}, onWarning = () 
           onWarning('Log line exceeds 64 KiB; discarded');
         } else {
           const line = Buffer.concat([pending, part]).toString('utf8').replace(/\r$/, '');
+          let record;
           try {
-            const record = parseRecord(line);
-            if (record) onRecord(record);
+            record = parseRecord(line);
           } catch (error) {
             onWarning(error.message);
           }
+          // Only parser errors are recoverable here. Storage/callback errors propagate.
+          if (record) onRecord(record);
         }
       }
       pending = Buffer.alloc(0);
@@ -130,17 +138,39 @@ export async function createTail(logPath, { onRecord = () => {}, onWarning = () 
 }
 
 async function main() {
-  const logPath = parseArgs(process.argv.slice(2));
-  const tail = await createTail(logPath, {
-    onRecord: ({ ship, destination }) => console.log(`Docking acknowledged: ship ${ship} -> destination ${destination}`),
-    onWarning: (message) => console.error(`Bridge warning: ${message}`)
-  });
-  console.log(`Watching from current end: ${logPath}`);
+  const { logPath, dbPath } = parseArgs(process.argv.slice(2));
   const controller = new AbortController();
   const stop = () => controller.abort();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
+  let store;
   try {
+    if (dbPath) {
+      // Never let an empty log be initialised as a database, including hard links.
+      const fold = (path) => process.platform === 'win32' ? path.toLowerCase() : path;
+      if (fold(logPath) === fold(dbPath)) throw new Error('--db must be a different file from --log');
+      const fileStat = async (path) => {
+        try { return await stat(path); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      };
+      const [logInfo, dbInfo] = await Promise.all([fileStat(logPath), fileStat(dbPath)]);
+      if (logInfo && dbInfo && logInfo.dev === dbInfo.dev && logInfo.ino === dbInfo.ino) {
+        throw new Error('--db must be a different file from --log');
+      }
+      // Validate/open storage before watching the log. Console-only needs no SQLite import.
+      store = (await import('./event-store.js')).openEventStore(dbPath);
+    }
+    const tail = await createTail(logPath, {
+      onRecord: (record) => {
+        if (store) {
+          const row = store.persist(record);
+          console.log(`Docking persisted: ${JSON.stringify(row)}`);
+        } else {
+          console.log(`Docking acknowledged: ship ${record.ship} -> destination ${record.destination}`);
+        }
+      },
+      onWarning: (message) => console.error(`Bridge warning: ${message}`)
+    });
+    console.log(`Watching from current end: ${logPath}`);
     while (!controller.signal.aborted) {
       await tail.poll();
       await delay(250, undefined, { signal: controller.signal });
@@ -150,6 +180,7 @@ async function main() {
   } finally {
     process.removeListener('SIGINT', stop);
     process.removeListener('SIGTERM', stop);
+    store?.close();
   }
 }
 

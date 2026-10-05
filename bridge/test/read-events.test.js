@@ -38,9 +38,24 @@ test('rejects malformed marked records and extra fields', () => {
 });
 
 test('requires an explicit log path and rejects unknown arguments', () => {
-  assert.equal(parseArgs(['--log', 'example.txt']), resolve('example.txt'));
+  assert.deepEqual(parseArgs(['--log', 'example.txt']), { logPath: resolve('example.txt'), dbPath: undefined });
+  assert.deepEqual(parseArgs(['--db', 'events.db', '--log', 'example.txt']),
+    { logPath: resolve('example.txt'), dbPath: resolve('events.db') });
   for (const args of [[], ['--log'], ['--log', ''], ['--log', '--other'],
-    ['--other', 'x'], ['--log', 'x', '--extra']]) assert.throws(() => parseArgs(args), /Usage/);
+    ['--other', 'x'], ['--log', 'x', '--extra'], ['--log', 'x', '--db'],
+    ['--log', 'x', '--log', 'y'], ['--db', 'x']]) assert.throws(() => parseArgs(args), /Usage/);
+});
+
+test('onRecord errors propagate instead of being reported as malformed records', async (t) => {
+  const f = await fixture(t);
+  const warnings = [];
+  const tail = await createTail(f.log, {
+    onRecord: () => { throw new Error('storage failed'); },
+    onWarning: (message) => warnings.push(message)
+  });
+  await appendFile(f.log, record() + '\n');
+  await assert.rejects(tail.poll(), /storage failed/);
+  assert.deepEqual(warnings, []);
 });
 
 test('starts at EOF and never replays old complete records', async (t) => {

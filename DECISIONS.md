@@ -13,6 +13,18 @@ Lua or communication back into X4 is added. The probe uses `save="0"` and a
 separate test save. Status: **Experimental docking bridge verified in live X4.**
 Details and installed evidence: [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md).
 
+## Docking persistence experiment
+
+Use built-in `node:sqlite` on confirmed Node.js v24.21.0; no database server or
+npm database package. Optional `--db` commits one row per docking, reads it back
+and acknowledges stored values. A separate read-only process verifies Node
+restart persistence while X4 stays running. Schema version 1 is documented in
+DATABASE.md. Incompatible files are rejected without migration or repair.
+Manually choose one database per controlled history and a fresh file for another
+save/universe or reload. ID codes are not claimed permanently unique. Status:
+**Implemented, live X4 verification pending.** Original bridge verification
+remains unchanged.
+
 ## Repository naming
 
 The X4 implementation is called:
@@ -40,6 +52,8 @@ The repository should not be stored inside OneDrive or another synchronised fold
 These are the wider design choices. Only the contained MD docking probe and
 Node.js log reader have been implemented and verified in live X4 for this
 experiment, based on owner-reported results.
+Optional SQLite docking storage is implemented; its live verification is
+pending. No wider memory or AI/voice system is implemented.
 The project currently intends to use:
 
 - X4 Mission Director

@@ -79,7 +79,10 @@ The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernamei
 
 ## Database rules
 
-SQLite is the intended store for persistent Life Signs data; no database implementation or schema exists yet.
+The controlled docking experiment uses Node's built-in SQLite and a version-1
+docking_events table. See DATABASE.md. Wider persistence remains planned. Use a
+fresh database for another save/universe or game reload; no automatic save
+identification or permanent ID-code uniqueness is established.
 
 Database changes must be deliberate and documented.
 
