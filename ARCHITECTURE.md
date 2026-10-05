@@ -3,18 +3,19 @@
 ## Design status
 
 This document describes the proposed wider system. A contained MD docking probe
-and Node.js debug-log reader are implemented with automated checks; live X4
-verification is pending. No database or AI/voice integration is implemented.
+and Node.js debug-log reader have automated checks and owner-reported live X4
+verification. No database or AI/voice integration is implemented.
 
 The following boundaries remain unproven:
 
-- capturing a suitable real X4 event through MD or Lua
-- communicating between X4 and the external service
+- capturing game events beyond the tested personally controlled docking probe
+- communicating through a production transport beyond the experimental log reader
 - obtaining and preserving entity identity across the required lifetime
 - returning responses to X4
 
 The installed X4 9.00 docking hook and an experimental marked debug-log format
-are documented below. The live path and production transport remain unverified.
+are documented below. The experimental docking-to-console path has been verified
+in live X4; production transport remains unverified.
 The wider flows describe intent, not working connections.
 
 ## Purpose
@@ -27,8 +28,7 @@ Its purpose is to make the game world feel more alive by allowing NPCs, ships, s
 
 The contained docking experiment follows completed personally controlled ship
 docking -> Mission Director -> marked debug log -> read-only Node.js reader ->
-console acknowledgement. It uses no Lua or return path. Status: **Implemented,
-live X4 verification pending.** This is experimental observation, not the
+console acknowledgement. It uses no Lua or return path. Status: **Experimental docking bridge verified in live X4.** This is experimental observation, not the
 production transport or a persistent identity design. See
 [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for evidence and limitations.
 

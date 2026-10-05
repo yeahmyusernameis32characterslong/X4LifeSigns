@@ -4,7 +4,7 @@
 
 The repository contains a contained MD docking probe, a Node.js debug-log reader,
 a deployment script and automated tests alongside design documentation and
-artwork. **Implemented, live X4 verification pending.** Wider services remain
+artwork. **Experimental docking bridge verified in live X4.** Wider services remain
 planned. The reader was tested locally with Node.js v24.21.0.
 
 This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
@@ -183,7 +183,7 @@ node .\bridge\src\read-events.js --log 'YOUR_CONFIRMED_DEBUG_LOG'
 Launch X4 with logging enabled before starting the reader, and start the reader
 before performing a new docking. See
 [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for deployment, logging and
-the manual in-game test. **Implemented, live X4 verification pending.**
+the manual in-game test. **Experimental docking bridge verified in live X4.**
 
 The wider system's startup commands have not yet been defined.
 

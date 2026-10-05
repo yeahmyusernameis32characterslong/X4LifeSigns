@@ -1,6 +1,6 @@
 # Docking debug-log experiment
 
-Status: **Implemented, live X4 verification pending.**
+Status: **Experimental docking bridge verified in live X4.**
 
 This experiment observes completed docking while the player is personally at the
 ship's controls, writes one marked X4 debug record and acknowledges it in a local
@@ -169,10 +169,39 @@ acknowledgement from a synthetic log append. Deployment checks run on Windows.
 The probe was validated with .NET `XmlReader` using the extracted installed
 `libraries/md.xsd` and its `common.xsd` include; the manifest was checked for XML
 well-formedness. Schema validation checks structure and attributes, not runtime
-MD expression semantics or whether X4 loads this extension. Live event capture,
-filtering, ID values, repeated docking and debug output still require the manual
-X4 test above.
+MD expression semantics or whether X4 loads this extension. The separate
+owner-reported live results below cover the experimental docking path; automated
+checks alone do not establish live behaviour.
 
 Local results on Node.js `v24.21.0`: 19 tests passed, zero failures or skips;
 installed MD schema validation passed; manifest XML parsed successfully;
 JavaScript syntax check and `git diff --check` passed.
+
+## Live verification record: 5 October 2026
+
+Status: **Experimental docking bridge verified in live X4.** Evidence is the
+owner's reported manual test results on X4 9.00 for PR #4's implementation at
+`8b44b4d4ee0c3c6b4835a52bb1d7aec1db37607d`. This record is not an independent
+inspection of the owner's raw log; no personal paths, raw logs or saves are
+committed.
+
+- Three completed dockings produced exactly three bridge records.
+- The same ship ID and destination ID were observed consistently.
+- No duplicate records were observed while remaining docked.
+- Reader restart/no-replay passed.
+- Filtering behaved correctly: only the personally controlled ship was recorded;
+  other ships' dockings were not recorded by the reader.
+- The reader produced no warnings.
+- In both observations of delivery, the acknowledgement was already present
+  when the owner returned from X4 to the desktop. Exact latency was not measured;
+  no numerical latency or foreground/background delivery guarantee is claimed.
+- Unrelated disabled-mod/save errors were present in the X4 log. These are test
+  context only and did not prevent the bridge test succeeding. Investigate them
+  only if they interfere with later tests; this is not a claim of an error-free
+  game log or general mod compatibility.
+
+Verification covers only the experimental completed-docking -> marked debug
+output -> Node.js reader -> console acknowledgement path in the tested setup.
+It does not verify persistence, permanent identities, AI, voice, return-channel
+communication, production delivery guarantees or wider Life Signs functionality.
+The automated results above remain a separate evidence category.

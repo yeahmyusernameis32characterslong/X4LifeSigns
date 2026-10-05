@@ -221,17 +221,17 @@ The language model is simply the thing that turns that information back into nat
 
 The first contained experiment observes completed docking while the player is
 personally piloting, writes a marked X4 debug record and acknowledges it in a
-Node.js console. **Implemented, live X4 verification pending.** See
+Node.js console. **Experimental docking bridge verified in live X4.** See
 [the experiment instructions](docs/BRIDGE_EXPERIMENT.md) for installed X4 9.00
 evidence, automated tests and the manual test. This adds no persistent memories
 or AI interaction yet.
 
-> **Very early implementation; live X4 verification pending**
+> **Very early implementation; experimental docking bridge verified in live X4**
 
 The repository contains design documentation, artwork and the experimental MD
 probe and Node.js log reader. The wider mod and supporting services are planned.
 
-The architecture describes the intended system. The game integration and supporting services have not been verified.
+The architecture describes the intended wider system. Only the experimental docking bridge has been verified in live X4; wider integration and supporting services remain unverified.
 
 Major systems are still subject to change.
 

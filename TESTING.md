@@ -3,7 +3,7 @@
 ## Current status
 
 The docking experiment has an automated test suite, with 19 local tests passing.
-**Implemented, live X4 verification pending.** Wider persistence, AI and voice
+**Experimental docking bridge verified in live X4.** Wider persistence, AI and voice
 criteria below describe future verification, not completed results.
 
 ## Docking bridge experiment
@@ -13,15 +13,18 @@ temporary logs and a mock installation; they do not start X4 or edit its real
 log or save. The MD XML also requires validation against the installed X4 9.00
 schema. Follow [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for the live test:
 personally pilot, complete docking, undock and dock again, and check that other
-ships do not trigger the probe. Status: **Implemented, live X4 verification
-pending.**
+ships do not trigger the probe. Status: **Experimental docking bridge verified in live X4.**
+
+The completed owner-reported live results, tested revision and limitations are
+recorded in [the live verification record](docs/BRIDGE_EXPERIMENT.md#live-verification-record-5-october-2026).
+Only the experimental docking bridge is verified, not the wider milestone.
 
 ## Proposed first milestone: Remember one real event
 
 Use one real X4 event involving one identifiable entity. The current contained
 docking experiment tests the capture-to-console boundary first, using an
-installed-schema/shipped-code hook. The live path, persistence and permanent
-identity still require verification.
+installed-schema/shipped-code hook. Its live docking path has passed the
+owner-reported checks; persistence and permanent identity still require verification.
 
 Acceptance criteria:
 
