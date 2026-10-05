@@ -2,7 +2,10 @@
 
 ## Current status
 
-The repository contains design documentation and artwork only. There is no runnable application, dependency manifest, deployment script or automated test suite.
+The repository contains a contained MD docking probe, a Node.js debug-log reader,
+a deployment script and automated tests alongside design documentation and
+artwork. **Experimental docking bridge verified in live X4.** Wider services remain
+planned. The reader was tested locally with Node.js v24.21.0.
 
 This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
 
@@ -129,9 +132,16 @@ The repository .gitignore excludes .env files.
 
 ## Versions and integration setup
 
-Tested dependency versions, speech model choices and installation commands will be documented with the first implementation that uses them. The bridge, database library and voice integration methods are not yet established.
+The first experimental bridge uses Node.js built-ins and an X4 debug-log reader;
+see [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md). Production transport,
+database library, speech model choices and voice integration remain undecided.
 
 ## X4 installation
+
+Supply your local installation with `-GamePath` to
+`scripts/deploy-bridge-probe.ps1`. The experiment deploys only into
+`extensions\lifesigns_bridge_probe`. Machine-specific game and log paths are
+kept out of the experimental files.
 
 A generic Steam installation example is `C:\Program Files (x86)\Steam\steamapps\common\X4 Foundations`. Record your actual installation and test extension deployment paths in the ignored `SETUP.local.md` file.
 
@@ -162,9 +172,23 @@ Ignore rules do not protect an already tracked file. Do not force-add local file
 
 ## Starting the project
 
-The final development startup commands have not yet been defined.
+The first experiment requires Node.js 22 or newer and no npm dependencies:
 
-The following are illustrative future commands. They cannot currently start or test this project because no application or npm scripts exist yet.
+```powershell
+npm.cmd --prefix bridge test
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION'
+node .\bridge\src\read-events.js --log 'YOUR_CONFIRMED_DEBUG_LOG'
+```
+
+Launch X4 with logging enabled before starting the reader, and start the reader
+before performing a new docking. See
+[BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for deployment, logging and
+the manual in-game test. **Experimental docking bridge verified in live X4.**
+
+The wider system's startup commands have not yet been defined.
+
+The following are illustrative future commands for the wider system. For the
+current experiment use the explicit commands above.
 
 The aim is eventually to provide simple commands such as:
 

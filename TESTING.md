@@ -2,11 +2,29 @@
 
 ## Current status
 
-No executable tests or runnable implementation exist yet. The criteria below describe required future verification, not completed results.
+The docking experiment has an automated test suite, with 19 local tests passing.
+**Experimental docking bridge verified in live X4.** Wider persistence, AI and voice
+criteria below describe future verification, not completed results.
+
+## Docking bridge experiment
+
+Run `npm.cmd --prefix bridge test` from the repository. The tests use synthetic
+temporary logs and a mock installation; they do not start X4 or edit its real
+log or save. The MD XML also requires validation against the installed X4 9.00
+schema. Follow [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md) for the live test:
+personally pilot, complete docking, undock and dock again, and check that other
+ships do not trigger the probe. Status: **Experimental docking bridge verified in live X4.**
+
+The completed owner-reported live results, tested revision and limitations are
+recorded in [the live verification record](docs/BRIDGE_EXPERIMENT.md#live-verification-record-5-october-2026).
+Only the experimental docking bridge is verified, not the wider milestone.
 
 ## Proposed first milestone: Remember one real event
 
-Use one real X4 event involving one identifiable entity. Docking is a candidate only, pending verification of a suitable hook and bridge.
+Use one real X4 event involving one identifiable entity. The current contained
+docking experiment tests the capture-to-console boundary first, using an
+installed-schema/shipped-code hook. Its live docking path has passed the
+owner-reported checks; persistence and permanent identity still require verification.
 
 Acceptance criteria:
 
@@ -21,7 +39,10 @@ Document what was actually tested, including X4 version, repository revision, re
 
 A simulated event can test external handling and persistence, but it does not prove live X4 capture or the bridge. If X4 cannot be run, report the milestone as only partially verified and supply the remaining in-game steps.
 
-The first milestone uses text and does not require a language model or voice system. Exact test commands, display location and in-game steps will be added with the implementation.
+The wider milestone uses text and does not require a language model or voice.
+The current experiment's commands and in-game steps are in
+[BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md); persistence checks will be
+added with that implementation.
 
 ## Future voice and combined AI checks
 

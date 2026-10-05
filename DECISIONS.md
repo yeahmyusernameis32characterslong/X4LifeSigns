@@ -2,6 +2,17 @@
 
 This document records important project decisions so they are not accidentally reversed later.
 
+## First docking experiment
+
+Prove only personally controlled completed docking through an MD debug record
+and a read-only Node.js console acknowledgement. Use the installed X4 9.00
+controlled-group and instantiated-cue pattern. Use game-derived `idcode` strings
+for this diagnostic record; this does not decide permanent database identities.
+Debug-log polling is experimental transport. No SQLite, AI, voice, networking,
+Lua or communication back into X4 is added. The probe uses `save="0"` and a
+separate test save. Status: **Experimental docking bridge verified in live X4.**
+Details and installed evidence: [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md).
+
 ## Repository naming
 
 The X4 implementation is called:
@@ -26,7 +37,10 @@ The repository should not be stored inside OneDrive or another synchronised fold
 
 ## Intended technology stack
 
-These are the current design choices, not implemented or verified integrations. The repository contains documentation and artwork only. The project currently intends to use:
+These are the wider design choices. Only the contained MD docking probe and
+Node.js log reader have been implemented and verified in live X4 for this
+experiment, based on owner-reported results.
+The project currently intends to use:
 
 - X4 Mission Director
 - X4 Lua
@@ -42,7 +56,10 @@ These are the current design choices, not implemented or verified integrations. 
 
 **Remember one real event** is the proposed first implementation milestone. Prove one real X4 event can reach a minimal Node.js service, be stored in SQLite and produce a text response grounded in that record. Verify that the record can be read after a service restart and remains associated with the same entity.
 
-Docking is a candidate event only. Verify the game hook and external communication route before committing to an event type or transport. The first milestone does not require language models or voice.
+The docking hook has now been inspected in installed X4 9.00 files. The first
+experiment above isolates capture and a console acknowledgement before any
+persistence work. The experimental live docking path has passed the reported
+checks; production transport and permanent identities remain unverified. The wider milestone does not require language models or voice.
 
 Acceptance criteria belong in [TESTING.md](TESTING.md). Record the eventual integration choices and their supporting evidence here when implementation establishes them.
 

@@ -219,11 +219,19 @@ The language model is simply the thing that turns that information back into nat
 
 ## Project Status
 
-> **Design stage; first working proof of concept planned**
+The first contained experiment observes completed docking while the player is
+personally piloting, writes a marked X4 debug record and acknowledges it in a
+Node.js console. **Experimental docking bridge verified in live X4.** See
+[the experiment instructions](docs/BRIDGE_EXPERIMENT.md) for installed X4 9.00
+evidence, automated tests and the manual test. This adds no persistent memories
+or AI interaction yet.
 
-The repository currently contains design documentation and artwork. No runnable mod or supporting service has been implemented.
+> **Very early implementation; experimental docking bridge verified in live X4**
 
-The architecture describes the intended system. The game integration and supporting services have not been verified.
+The repository contains design documentation, artwork and the experimental MD
+probe and Node.js log reader. The wider mod and supporting services are planned.
+
+The architecture describes the intended wider system. Only the experimental docking bridge has been verified in live X4; wider integration and supporting services remain unverified.
 
 Major systems are still subject to change.
 
@@ -241,7 +249,12 @@ Planned work includes:
 
 This is not currently a playable release.
 
-The proposed first milestone is **Remember one real event**: capture one real X4 event, send it to a minimal Node.js service, store it in SQLite and display text based on the stored record. The record must remain available after a service restart and associated with the same entity. Docking is a candidate event pending verification of its game hook and bridge. See [the acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
+The wider proposed milestone is **Remember one real event**: capture one real X4
+event, send it to a minimal Node.js service, store it in SQLite and display text
+based on the stored record. The record must remain available after a service
+restart and associated with the same entity. The current experiment isolates
+personally controlled docking capture and acknowledgement first; persistence is
+not implemented. See [the wider acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
 
 ---
 
