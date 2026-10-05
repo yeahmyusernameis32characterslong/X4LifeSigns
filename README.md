@@ -228,7 +228,7 @@ or AI interaction yet.
 
 Optional `--db` mode now commits each docking to SQLite and acknowledges the
 stored row. A separate read-only command retrieves rows after Node stops.
-**Persistence experiment: Implemented, live X4 verification pending.** Keep X4
+**Persistence experiment: Verified with live X4 docking across Node.js restarts.** Keep X4
 running during the Node restart test and use a fresh database after a game
 reload or for another save/universe. See
 [the persistence instructions](docs/PERSISTENCE_EXPERIMENT.md).
@@ -261,7 +261,8 @@ event, send it to a minimal Node.js service, store it in SQLite and display text
 based on the stored record. The record must remain available after a service
 restart and associated with the same entity. The current experiment isolates
 personally controlled docking capture, acknowledgement and optional SQLite
-storage first. Live persistence verification remains pending. See
+storage first. Controlled-session persistence across Node.js restarts is now
+verified from owner-reported live testing. See
 [the wider acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
 
 ---

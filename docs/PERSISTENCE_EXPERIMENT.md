@@ -1,6 +1,6 @@
 # Docking SQLite experiment
 
-Status: **Implemented, live X4 verification pending.**
+Status: **Verified with live X4 docking across Node.js restarts.**
 
 This extends the [verified docking bridge](BRIDGE_EXPERIMENT.md) with optional
 SQLite persistence. A new docking is inserted, committed, read back by event_id
@@ -127,9 +127,35 @@ On Windows, test-only IPC emits the real SIGINT handler to exercise graceful
 shutdown; the production writer has no IPC channel.
 
 **42 tests passed, zero failures or skips**, on Node.js v24.21.0. Synthetic
-Node-restart persistence is verified; live persistence remains pending. The
+Node-restart persistence is verified; the separate live results are recorded below. The
 original bridge's live verification record is preserved in BRIDGE_EXPERIMENT.md.
 
 Excluded: AI, Ollama, ChatGPT, voice, Aria, return-channel communication, broader
 memories, automatic save detection, identity across reloads and production
 delivery guarantees.
+
+## Live verification record: 5 October 2026
+
+Status: **Verified with live X4 docking across Node.js restarts.** This records
+owner-reported results for PR #5 implementation
+`dbaaca7317a5802f8e0c691537644acb95d940e5`, using the X4 9.00 / Node.js v24.21.0
+test setup. X4 remained running during the controlled Node restart/readback
+procedure. The evidence is the owner's written report, not an independent
+inspection of the local database or screenshot.
+
+- First docking persisted as `event_id` 1.
+- A separate readback process returned the identical stored row.
+- Restarting the writer without docking produced no extra row; count remained 1.
+- A second genuine docking persisted as `event_id` 2.
+- Final readback contained both rows and the final count was 2.
+- `ship_idcode` remained `AKE-642` and `destination_idcode` remained `OFW-333`.
+- The first row remained unchanged.
+- No reader or storage warnings were observed.
+
+This verifies the experimental live docking -> SQLite commit -> stored-row
+acknowledgement -> Node restart -> separate readback path in the tested setup.
+It does not verify permanent identity, continuity across game reloads, automatic
+save detection, deduplication, crash/power-loss guarantees, AI, voice,
+return-channel communication or broader Life Signs memory functionality.
+Automated results above remain separate from this owner-reported live evidence.
+No database files, raw logs or personal machine paths are committed.

@@ -4,7 +4,7 @@
 
 The bridge/persistence suite has 42 local tests passing on Node.js v24.21.0.
 **Experimental docking bridge verified in live X4.** Optional SQLite persistence
-is **Implemented, live X4 verification pending.** Wider AI and voice
+is **Verified with live X4 docking across Node.js restarts.** Wider AI and voice
 criteria below describe future verification, not completed results.
 
 ## Docking bridge experiment
@@ -33,15 +33,17 @@ Keep X4 running during the initial live test: one docking -> stop writer ->
 separate readback -> restart without docking -> unchanged count -> another
 docking -> two distinct record IDs. Choose a fresh file for another save/universe
 or game reload. See [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
-This establishes no identity continuity across game reloads.
+This establishes no identity continuity across game reloads. Completed
+owner-reported results and the tested revision are in the
+[live verification record](docs/PERSISTENCE_EXPERIMENT.md#live-verification-record-5-october-2026).
 
 ## Proposed first milestone: Remember one real event
 
 Use one real X4 event involving one identifiable entity. The current contained
 docking experiment tests the capture-to-console boundary first, using an
 installed-schema/shipped-code hook. Its live docking path has passed the
-owner-reported checks. SQLite persistence has automated checks and awaits live
-verification; permanent identity remains unverified.
+owner-reported checks. SQLite persistence has automated checks and owner-reported live
+verification across Node.js restarts; permanent identity remains unverified.
 
 Acceptance criteria:
 

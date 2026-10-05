@@ -3,7 +3,7 @@
 ## Current status
 
 The optional docking experiment is implemented using Node.js v24.21.0 and
-built-in `node:sqlite`. **Implemented, live X4 verification pending.** Automated
+built-in `node:sqlite`. **Verified with live X4 docking across Node.js restarts.** Automated
 tests prove synthetic persistence across Node restarts; the live test keeps X4
 running. No migration system or broader memory schema exists.
 

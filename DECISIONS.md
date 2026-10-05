@@ -22,7 +22,7 @@ restart persistence while X4 stays running. Schema version 1 is documented in
 DATABASE.md. Incompatible files are rejected without migration or repair.
 Manually choose one database per controlled history and a fresh file for another
 save/universe or reload. ID codes are not claimed permanently unique. Status:
-**Implemented, live X4 verification pending.** Original bridge verification
+**Verified with live X4 docking across Node.js restarts.** Original bridge verification
 remains unchanged.
 
 ## Repository naming
@@ -52,8 +52,8 @@ The repository should not be stored inside OneDrive or another synchronised fold
 These are the wider design choices. Only the contained MD docking probe and
 Node.js log reader have been implemented and verified in live X4 for this
 experiment, based on owner-reported results.
-Optional SQLite docking storage is implemented; its live verification is
-pending. No wider memory or AI/voice system is implemented.
+Optional SQLite docking storage is implemented and verified through
+owner-reported live docking and Node.js restart/readback checks. No wider memory or AI/voice system is implemented.
 The project currently intends to use:
 
 - X4 Mission Director

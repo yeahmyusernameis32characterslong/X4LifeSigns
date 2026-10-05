@@ -4,8 +4,8 @@
 
 This document describes the proposed wider system. A contained MD docking probe
 and Node.js debug-log reader have automated checks and owner-reported live X4
-verification. Optional docking SQLite persistence has automated checks; its
-live verification is pending. No AI/voice integration is implemented.
+verification. Optional docking SQLite persistence has automated checks and owner-reported
+live verification across Node.js restarts while X4 stayed running. No AI/voice integration is implemented.
 
 The following boundaries remain unproven:
 
@@ -95,7 +95,9 @@ Possible stored information includes:
 - conversation history
 - reputation or sentiment data
 
-No schema exists yet. Requirements and eventual schema details belong in DATABASE.md.
+The controlled docking experiment implements a version-1 `docking_events` schema.
+Wider memory schemas remain planned. See [DATABASE.md](DATABASE.md) for the
+implemented schema, requirements and experimental limitations.
 
 ### Local LLM
 

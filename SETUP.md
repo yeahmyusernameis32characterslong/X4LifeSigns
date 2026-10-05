@@ -8,7 +8,7 @@ artwork. **Experimental docking bridge verified in live X4.** Wider services rem
 planned. The reader was tested locally with Node.js v24.21.0.
 
 Optional docking persistence now uses built-in `node:sqlite` on that recorded
-version. **Implemented, live X4 verification pending.** No database server or
+version. **Verified with live X4 docking across Node.js restarts.** No database server or
 npm database dependency is needed.
 
 This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
@@ -204,7 +204,7 @@ The writer creates the database folder if missing. Keep actual paths in ignored
 SETUP.local.md. Use a fresh database for another save/universe or game reload;
 reuse the same database only for Node restarts while X4 remains running in the
 controlled history. No probe redeployment is needed. Follow
-[PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md) for the pending live test.
+[PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md) for the live test procedure and completed verification record.
 
 The wider system's startup commands have not yet been defined.
 
