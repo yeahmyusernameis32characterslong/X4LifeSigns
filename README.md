@@ -233,26 +233,17 @@ running during the Node restart test and use a fresh database after a game
 reload or for another save/universe. See
 [the persistence instructions](docs/PERSISTENCE_EXPERIMENT.md).
 
-> **Very early implementation; experimental docking bridge verified in live X4**
+> **Very early implementation; docking bridge and SQLite persistence across Node.js restarts verified in live X4**
 
 The repository contains design documentation, artwork and the experimental MD
-probe and Node.js log reader. The wider mod and supporting services are planned.
+probe, Node.js log reader and optional SQLite event storage. The wider mod and supporting services are planned.
 
-The architecture describes the intended wider system. Only the experimental docking bridge has been verified in live X4; wider integration and supporting services remain unverified.
+The architecture describes the intended wider system. The experimental docking bridge and SQLite docking persistence across Node.js restarts have been verified in live X4. Automatic session separation is the active investigation milestone. Automatic save/session continuity across reloads, permanent entity identity, AI, voice and return-channel communication remain unverified.
 
 Major systems are still subject to change.
 
-Planned work includes:
-
-- development environment
-- X4 integration design
-- persistent identity
-- SQLite architecture
-- Node.js service architecture
-- local LLM selection
-- speech recognition
-- speech synthesis
-- development and testing workflows
+Future work includes persistent entity identity and a return path to X4.
+Local LLM integration, voice input and output, and Aria are being explored.
 
 This is not currently a playable release.
 
@@ -264,6 +255,37 @@ personally controlled docking capture, acknowledgement and optional SQLite
 storage first. Controlled-session persistence across Node.js restarts is now
 verified from owner-reported live testing. See
 [the wider acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
+
+<table>
+  <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td valign="middle">X4 docking bridge</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
+    <tr><td valign="middle">SQLite persistence across Node.js restarts</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
+    <tr><td valign="middle">Automatic session separation</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
+    <tr><td valign="middle">Persistent entity identity</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
+    <tr><td valign="middle">Return path to X4</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
+    <tr><td valign="middle">Local LLM integration</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
+    <tr><td valign="middle">Voice input and output</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
+    <tr><td valign="middle">Aria</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
+  </tbody>
+</table>
+
+---
+
+## Project Structure
+
+| Path | Purpose |
+| --- | --- |
+| `extension/` | X4 extension and Mission Director docking probe. |
+| `bridge/` | Node.js log reader, SQLite storage, readback command and automated tests. |
+| `scripts/` | Deployment helper for the experimental extension. |
+| `docs/` | Experiment instructions, evidence and verification records. |
+| `assets/` | README artwork and status badges. |
+| `ARCHITECTURE.md` | System design and implementation boundaries. |
+| `DATABASE.md` | Current SQLite schema and persistence limitations. |
+| `DECISIONS.md` | Recorded project and technical decisions. |
+| `SETUP.md` | Development setup and local configuration guidance. |
+| `TESTING.md` | Automated checks, live test requirements and verification status. |
 
 ---
 
