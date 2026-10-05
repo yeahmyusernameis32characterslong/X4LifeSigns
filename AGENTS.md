@@ -71,12 +71,15 @@ Do not commit:
 - logs
 - temporary files
 - generated databases unless specifically approved
+- personal local paths, Windows usernames, OneDrive account paths or X4 profile IDs
 
-The authoritative repository is the private GitHub repository X4LifeSigns.
+Keep machine-specific setup notes in the ignored `SETUP.local.md` file. Use portable placeholders in shared documentation and sanitise PR descriptions, issues and diagnostic extracts before publishing. See [SETUP.md](SETUP.md#private-local-setup-notes).
+
+The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns).
 
 ## Database rules
 
-SQLite is used for persistent Life Signs data.
+SQLite is the intended store for persistent Life Signs data; no database implementation or schema exists yet.
 
 Database changes must be deliberate and documented.
 

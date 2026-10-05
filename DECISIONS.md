@@ -27,18 +27,18 @@ This naming leaves open the possibility of creating Life Signs implementations f
 
 ## Repository
 
-The authoritative repository is a private GitHub repository named X4LifeSigns.
+The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns).
 
 ## Local development folder
 
-The main local repository path is:
-
-C:\Projects\X4LifeSigns
+Choose a local repository folder, for example `C:\Projects\X4LifeSigns`. This is a generic example rather than a required path. Keep actual machine-specific paths in the ignored `SETUP.local.md` file; see [SETUP.md](SETUP.md#private-local-setup-notes).
 
 The repository should not be stored inside OneDrive or another synchronised folder.
 
-## Main technologies
+## Intended technology stack
 
+These are the wider design choices. Only the contained MD docking probe and
+Node.js log reader have been implemented; live X4 verification is pending.
 The project currently intends to use:
 
 - X4 Mission Director
@@ -50,6 +50,17 @@ The project currently intends to use:
 - faster-whisper
 - Kokoro
 - ChatGPT for selected richer interactions
+
+## Proposed first milestone
+
+**Remember one real event** is the proposed first implementation milestone. Prove one real X4 event can reach a minimal Node.js service, be stored in SQLite and produce a text response grounded in that record. Verify that the record can be read after a service restart and remains associated with the same entity.
+
+The docking hook has now been inspected in installed X4 9.00 files. The first
+experiment above isolates capture and a console acknowledgement before any
+persistence work. The live path, production transport and permanent identities
+remain unverified. The wider milestone does not require language models or voice.
+
+Acceptance criteria belong in [TESTING.md](TESTING.md). Record the eventual integration choices and their supporting evidence here when implementation establishes them.
 
 ## Separation from live game files
 

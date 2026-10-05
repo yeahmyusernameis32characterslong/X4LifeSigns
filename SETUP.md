@@ -1,14 +1,29 @@
 # X4LifeSigns Development Setup
 
+## Current status
+
+The repository contains a contained MD docking probe, a Node.js debug-log reader,
+a deployment script and automated tests alongside design documentation and
+artwork. **Implemented, live X4 verification pending.** Wider services remain
+planned. The reader was tested locally with Node.js v24.21.0.
+
+This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
+
 ## Operating system
 
 Windows
 
 ## Main project folder
 
-C:\Projects\X4LifeSigns
+Choose a local checkout folder outside synchronised storage, for example `C:\Projects\X4LifeSigns`. This is a generic example, not a required machine path. Record your actual location only in `SETUP.local.md`.
 
-## Required software
+## Tools recorded as installed
+
+The existing setup notes record DB Browser for SQLite and Codex CLI as installed. Codex CLI 0.160.0 was the version recorded during initial setup, not a verified current version.
+
+Installation status for the other tools below is not established by this repository. Verify locally when implementation requires them.
+
+## Development tools and intended dependencies
 
 ### Git
 
@@ -40,9 +55,9 @@ npm --version
 
 ### SQLite
 
-SQLite is used by the Node.js application for persistent storage.
+SQLite is intended to provide persistent storage for the planned Node.js application.
 
-DB Browser for SQLite is installed for manual inspection of development databases.
+DB Browser for SQLite was recorded as installed for manual inspection of development databases.
 
 ### Ollama
 
@@ -76,7 +91,7 @@ Piper may be installed later as a lightweight fallback text-to-speech engine if 
 
 ### Codex
 
-OpenAI Codex CLI is installed.
+OpenAI Codex CLI was recorded as installed.
 
 Check with:
 
@@ -115,12 +130,45 @@ Use environment variables or .env files where required.
 
 The repository .gitignore excludes .env files.
 
+## Versions and integration setup
+
+The first experimental bridge uses Node.js built-ins and an X4 debug-log reader;
+see [BRIDGE_EXPERIMENT.md](docs/BRIDGE_EXPERIMENT.md). Production transport,
+database library, speech model choices and voice integration remain undecided.
+
 ## X4 installation
 
 Supply your local installation with `-GamePath` to
 `scripts/deploy-bridge-probe.ps1`. The experiment deploys only into
 `extensions\lifesigns_bridge_probe`. Machine-specific game and log paths are
 kept out of the experimental files.
+
+A generic Steam installation example is `C:\Program Files (x86)\Steam\steamapps\common\X4 Foundations`. Record your actual installation and test extension deployment paths in the ignored `SETUP.local.md` file.
+
+Use `<X4 user data folder>` in public instructions for the folder containing your X4 profile's debug log and saves. For example:
+
+- Debug log: `<X4 user data folder>\debuglog.txt`
+- Separate test save: `<X4 user data folder>\save\<test save filename>`
+
+A conventional user-data location can be written as `%USERPROFILE%\Documents\Egosoft\X4\<X4 profile id>`. Documents may be redirected, including into OneDrive, so verify the actual location locally rather than assuming this example applies.
+
+`%USERPROFILE%` is Windows Command Prompt environment-variable syntax; use `$env:USERPROFILE` in PowerShell. Angle-bracket placeholders must be replaced locally and are not runnable paths.
+
+## Private local setup notes
+
+Create `SETUP.local.md` at the repository root for actual checkout, game, log, profile and test-save paths. Git ignores this filename. Keep the published guidance portable; never copy personal usernames, OneDrive account paths, profile IDs or raw logs into commits, issues, PR descriptions or screenshots.
+
+If environment configuration is needed later, `.env.local` is also ignored. No configuration loader is implemented; these files are a local documentation/configuration convention only.
+
+Before committing, check:
+
+```text
+git check-ignore SETUP.local.md .env.local
+git status --short
+git diff --cached
+```
+
+Ignore rules do not protect an already tracked file. Do not force-add local files. Review any shared extracts and replace personal values with placeholders first.
 
 ## Starting the project
 
@@ -138,6 +186,9 @@ before performing a new docking. See
 the manual in-game test. **Implemented, live X4 verification pending.**
 
 The wider system's startup commands have not yet been defined.
+
+The following are illustrative future commands for the wider system. For the
+current experiment use the explicit commands above.
 
 The aim is eventually to provide simple commands such as:
 
