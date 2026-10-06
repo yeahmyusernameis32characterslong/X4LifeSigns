@@ -5,6 +5,10 @@ X4 testing.** Fresh-game docking and old/corrected-save regression checks passed
 at `1953110`. Automatic session separation and guaranteed token uniqueness remain
 unverified. Original bridge/persistence results are unchanged.
 
+Follow-up: [session-key source prerequisite](SESSION_KEY_SOURCE_GATE.md) records
+the installed random-source inspection and proposes one independent reload
+diagnostic. Production remains blocked on random freshness and final key approval.
+
 ## Choice and installed evidence
 
 One separate MD script observes all three lifecycle events with instantiated root
