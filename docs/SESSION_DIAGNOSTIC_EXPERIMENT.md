@@ -1,7 +1,8 @@
 # Disposable session lifecycle diagnostic
 
-Status: **Implemented, live X4 verification pending.** Automatic session separation
-is not implemented or verified. Original bridge/persistence results are unchanged.
+Status: **Live loaded-save lifecycle/replacement behaviour observed; fresh-new-game
+docking verification inconclusive.** Automatic session separation is not implemented
+or verified. Original bridge/persistence results are unchanged.
 
 ## Choice and installed evidence
 
@@ -172,7 +173,7 @@ Installed MD schema validation checks XML structure/attributes, not runtime
 expression evaluation, lifecycle ordering, save restoration or token uniqueness.
 Run existing bridge/persistence tests plus opt-in deployment/rollback checks in a
 temporary mock installation. No real game deployment is performed by these
-checks. Live results remain pending and must be recorded separately.
+checks. Owner-reported live results are recorded separately below.
 
 Local automated results on Node.js v24.21.0: **43 tests passed, zero failures
 or skips**; both MD scripts validated against the installed X4 9.00 md.xsd
@@ -180,3 +181,84 @@ and common.xsd; git diff --check passed. The added mock test covers opt-in,
 redeployment, WhatIf, explicit removal, flag conflicts, default deployment and
 preservation of another extension. Schema validation does not prove expression
 evaluation or any live acceptance criterion.
+
+## Live results: 6 October 2026
+
+Owner-reported observations from the X4 9.00 diagnostic introduced by PR #9
+at `7d0eaa714c8faab97e390e7e5e3afcdee59e922d`. The report does not independently
+confirm the deployed checkout SHA or inspect raw logs/saves; confirm the tested
+revision when completing the remaining check. Tokens below are local-clock
+diagnostic values, not personal paths or production identifiers.
+
+In the table, **Loaded → Universe** means `event_game_loaded` followed by
+`event_universe_generated`; **Universe → Started** means
+`event_universe_generated` followed by `event_game_started`.
+
+| Scenario | Lifecycle / restored state | Assigned token | Docking / result |
+| --- | --- | --- | --- |
+| Initial loaded save | Loaded → Universe; UNSET | `2026-10-06_10-53-55` | Multiple genuine dockings used the same token. |
+| Node restart, no X4 reload | MD state retained; docking sequence continued | Unchanged `2026-10-06_10-53-55` | Docking token stayed stable; Node restart had no effect. |
+| Unchanged A reload 1 | Loaded → Universe; restored `2026-10-06_11-04-49` | `2026-10-06_13-48-07` | First docking used replacement. |
+| Unchanged A reload 2 | Loaded → Universe; same restored token | `2026-10-06_13-49-03` | First docking used replacement. |
+| Unchanged A reload 3 | Loaded → Universe; same restored token | `2026-10-06_13-52-02` | First docking used replacement; sequence rewound with saved state as expected. |
+| Different-universe B | Loaded → Universe; UNSET | `2026-10-06_13-54-24` | First docking used assigned token; B does not prove restoration of diagnostic state. |
+| B → A | Restored A token `2026-10-06_11-04-49`, then replaced | `2026-10-06_13-57-40` | First docking used replacement. |
+| Fresh new game | Universe → Started; Started saw assigned token; no duplicate assignment observed | `2026-10-06_14-01-17` | Neither listener emitted docking output in the fresh unsaved universe. **Docking inconclusive**, not an observed token failure. |
+| Full X4 restart / later load | A restored saved diagnostic state | `2026-10-06_15-27-36`, later `2026-10-06_15-30-28` | First observed docking used the latter token; no docking confirmation reported for the former. |
+| Already-docked save load | Restored `2026-10-06_20-43-37`, then replaced; no false docking on load | `2026-10-06_20-47-39` | Later genuine docking produced normal bridge and diagnostic records using replacement. |
+| Node absent, then started later | Both markers emitted in raw X4 log without Node | Current MD token unaffected by Node | Reader started at current end, replayed no prior bridge records and acknowledged the next genuine docking. |
+
+### Lifecycle and replacement assessment
+
+The loaded-save observations support recurring listeners, visible restored state,
+replacement by universe generation before the observed genuine dockings, and
+stable state during an uninterrupted loaded game including a Node restart.
+Sequence rewind is expected restoration behaviour, not a new-session identifier.
+Raw-log output establishes that MD emission is independent of Node.
+
+The fresh new game establishes observed lifecycle ordering and a single assignment,
+but does not establish token availability or stability at docking. Because both
+the normal and diagnostic listeners were silent, the report does not isolate the
+cause. Do not classify the silence as a token replacement failure or a passed
+docking test. Absence of diagnostic MD errors was not explicitly confirmed in this
+report and remains a completion check.
+
+### Candidate freshness assessment
+
+No newly assigned token repeated among the reported tests. Reappearance of A's
+saved token before replacement is expected and is not reuse of an assigned
+session token. These observations do **not** prove universal uniqueness.
+
+The candidate still has seconds resolution and uses a local wall clock; repeated
+clock values, clock changes or multiple assignments in one second can collide.
+The three A reloads were separated by at least 56 seconds and do not demonstrate
+same-second collision resistance. Production design must explicitly address
+freshness and safe handling of ambiguity rather than adopt this timestamp alone
+as a guaranteed unique session key.
+
+### Gate decision and one remaining targeted check
+
+**Loaded-save lifecycle/replacement sub-gate supported by the reported observations.
+The complete load/start-to-docking gate remains open.** One targeted fresh-new-game
+check is required before calling that complete gate passed. Production design
+discussion may proceed using these findings, but production implementation and
+Verified status must wait for the remaining evidence and a suitable token design.
+
+1. Confirm the deployed revision, diagnostic opt-in and logging with X4 closed.
+   Start a disposable new game that permits personally controlled ship docking.
+   Keep this universe uninterrupted and do not save/reload to obtain a docking
+   result; a reload would exercise the already tested loaded-save path.
+2. Capture Universe → Started records and their assigned token. Personally
+   complete two dockings, undocking between them, and inspect the raw log for
+   both markers. Both diagnostic docking records must use the startup token,
+   with no intervening assignment or UNSET/restored token.
+3. Check the log for errors mentioning either probe. Confirm no diagnostic MD
+   errors in the retained earlier runs too. Unrelated save/mod errors remain
+   context unless they interfere.
+4. If both listeners are still silent, retain the log and verify player control,
+   completed docking and controlled-group availability against installed evidence.
+   Report the shared docking-listener gap separately. Do not modify token logic
+   or production handling merely to make this check pass.
+
+Retain PR #9 unmerged for review. Automatic session separation remains unverified;
+no automatic routing, schema changes or production session handling is added.
