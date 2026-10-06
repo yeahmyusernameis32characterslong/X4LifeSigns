@@ -1,7 +1,7 @@
 # Disposable session lifecycle diagnostic
 
-Status: **Live loaded-save lifecycle/replacement behaviour observed; fresh-new-game
-docking verification inconclusive.** Automatic session separation is not implemented
+Status: **Live loaded-save lifecycle/replacement behaviour observed; fresh-game
+docking startup defect identified and correction awaiting retest.** Automatic session separation is not implemented
 or verified. Original bridge/persistence results are unchanged.
 
 ## Choice and installed evidence
@@ -10,8 +10,9 @@ One separate MD script observes all three lifecycle events with instantiated roo
 cues. Only `event_universe_generated` assigns the candidate: its installed
 description covers both save loading and new-game generation. This tests whether
 that callback replaces restored state before personally controlled docking.
-Neither other observer nor docking creates or repairs a token. No delays, timers,
-cue resets or assumed callback ordering are used.
+Neither other observer nor docking creates or repairs a token. Lifecycle observers
+use no delays, timers, cue resets or assumed callback ordering. Docking subscription
+now waits separately for the controlled group to exist, as described below.
 
 | Installed X4 9.00 file | Supporting evidence |
 | --- | --- |
@@ -64,7 +65,9 @@ LIFESIGNS_SESSION_DIAG_V1|lifecycle|callback=event_universe_generated|phase=assi
 LIFESIGNS_SESSION_DIAG_V1|docked|seq=9|token=2026-10-06_12-05-00|ship=ABC-123|destination=DEF-456|END
 ```
 
-Existing `LIFESIGNS_BRIDGE_V1` records and reader are unchanged. Diagnostic
+Existing `LIFESIGNS_BRIDGE_V1` records and reader are unchanged. Both MD docking
+listeners now sit beneath a controlled-group readiness cue; their event filters
+and output actions are unchanged. Diagnostic
 records are inspected directly, never sent to SQLite. Use console-only Node.
 
 ## Deploy, observe and remove
@@ -203,7 +206,7 @@ In the table, **Loaded → Universe** means `event_game_loaded` followed by
 | Unchanged A reload 3 | Loaded → Universe; same restored token | `2026-10-06_13-52-02` | First docking used replacement; sequence rewound with saved state as expected. |
 | Different-universe B | Loaded → Universe; UNSET | `2026-10-06_13-54-24` | First docking used assigned token; B does not prove restoration of diagnostic state. |
 | B → A | Restored A token `2026-10-06_11-04-49`, then replaced | `2026-10-06_13-57-40` | First docking used replacement. |
-| Fresh new game | Universe → Started; Started saw assigned token; no duplicate assignment observed | `2026-10-06_14-01-17` | Neither listener emitted docking output in the fresh unsaved universe. **Docking inconclusive**, not an observed token failure. |
+| Fresh new game | Universe → Started; Started saw assigned token; no duplicate assignment observed | `2026-10-06_14-01-17` | Neither listener emitted docking output. Follow-up identified premature group lookup during startup; post-fix docking remains pending. |
 | Full X4 restart / later load | A restored saved diagnostic state | `2026-10-06_15-27-36`, later `2026-10-06_15-30-28` | First observed docking used the latter token; no docking confirmation reported for the former. |
 | Already-docked save load | Restored `2026-10-06_20-43-37`, then replaced; no false docking on load | `2026-10-06_20-47-39` | Later genuine docking produced normal bridge and diagnostic records using replacement. |
 | Node absent, then started later | Both markers emitted in raw X4 log without Node | Current MD token unaffected by Node | Reader started at current end, replayed no prior bridge records and acknowledged the next genuine docking. |
@@ -217,10 +220,8 @@ Sequence rewind is expected restoration behaviour, not a new-session identifier.
 Raw-log output establishes that MD emission is independent of Node.
 
 The fresh new game establishes observed lifecycle ordering and a single assignment,
-but does not establish token availability or stability at docking. Because both
-the normal and diagnostic listeners were silent, the report does not isolate the
-cause. Do not classify the silence as a token replacement failure or a passed
-docking test. Absence of diagnostic MD errors was not explicitly confirmed in this
+but does not establish token availability or stability at docking. Follow-up startup errors below identify a shared docking subscription defect.
+Do not classify that defect as a token replacement failure or a passed docking test. Absence of diagnostic MD errors was not explicitly confirmed in this
 report and remains a completion check.
 
 ### Candidate freshness assessment
@@ -236,29 +237,86 @@ same-second collision resistance. Production design must explicitly address
 freshness and safe handling of ambiguity rather than adopt this timestamp alone
 as a guaranteed unique session key.
 
-### Gate decision and one remaining targeted check
+### Fresh-game startup defect and correction
 
-**Loaded-save lifecycle/replacement sub-gate supported by the reported observations.
-The complete load/start-to-docking gate remains open.** One targeted fresh-new-game
-check is required before calling that complete gate passed. Production design
-discussion may proceed using these findings, but production implementation and
-Verified status must wait for the remaining evidence and a suitable token design.
+The owner's targeted fresh unsaved new game produced these errors at game time
+`0.00` in both `md.LifeSigns_BridgeProbe.PlayerControlledDocked` and
+`md.LifeSigns_SessionDiagnostic.PlayerControlledDocked`:
 
-1. Confirm the deployed revision, diagnostic opt-in and logging with X4 closed.
-   Start a disposable new game that permits personally controlled ship docking.
-   Keep this universe uninterrupted and do not save/reload to obtain a docking
-   result; a reload would exercise the already tested loaded-save path.
-2. Capture Universe → Started records and their assigned token. Personally
-   complete two dockings, undocking between them, and inspect the raw log for
-   both markers. Both diagnostic docking records must use the startup token,
-   with no intervening assignment or UNSET/restored token.
-3. Check the log for errors mentioning either probe. Confirm no diagnostic MD
-   errors in the retained earlier runs too. Unrelated save/mod errors remain
-   context unless they interfere.
-4. If both listeners are still silent, retain the log and verify player control,
-   completed docking and controlled-group availability against installed evidence.
-   Report the shared docking-listener gap separately. Do not modify token logic
-   or production handling merely to make this check pass.
+```text
+Property lookup failed: global.$PlayerControlledGroup
+Evaluated value 'null' is not of type group
+```
 
-Retain PR #9 unmerged for review. Automatic session separation remains unverified;
-no automatic routing, schema changes or production session handling is added.
+Immediately afterwards universe generation assigned
+`2026-10-06_21-09-20` from UNSET (seq 1, assignments 1), then game start
+observed that same token (seq 2). Only one assignment occurred. This supports
+normal token lifecycle behaviour while identifying premature evaluation of the
+docking event's group before shipped setup creates it. Loaded-save docking
+remains verified at the earlier tested revisions.
+
+Both scripts now put the unchanged instantiated docking listener under one
+non-instantiated `WaitForPlayerControlledGroup` cue, with `checkinterval="1s"`
+and `check_value value="global.$PlayerControlledGroup?"`. The existence lookup
+does not dereference the absent group. The child subscription is enabled only
+after that condition succeeds. The readiness cue completes once, so it does not
+continually create subscriptions; the child remains instantiated for repeated
+dockings. Nothing creates/replaces the shipped group or assigns a token here.
+
+The [Egosoft Mission Director Guide](https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/)
+documents child conditions becoming enabled after parent activation, and
+repeated non-event condition checks using `checkinterval`. This gates on actual
+existence rather than assuming a fixed startup delay or callback order.
+Registration can wait up to a polling interval after group creation; dockings
+before registration are not captured. Production delivery guarantees remain
+outside this experiment.
+
+The cue hierarchy changes. Use fresh disposable test state for validation;
+do not treat previously saved cue state as verification of the corrected scripts.
+The installed X4 9.00 schemas are unavailable in this remote review environment,
+so the corrected scripts still require local installed-schema validation.
+XML well-formedness and Node tests cannot prove MD runtime behaviour.
+
+### Gate decision and minimum correction retest
+
+**Loaded-save lifecycle/replacement observations remain supported. The complete
+load/start-to-docking gate remains open pending the corrected fresh-game test.**
+The previous new-game silence is now explained by a docking listener startup
+defect, not evidence that the assigned token failed.
+
+1. With X4 closed, check out the corrected PR revision and validate both scripts
+   against the installed X4 9.00 MD schema. Record the deployed SHA and redeploy
+   using `-SessionDiagnostic`; the existing deployment commands above apply.
+2. Start a completely fresh disposable new game that allows personally controlled
+   ship docking. Keep the universe uninterrupted; do not save/reload to obtain
+   a docking result.
+3. Inspect the startup log. Confirm no errors from either Life Signs script,
+   especially no missing controlled-group or null-group errors. Capture the
+   universe-generated assignment and game-start observation of the same token.
+4. Personally complete two genuine dockings, undocking between them. Confirm
+   exactly two normal bridge records and two diagnostic docking records; both
+   diagnostic records must use the startup token, with no additional assignment.
+   Neither docking may report UNSET or a restored token.
+5. Retain the raw log locally and report the deployed SHA, callback order,
+   startup token, both docking tokens and Life Signs error check. Unrelated
+   pre-existing mod/save errors are context unless they interfere.
+
+As a small regression check after changing the normal listener's hierarchy,
+load a disposable save and complete one genuine docking, confirming both records
+and no Life Signs errors. Earlier loaded-save verification is not automatically
+verification of this corrected revision.
+
+If the minimum test fails, retain the evidence and investigate only readiness
+and docking registration. Token design, automatic routing and schema changes
+remain out of scope. Clock uniqueness still needs a suitable production design.
+
+Retain PR #9 unmerged pending this retest. Automatic session separation remains
+unverified; no production session handling is added.
+
+Correction checks in the remote Linux environment on Node.js v24.19.0:
+**41 tests passed, zero failures, two Windows deployment tests skipped**.
+Both corrected XML files parsed successfully; structural comparison confirmed
+that the original docking cue attributes, filters and actions are unchanged
+inside the new gate. Diff whitespace checks passed. Installed-schema validation
+and live X4 correction verification remain pending; earlier 43-test Windows
+results above describe the original diagnostic revision.

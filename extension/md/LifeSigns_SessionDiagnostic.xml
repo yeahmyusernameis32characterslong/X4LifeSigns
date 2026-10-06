@@ -59,18 +59,26 @@
         <set_value name="md.$LifeSignsSessionDiagCallback" exact="'event_universe_generated'" />
       </actions>
     </cue>
-    <cue name="PlayerControlledDocked" instantiate="true" namespace="this">
+    <!-- Enable the event subscription only after shipped setup creates its group. -->
+    <cue name="WaitForPlayerControlledGroup" checkinterval="1s">
       <conditions>
-        <event_object_docked group="global.$PlayerControlledGroup" />
-        <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+        <check_value value="global.$PlayerControlledGroup?" />
       </conditions>
-      <actions>
-        <set_value name="$CurrentToken" exact="'UNSET'" />
-        <do_if value="md.$LifeSignsSessionDiagToken?"><set_value name="$CurrentToken" exact="md.$LifeSignsSessionDiagToken" /></do_if>
-        <do_if value="not md.$LifeSignsSessionDiagSequence?"><set_value name="md.$LifeSignsSessionDiagSequence" exact="0" /></do_if>
-        <set_value name="md.$LifeSignsSessionDiagSequence" operation="add" />
-        <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|docked|seq=%s|token=%s|ship=%s|destination=%s|END'.[md.$LifeSignsSessionDiagSequence, $CurrentToken, event.object.idcode, event.param.idcode]" filter="general" context="false" />
-      </actions>
+      <cues>
+        <cue name="PlayerControlledDocked" instantiate="true" namespace="this">
+          <conditions>
+            <event_object_docked group="global.$PlayerControlledGroup" />
+            <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+          </conditions>
+          <actions>
+            <set_value name="$CurrentToken" exact="'UNSET'" />
+            <do_if value="md.$LifeSignsSessionDiagToken?"><set_value name="$CurrentToken" exact="md.$LifeSignsSessionDiagToken" /></do_if>
+            <do_if value="not md.$LifeSignsSessionDiagSequence?"><set_value name="md.$LifeSignsSessionDiagSequence" exact="0" /></do_if>
+            <set_value name="md.$LifeSignsSessionDiagSequence" operation="add" />
+            <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|docked|seq=%s|token=%s|ship=%s|destination=%s|END'.[md.$LifeSignsSessionDiagSequence, $CurrentToken, event.object.idcode, event.param.idcode]" filter="general" context="false" />
+          </actions>
+        </cue>
+      </cues>
     </cue>
   </cues>
 </mdscript>
