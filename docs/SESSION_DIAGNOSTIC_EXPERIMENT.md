@@ -1,7 +1,8 @@
 # Disposable session lifecycle diagnostic
 
 Status: **Live loaded-save lifecycle/replacement behaviour observed; fresh-game
-docking startup defect identified and correction awaiting retest.** Automatic session separation is not implemented
+docking readiness fix passed fresh-game testing; saved-cue hierarchy correction
+awaiting retest.** Automatic session separation is not implemented
 or verified. Original bridge/persistence results are unchanged.
 
 ## Choice and installed evidence
@@ -271,52 +272,89 @@ Registration can wait up to a polling interval after group creation; dockings
 before registration are not captured. Production delivery guarantees remain
 outside this experiment.
 
-The cue hierarchy changes. Use fresh disposable test state for validation;
-do not treat previously saved cue state as verification of the corrected scripts.
+The gated listener is named `PlayerControlledDockedReady`. Do not reuse the old
+`PlayerControlledDocked` name at a new position in the cue tree. Earlier diagnostic
+saves are deliberately included in the retest below; no save editing or purging
+is required.
 The installed X4 9.00 schemas are unavailable in this remote review environment,
 so the corrected scripts still require local installed-schema validation.
 XML well-formedness and Node tests cannot prove MD runtime behaviour.
 
-### Gate decision and minimum correction retest
+### Retest of 12e357f: fresh-game pass, loaded-save regression failure
 
-**Loaded-save lifecycle/replacement observations remain supported. The complete
-load/start-to-docking gate remains open pending the corrected fresh-game test.**
-The previous new-game silence is now explained by a docking listener startup
-defect, not evidence that the assigned token failed.
+Owner-reported test of corrected revision `12e357f`:
 
-1. With X4 closed, check out the corrected PR revision and validate both scripts
-   against the installed X4 9.00 MD schema. Record the deployed SHA and redeploy
-   using `-SessionDiagnostic`; the existing deployment commands above apply.
-2. Start a completely fresh disposable new game that allows personally controlled
-   ship docking. Keep the universe uninterrupted; do not save/reload to obtain
-   a docking result.
-3. Inspect the startup log. Confirm no errors from either Life Signs script,
-   especially no missing controlled-group or null-group errors. Capture the
-   universe-generated assignment and game-start observation of the same token.
-4. Personally complete two genuine dockings, undocking between them. Confirm
-   exactly two normal bridge records and two diagnostic docking records; both
-   diagnostic records must use the startup token, with no additional assignment.
-   Neither docking may report UNSET or a restored token.
-5. Retain the raw log locally and report the deployed SHA, callback order,
-   startup token, both docking tokens and Life Signs error check. Unrelated
-   pre-existing mod/save errors are context unless they interfere.
+| Scenario | Observed evidence | Result |
+| --- | --- | --- |
+| Fresh unsaved new game | No Life Signs missing-group/null-group errors. Token `2026-10-06_21-29-42` assigned once and retained by game start. | Readiness fix passed this startup test. |
+| First fresh-game docking | Ship `BQN-936`, destination `VYM-975`; diagnostic seq 3 used startup token; matching normal bridge record and Node acknowledgement. | Passed. |
+| Second fresh-game docking | Same ship, destination `LQZ-367`; diagnostic seq 4 used the same startup token; matching bridge record and acknowledgement. | Passed; token stable. |
+| Load earlier diagnostic save | Both scripts reported duplicate cue name `PlayerControlledDocked` (bridge line 11, diagnostic line 68); no docking records or Node acknowledgement followed. | **Loaded-save regression failed.** |
+| Lifecycle after that load | Saved token `2026-10-06_20-43-37` restored and replaced by `2026-10-06_21-40-13`. | Replacement still observed despite docking import failure. |
 
-As a small regression check after changing the normal listener's hierarchy,
-load a disposable save and complete one genuine docking, confirming both records
-and no Life Signs errors. Earlier loaded-save verification is not automatically
-verification of this corrected revision.
+The earlier loaded-save results remain historical evidence at their tested
+revisions. They do not establish that revision 12e357f works on those saves.
 
-If the minimum test fails, retain the evidence and investigate only readiness
-and docking registration. Token design, automatic routing and schema changes
-remain out of scope. Clock uniqueness still needs a suitable production design.
+### Saved-cue correction
 
-Retain PR #9 unmerged pending this retest. Automatic session separation remains
-unverified; no production session handling is added.
+The MD guide's **MD refreshing and patching / Details and restrictions** explains
+that saved MD state is refreshed against current scripts on load. A cue cannot
+move between parents under its existing name: it must receive a new name.
+Removed cue nodes and their instances are removed; new names create new cues.
 
-Correction checks in the remote Linux environment on Node.js v24.19.0:
-**41 tests passed, zero failures, two Windows deployment tests skipped**.
-Both corrected XML files parsed successfully; structural comparison confirmed
-that the original docking cue attributes, filters and actions are unchanged
-inside the new gate. Diff whitespace checks passed. Installed-schema validation
-and live X4 correction verification remain pending; earlier 43-test Windows
-results above describe the original diagnostic revision.
+The readiness patch moved `PlayerControlledDocked` from the root into
+`WaitForPlayerControlledGroup` while retaining its name. This violates that
+documented refresh restriction and matches the reported duplicate-name errors.
+There is only one such name in each source XML; this is a saved-tree refresh
+conflict, not two duplicate definitions in the source.
+
+The smallest correction renames the gated child in both scripts to
+`PlayerControlledDockedReady`. The readiness parent stays in place.
+No event condition, player filter, action, record, lifecycle cue or token
+expression changes. Refresh is expected to remove the old listener instances
+and add the new gated child. This must be verified against old diagnostic saves,
+including absence of duplicate records. No manual save manipulation or cleanup
+load is part of the test. Reserve the retired name; do not reuse it in a future
+cue position. This is a disposable experiment correction, not a general save
+migration system.
+
+### Gate decision and minimum retest
+
+**Fresh-game readiness at 12e357f passed; loaded-save regression failed.**
+The complete gate stays open until the renamed-listener revision passes:
+
+1. With X4 closed, validate both corrected MD files against the installed X4 9.00
+   schema, record the deployed SHA and redeploy with `-SessionDiagnostic`.
+2. Start a completely fresh disposable new game. Confirm no Life Signs MD errors,
+   including missing/null-group and duplicate-cue errors. Complete two genuine
+   personally controlled dockings without saving/reloading. Expect exactly two
+   records per marker and two Node acknowledgements; both diagnostic records
+   must use the single startup token.
+3. Load unchanged disposable A from the original root-listener diagnostic revision,
+   preserving its old saved cue state. Confirm no Life Signs import/runtime errors.
+   Show restored token, replacement assignment, then two genuine dockings using
+   the replacement token. Expect one normal record, one diagnostic record and
+   one Node acknowledgement per docking, with no surviving duplicate listener.
+4. Save a new disposable copy under this correction, reload it once and genuinely
+   dock. Confirm recurring subscription, token replacement and exactly one record
+   per marker. Do not overwrite A.
+5. If a disposable save made at 12e357f exists, also load it unchanged and genuinely
+   dock once. This checks refresh from the previous nested-listener layout as well
+   as the original root layout; record if no such fixture is available.
+
+Keep X4 logs and saves local. Report revision, errors checked, callback order,
+restored/replacement tokens and record counts. Unrelated mod/save errors remain
+context unless they interfere.
+
+Installed-schema validation and the live saved-state checks are still required.
+Renaming alone is not proof of successful refresh. If a check fails, retain the
+evidence and investigate only docking readiness and saved-cue compatibility.
+
+PR #9 remains unmerged pending retest. Automatic session separation remains
+unverified; token design, routing and SQLite schema remain unchanged.
+
+Correction validation: the name-only XML changes preserve the readiness gate,
+docking conditions/actions and lifecycle logic. XML well-formedness and diff
+whitespace are checked remotely; installed-schema/runtime save refresh require
+local validation. Earlier remote suite results were 41 passes and two Windows
+deployment skips on Node.js v24.19.0; original Windows results remain separate.

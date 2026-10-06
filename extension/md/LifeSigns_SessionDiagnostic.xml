@@ -65,7 +65,7 @@
         <check_value value="global.$PlayerControlledGroup?" />
       </conditions>
       <cues>
-        <cue name="PlayerControlledDocked" instantiate="true" namespace="this">
+        <cue name="PlayerControlledDockedReady" instantiate="true" namespace="this">
           <conditions>
             <event_object_docked group="global.$PlayerControlledGroup" />
             <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
