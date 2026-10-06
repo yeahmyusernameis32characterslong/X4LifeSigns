@@ -40,221 +40,43 @@ Life Signs aims to give the simulation something it has never really had:
 
 ---
 
-## A Living Universe
-
-Life Signs is intended to build persistent histories around the people, ships, and stations already present in X4.
-
-The system can potentially remember things such as:
-
-- meetings between characters and the player
-- ships an NPC has served aboard
-- stations they have lived or worked on
-- battles and dangerous encounters
-- rescues
-- repeated trading relationships
-- friendships and hostility
-- important conversations
-- changes of command
-- major events witnessed by characters
-- previous interactions with the player
-
-Not every event needs to become important.
-
-The idea is to allow ordinary events to disappear while significant experiences become part of a character's history.
-
-Over time, two players could therefore meet completely different versions of otherwise similar NPCs because those characters have lived through different events.
-
----
-
 ## Conversations With Context
 
-Life Signs is not intended to generate random AI dialogue for the sake of having AI dialogue.
+Life Signs aims to build histories around X4's people, ships and stations, so a character's response could reflect where they have served, who helped them and what they survived. Keeping track of who is who would allow those experiences to matter across future encounters.
 
-The important part is **context**.
-
-Before an NPC responds, the system can look at who they are, where they are, what has happened to them, and what relationship they have with the player.
-
-That information can then be given to a language model.
-
-Instead of:
-
-> "Hello, pilot."
-
-the system could eventually produce something closer to:
+Instead of another "Hello, pilot", you might eventually hear:
 
 > "You again. Last time I saw you, half my hull was missing and you were dragging pirates off us."
 
-The language model does not invent the history.
+The language model would express a history grounded in real game events, not invent one. Two players could meet very different versions of similar characters because those characters have lived different lives.
 
 **X4 creates the history. Life Signs remembers it.**
 
 ---
 
-## Voice
-
-Life Signs is being designed around local speech as well as text.
-
-The planned voice system includes:
-
-- **faster-whisper** for speech recognition, allowing the player to speak naturally
-- **Kokoro** for local speech synthesis, allowing characters to answer with generated voices
-
-Voice processing is intended to happen asynchronously so the game does not have to stop while speech is generated.
-
-The aim is eventually to make talking to a character feel much closer to talking to somebody who actually exists inside the simulation.
-
----
-
-## Aria
-
-Most everyday characters are intended to use a local language model running directly on the player's PC.
-
-Some characters, however, may justify something more sophisticated.
-
-**Aria** is the first planned example.
-
-Rather than being another generic AI controlled NPC, Aria is intended to be a richer persistent character capable of longer conversations, deeper reasoning, and a stronger individual personality.
-
-For characters like Aria, Life Signs may use ChatGPT rather than the smaller local model.
-
-This allows routine NPC interaction to remain local and fast while selected characters can provide much richer experiences.
-
----
-
 ## How It Works
 
-Life Signs is intended to sit between **X4: Foundations** and the AI systems that generate context aware interaction.
+The proposed wider system connects X4 game events to a local Node.js application, with SQLite keeping the history. Language models could then turn that context into natural responses.
 
-In the proposed design, X4 creates the events. Life Signs would observe them, remember what matters, and turn that context into natural responses.
+Most interaction is intended to run locally, with voice allowing players and characters to speak naturally. **Aria** is being explored as a richer persistent character, potentially using ChatGPT for deeper conversations and a stronger individual personality.
 
 <div align="center">
-  <img src="assets/x4lifesigns-how-it-works.png" alt="How X4LifeSigns works" width="100%">
+  <img src="assets/x4lifesigns-how-it-works.png" alt="Proposed wider X4LifeSigns system" width="100%">
 </div>
 
-### What the diagram shows
-
-The expected flow is:
-
-- **X4: Foundations** provides the game world and events
-- **Mission Director / Lua** detects events, handles game side control, and passes relevant information onward
-- **Node.js** acts as the central orchestrator, managing context, dialogue flow, and communication between systems
-- **SQLite** stores persistent memories, relationships, events, and character data
-- **Ollama** handles routine local NPC interaction
-- **ChatGPT** is reserved for selected richer characters such as Aria
-- **faster-whisper** converts player microphone input into text
-- **Kokoro** turns generated dialogue into spoken NPC voice output
-
-The goal is not simply to generate dialogue.
-
-The goal is to allow characters to respond based on who they are, what has happened to them, and what they remember.
-
-In short:
-
-> **X4 creates events. Life Signs remembers them. AI turns that context into natural interaction.**
-
----
-
-## Persistent Identity
-
-One of the most important parts of the project is keeping track of **who is who**.
-
-Life Signs intends to use X4's internal identities for ships, stations, crew, and other entities wherever practical.
-
-That means the database can connect events across time.
-
-A conversation today can matter several sessions later because the system knows it is dealing with the same character.
-
-Without persistent identity, AI dialogue is just improvisation.
-
-With persistent identity, it can become **history**.
-
----
-
-## Local First
-
-Most of Life Signs is intended to run locally.
-
-The current design uses:
-
-| Component | Technology |
-|---|---|
-| Game integration | X4 Mission Director + Lua |
-| Application logic | Node.js |
-| Persistent memory | SQLite |
-| Local language model | Ollama |
-| Model experimentation | LM Studio |
-| Speech recognition | faster-whisper |
-| Speech synthesis | Kokoro |
-| Rich AI characters | ChatGPT |
-| Development assistance | Codex |
-
-The reference development machine currently uses an **NVIDIA RTX 5080 with 16 GB VRAM**.
-
-The project will deliberately favour responsive models over simply using the largest model that fits.
-
-X4, the language model, and the voice system all need to live on the same machine without fighting each other to death.
-
----
-
-## Not Just Generated Dialogue
-
-Life Signs is ultimately less about generated text and more about connecting systems together.
-
-The interesting part is not that an AI can produce a sentence.
-
-It is that the sentence can be influenced by:
-
-- who said it
-- who they are speaking to
-- where they are
-- what they have experienced
-- what happened previously
-- how they feel about the people involved
-
-and potentially years of history inside the same X4 universe.
-
-The language model is simply the thing that turns that information back into natural language.
+The diagram shows the intended design. The working experiments are described below; the detailed technology choices and boundaries are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
 ## Project Status
 
-The first contained experiment observes completed docking while the player is
-personally piloting, writes a marked X4 debug record and acknowledges it in a
-Node.js console. **Experimental docking bridge verified in live X4.** See
-[the experiment instructions](docs/BRIDGE_EXPERIMENT.md) for installed X4 9.00
-evidence, automated tests and the manual test. This adds no persistent memories
-or AI interaction yet.
+**Very early implementation, not currently a playable release.**
 
-Optional `--db` mode now commits each docking to SQLite and acknowledges the
-stored row. A separate read-only command retrieves rows after Node stops.
-**Persistence experiment: Verified with live X4 docking across Node.js restarts.** Keep X4
-running during the Node restart test and use a fresh database after a game
-reload or for another save/universe. See
-[the persistence instructions](docs/PERSISTENCE_EXPERIMENT.md).
+The experimental bridge captures completed dockings while the player is personally piloting and acknowledges them in Node.js. Optional SQLite storage preserves those events for readback after Node.js restarts. Both have passed live X4 verification, with X4 kept running during the persistence test.
 
-> **Very early implementation; docking bridge and SQLite persistence across Node.js restarts verified in live X4**
+**Automatic session separation is the active milestone.** Automatic save/session continuity across reloads, permanent entity identity, AI, voice and return-channel communication remain unverified. For now, use a fresh database after a game reload or for another save/universe.
 
-The repository contains design documentation, artwork and the experimental MD
-probe, Node.js log reader and optional SQLite event storage. The wider mod and supporting services are planned.
-
-The architecture describes the intended wider system. The experimental docking bridge and SQLite docking persistence across Node.js restarts have been verified in live X4. Automatic session separation is the active investigation milestone. Automatic save/session continuity across reloads, permanent entity identity, AI, voice and return-channel communication remain unverified.
-
-Major systems are still subject to change.
-
-Future work includes persistent entity identity and a return path to X4.
-Local LLM integration, voice input and output, and Aria are being explored.
-
-This is not currently a playable release.
-
-The wider proposed milestone is **Remember one real event**: capture one real X4
-event, send it to a minimal Node.js service, store it in SQLite and display text
-based on the stored record. The record must remain available after a service
-restart and associated with the same entity. The current experiment isolates
-personally controlled docking capture, acknowledgement and optional SQLite
-storage first. Controlled-session persistence across Node.js restarts is now
-verified from owner-reported live testing. See
-[the wider acceptance criteria](TESTING.md#proposed-first-milestone-remember-one-real-event).
+See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
@@ -276,16 +98,16 @@ verified from owner-reported live testing. See
 
 | Path | Purpose |
 | --- | --- |
-| `extension/` | X4 extension and Mission Director docking probe. |
-| `bridge/` | Node.js log reader, SQLite storage, readback command and automated tests. |
-| `scripts/` | Deployment helper for the experimental extension. |
-| `docs/` | Experiment instructions, evidence and verification records. |
-| `assets/` | README artwork and status badges. |
-| `ARCHITECTURE.md` | System design and implementation boundaries. |
-| `DATABASE.md` | Current SQLite schema and persistence limitations. |
-| `DECISIONS.md` | Recorded project and technical decisions. |
-| `SETUP.md` | Development setup and local configuration guidance. |
-| `TESTING.md` | Automated checks, live test requirements and verification status. |
+| [`extension/`](extension/) | X4 extension and Mission Director docking probe. |
+| [`bridge/`](bridge/) | Node.js log reader, SQLite storage, readback command and automated tests. |
+| [`scripts/`](scripts/) | Deployment helper for the experimental extension. |
+| [`docs/`](docs/) | Experiment instructions, evidence and verification records. |
+| [`assets/`](assets/) | README artwork and status badges. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design and implementation boundaries. |
+| [`DATABASE.md`](DATABASE.md) | Current SQLite schema and persistence limitations. |
+| [`DECISIONS.md`](DECISIONS.md) | Recorded project and technical decisions. |
+| [`SETUP.md`](SETUP.md) | Development setup and local configuration guidance. |
+| [`TESTING.md`](TESTING.md) | Automated checks, live test requirements and verification status. |
 
 ---
 
@@ -310,8 +132,6 @@ Different games could potentially receive their own implementations while sharin
 **Because a living universe should remember what happened in it.**
 
 ---
-
-<div align="center">
 
 <a href="https://github.com/yeahmyusernameis32characterslong/LifeSigns#lifesigns-top">
   <img src="assets/lifesigns-hub-banner.png" alt="Life Signs" width="900">
