@@ -2,15 +2,23 @@
 <mdscript name="LifeSigns_BridgeProbe" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
   <cues>
     <!-- The shipped setup.xml maintains this group when player control changes. -->
-    <cue name="PlayerControlledDocked" instantiate="true">
+    <!-- Enable the event subscription only after shipped setup creates its group. -->
+    <cue name="WaitForPlayerControlledGroup" checkinterval="1s">
       <conditions>
-        <event_object_docked group="global.$PlayerControlledGroup" />
-        <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+        <check_value value="global.$PlayerControlledGroup?" />
       </conditions>
-      <actions>
-        <!-- ID codes are game-derived display identifiers, not a persistence contract. -->
-        <debug_text text="'LIFESIGNS_BRIDGE_V1|docked|ship=%s|destination=%s|END'.[event.object.idcode, event.param.idcode]" filter="general" context="false" />
-      </actions>
+      <cues>
+        <cue name="PlayerControlledDockedReady" instantiate="true">
+          <conditions>
+            <event_object_docked group="global.$PlayerControlledGroup" />
+            <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+          </conditions>
+          <actions>
+            <!-- ID codes are game-derived display identifiers, not a persistence contract. -->
+            <debug_text text="'LIFESIGNS_BRIDGE_V1|docked|ship=%s|destination=%s|END'.[event.object.idcode, event.param.idcode]" filter="general" context="false" />
+          </actions>
+        </cue>
+      </cues>
     </cue>
   </cues>
 </mdscript>
