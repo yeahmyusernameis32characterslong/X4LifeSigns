@@ -189,10 +189,47 @@ Copy-Item -LiteralPath 'YOUR_CONFIRMED_DEBUG_LOG' -Destination '.\local-data\ran
 
 ## Initial live procedure: six-sample test
 
-The requested six-sample steps were not included in the implementation request.
-The exact initial procedure is pending those steps; no substitute sample matrix
-is assumed here. The larger procedure below is optional, not a prerequisite for
-the initial test. No live results have been collected.
+1. With X4 closed, deploy the random diagnostic using the documented opt-in.
+   Keep Node stopped and existing logging enabled.
+2. Start a fresh disposable new game. Expect exactly one before/sampled pair.
+   Record the four-number tuple as T0. Save into a new slot called Random Test A
+   after the sample appears.
+3. Reload that exact save three times, as quickly as practical. Never overwrite
+   it. Each load must show previous=T0, followed by a newly sampled tuple.
+4. Exit X4 completely. Preserve the log, then restart X4 and load unchanged A.
+   Record its pair.
+5. Repeat the full exit/restart/load once more, preserving each log before the
+   next launch.
+6. Remove the diagnostic with X4 closed after collecting the results. Keep the
+   disposable save and logs local.
+
+Record these six samples:
+
+| Run | Previous tuple | New tuple | Controls equal? | Exactly one pair? | Life Signs errors? |
+| --- | --- | --- | --- | --- | --- |
+| Fresh game | UNSET | T0 | | | |
+| A reload 1 | T0 | | | | |
+| A reload 2 | T0 | | | | |
+| A reload 3 | T0 | | | | |
+| X4 restart 1, load A | T0 | | | | |
+| X4 restart 2, load A | T0 | | | | |
+
+Compare complete four-number tuples, ignoring the real clock. The fixed-clock
+candidates provide the same comparison.
+
+A repeated complete tuple, including T0, rejects this candidate for the proposed
+freshness gate.
+
+Missing restoration, extra/missing pairs, unequal controls, invalid integer
+formatting or relevant MD errors require investigation.
+
+Six distinct tuples establish only no tuple replay observed in this test.
+
+This does not establish 124 independent bits, guaranteed uniqueness or verified
+automatic session separation.
+
+The larger procedure below is optional, not a prerequisite for the initial test.
+No live results have been collected.
 
 ## Optional extended test
 
