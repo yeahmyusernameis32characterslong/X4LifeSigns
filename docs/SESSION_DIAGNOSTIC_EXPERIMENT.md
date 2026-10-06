@@ -6,7 +6,7 @@ at `1953110`. Automatic session separation and guaranteed token uniqueness remai
 unverified. Original bridge/persistence results are unchanged.
 
 Follow-up: [session-key source prerequisite](SESSION_KEY_SOURCE_GATE.md) records
-the installed random-source inspection and proposes one independent reload
+the installed random-source inspection and an independent optional reload
 diagnostic. Production remains blocked on random freshness and final key approval.
 
 ## Choice and installed evidence
@@ -93,6 +93,11 @@ options `-debug all -logfile debuglog.txt`. The opt-in adds only
 `extensions\lifesigns_bridge_probe\md\LifeSigns_SessionDiagnostic.xml`.
 Normal deployment still installs only the original two XML files. With the
 diagnostic present, normal deployment refuses until retention/removal is explicit.
+
+The separate random-source diagnostic has independent `-RandomSourceDiagnostic`
+and `-RemoveRandomSourceDiagnostic` options. If it is installed, add one of those
+choices to each deployment/rollback command here (including WhatIf). See its
+[deployment and rollback commands](SESSION_KEY_SOURCE_GATE.md#deployment-and-rollback).
 
 Inspect in physical line order (PowerShell line numbers help when seq rewinds):
 

@@ -61,15 +61,15 @@ timestamp-only routing fallback. V1 emission, console-only/manual `--db`,
 schema-v1 files, the verified docking filter, PR #9 readiness/cue-name fixes and
 the existing optional diagnostic remain unchanged.
 
-## One proposed diagnostic: replay of an unchanged save
+## Optional diagnostic: replay of an unchanged save
 
-This is a **proposal for approval**, not an installed diagnostic or a production
-key implementation. Use a separate optional `LifeSigns_RandomSourceDiagnostic`
-script, separate marker and variables. The existing session diagnostic remains
-independent. It must never supply a routing key or write SQLite. Its random
+The optional diagnostic is **implemented, live behaviour unverified** in
+[`LifeSigns_RandomSourceDiagnostic.xml`](../extension/md/LifeSigns_RandomSourceDiagnostic.xml).
+It uses a separate script, marker and variables. The existing session diagnostic
+remains independent. It never supplies a routing key or writes SQLite. Its random
 draws may perturb game randomness, so use disposable saves only.
 
-The exact proposed script is below. At each universe-generated callback it logs
+The exact script is below. At each universe-generated callback it logs
 the prior saved tuple, samples the clock once and four unseeded integers once,
 then retains the tuple for the next save/restoration comparison. Two fixed-seed
 draws are a deterministic control, performed after the candidate draws. The
@@ -111,21 +111,94 @@ No missing-state repair, random retries, delay, counter-based suffix or alternat
 source belongs in this test. Do not silently replace `set_value` with
 `randominrange`, `gamestart.seed` or a seeded draw. Test the exact source above.
 
-The proposed diagnostic encoding is `s1-<clock>-<r1>-<r2>-<r3>-<r4>`, where the
+The diagnostic encoding is `s1-<clock>-<r1>-<r2>-<r3>-<r4>`, where the
 clock is exactly `YYYY-MM-DD_HH-MM-SS` and each integer is canonical decimal
 `0..2147483647`, without signs, leading zeroes (except `0`), padding, whitespace
 or exponent notation. Maximum length is 66 ASCII characters. Expected MD `%s`
 rendering must be confirmed live. This encoding is **not approved for production**;
 there is no production parser, filename or schema contract in this change.
 
-## Exact acceptance procedure
+## Deployment and rollback
 
-1. After approval to implement the optional diagnostic, validate that exact
-   script against the inspected installed X4 9.00 schemas. Record checkout SHA,
-   X4 version and enabled extensions. Deploy with X4 closed, under a separate
-   explicit opt-in; normal deployment must omit it. Retain PR #9's existing
-   cue names and docking filter. Run Node v24.21.0 bridge tests and any new mock
-   deployment/removal checks. Schema success alone cannot pass this test.
+Close X4 first. Replace `YOUR_X4_INSTALLATION` with the confirmed local game
+folder; keep actual paths in ignored `SETUP.local.md`. These are manual commands;
+automated tests deploy only to temporary mock installations. Retain the existing
+launch options `-debug all -logfile debuglog.txt` and enable Life Signs Bridge
+Probe. Node is not needed to collect this diagnostic; inspect the raw X4 log.
+
+Install only the random-source diagnostic alongside the normal probe:
+
+```powershell
+git rev-parse HEAD
+npm.cmd --prefix bridge test
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -RandomSourceDiagnostic -WhatIf
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -RandomSourceDiagnostic
+```
+
+If the session diagnostic is already installed, explicitly retain it with
+`-SessionDiagnostic`, or remove it with `-RemoveSessionDiagnostic`, on **both**
+commands. For example, installing/retaining both is:
+
+```powershell
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -SessionDiagnostic -RandomSourceDiagnostic -WhatIf
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -SessionDiagnostic -RandomSourceDiagnostic
+```
+
+Normal deployment installs neither diagnostic. Once either is installed,
+deployment refuses until its retain/remove choice is explicit. The two choices
+are independent; selecting and removing the same diagnostic together is an error.
+WhatIf performs validation but does not copy, create or remove files. Existing
+linked deployment paths and unexpected extension content are refused before
+changes. No directory is recursively removed.
+
+Remove the random-source diagnostic (when the session diagnostic is absent):
+
+```powershell
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -RemoveRandomSourceDiagnostic -WhatIf
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -RemoveRandomSourceDiagnostic
+Test-Path -LiteralPath 'YOUR_X4_INSTALLATION\extensions\lifesigns_bridge_probe\md\LifeSigns_RandomSourceDiagnostic.xml'
+```
+
+Expect `False`. To retain an installed session diagnostic during that rollback:
+
+```powershell
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -SessionDiagnostic -RemoveRandomSourceDiagnostic -WhatIf
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -SessionDiagnostic -RemoveRandomSourceDiagnostic
+```
+
+To remove both diagnostics and redeploy the original manifest/probe:
+
+```powershell
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -RemoveSessionDiagnostic -RemoveRandomSourceDiagnostic -WhatIf
+.\scripts\deploy-bridge-probe.ps1 -GamePath 'YOUR_X4_INSTALLATION' -RemoveSessionDiagnostic -RemoveRandomSourceDiagnostic
+```
+
+Removal is limited to the named diagnostic files; unrelated extensions and saves
+are untouched. Removal does not purge saved MD state. Discard disposable test
+saves and return to a normal save never used with the diagnostic.
+
+Capture records and errors in physical log order, before another launch replaces
+the log. Use a new local filename for every capture:
+
+```powershell
+Select-String -LiteralPath 'YOUR_CONFIRMED_DEBUG_LOG' -SimpleMatch 'LIFESIGNS_RANDOM_SOURCE_DIAG_V1'
+Select-String -LiteralPath 'YOUR_CONFIRMED_DEBUG_LOG' -SimpleMatch 'LifeSigns_RandomSourceDiagnostic'
+New-Item -ItemType Directory -Path '.\local-data\random-source-diagnostic' -Force
+Copy-Item -LiteralPath 'YOUR_CONFIRMED_DEBUG_LOG' -Destination '.\local-data\random-source-diagnostic\run-01-debuglog.txt'
+```
+
+## Initial live procedure: six-sample test
+
+The requested six-sample steps were not included in the implementation request.
+The exact initial procedure is pending those steps; no substitute sample matrix
+is assumed here. The larger procedure below is optional, not a prerequisite for
+the initial test. No live results have been collected.
+
+## Optional extended test
+
+1. Record checkout SHA, X4 version and enabled extensions. Deploy with X4 closed
+   using the explicit opt-in commands above. The installed-schema and automated
+   checks below do not prove live expression evaluation or RNG freshness.
 2. Start a disposable new game or load a disposable test save. Capture all
    diagnostic lines and MD errors in physical log order. Expect one before/sample
    pair, four bounded integers in the specified encoding and equal fixed-seed
@@ -197,10 +270,14 @@ until those live tests pass. None are claimed completed here.
 
 ## Validation record
 
-Local checks on Node.js v24.21.0: **43 tests passed, zero failures or skips**,
+Local checks on Node.js v24.21.0: **46 tests passed, zero failures or skips**,
 including built-in `node:sqlite` persistence and mock deployment checks. The
-XML block extracted from this document and both existing MD scripts validated
+new diagnostic matches the original proposed XML exactly apart from its final
+newline. The deployed-source XML, the XML block in this document and both existing MD scripts validated
 against the installed X4 9.00 `md.xsd`/`common.xsd` above. `git diff --check`
 passed. This verifies schema structure, not MD expression evaluation or RNG
-behaviour. No diagnostic deployment or live random-source acceptance has been
-performed.
+behaviour. Mock checks cover each diagnostic's opt-in, redeployment, conflicting
+flags, WhatIf, explicit and repeated removal, independent retain/remove choices,
+linked MD directory refusal for random-source deployment/removal, and preservation
+of the normal probe and another extension. No deployment into the real X4
+installation or live random-source acceptance has been performed.
