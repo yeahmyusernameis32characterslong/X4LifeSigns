@@ -28,6 +28,7 @@ async function fixture(t, initial = '') {
 test('parses X4-prefixed records and ignores unrelated lines', () => {
   assert.deepEqual(parseRecord(`[General] 12.3 ${record()}\r`), expected());
   assert.equal(parseRecord('ordinary docking chatter'), null);
+  assert.equal(parseRecord('LIFESIGNS_SESSION_DIAG_V1|docked|seq=1|token=UNSET|ship=ABC-123|destination=DEF-456|END'), null);
 });
 
 test('rejects malformed marked records and extra fields', () => {
@@ -249,4 +250,42 @@ test('deployment copies only the probe, supports redeploy and rejects unrelated 
     assert.notEqual(linked.status, 0);
     assert.match(linked.stderr, /Refusing linked deployment path/);
     assert.equal(await readFile(join(outside, 'LifeSigns_BridgeProbe.xml'), 'utf8'), 'must not overwrite');
+  });
+
+test('session diagnostic deployment is opt-in and explicitly reversible',
+  { skip: process.platform !== 'win32' }, async (t) => {
+    const f = await fixture(t);
+    const game = join(f.directory, 'game');
+    await mkdir(game);
+    await writeFile(join(game, 'X4.exe'), 'test placeholder');
+    const deploy = (...extra) => spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
+      '-File', join(root, 'scripts/deploy-bridge-probe.ps1'), '-GamePath', game, ...extra], { encoding: 'utf8' });
+    const target = join(game, 'extensions/lifesigns_bridge_probe');
+    const diagnostic = join(target, 'md/LifeSigns_SessionDiagnostic.xml');
+    const unrelated = join(game, 'extensions/another_extension');
+    await mkdir(unrelated, { recursive: true });
+    await writeFile(join(unrelated, 'keep.txt'), 'untouched');
+    assert.equal(deploy().status, 0);
+    const original = await readFile(join(target, 'md/LifeSigns_BridgeProbe.xml'));
+    await assert.rejects(readFile(diagnostic), { code: 'ENOENT' });
+    assert.equal(deploy('-SessionDiagnostic', '-WhatIf').status, 0);
+    await assert.rejects(readFile(diagnostic), { code: 'ENOENT' });
+    for (let i = 0; i < 2; i++) {
+      const result = deploy('-SessionDiagnostic');
+      assert.equal(result.status, 0, result.stderr);
+    }
+    assert.deepEqual(await readFile(diagnostic), await readFile(join(root, 'extension/md/LifeSigns_SessionDiagnostic.xml')));
+    const refusal = deploy();
+    assert.notEqual(refusal.status, 0);
+    assert.match(refusal.stderr, /Explicitly choose/);
+    assert.notEqual(deploy('-SessionDiagnostic', '-RemoveSessionDiagnostic').status, 0);
+    assert.equal(deploy('-RemoveSessionDiagnostic', '-WhatIf').status, 0);
+    assert.ok((await readFile(diagnostic)).length > 0);
+    const removal = deploy('-RemoveSessionDiagnostic');
+    assert.equal(removal.status, 0, removal.stderr);
+    await assert.rejects(readFile(diagnostic), { code: 'ENOENT' });
+    assert.deepEqual(await readFile(join(target, 'md/LifeSigns_BridgeProbe.xml')), original);
+    assert.equal(deploy().status, 0);
+    assert.equal(deploy('-RemoveSessionDiagnostic').status, 0);
+    assert.equal(await readFile(join(unrelated, 'keep.txt'), 'utf8'), 'untouched');
   });

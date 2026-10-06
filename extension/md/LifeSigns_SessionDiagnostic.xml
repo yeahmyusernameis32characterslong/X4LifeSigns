@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LifeSigns_SessionDiagnostic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
+  <!-- Root listeners recur. md.$LifeSignsSessionDiag* is shared state that MAY restore.
+       namespace=this keeps snapshots local to each invocation. No ordering assumed. -->
+  <cues>
+    <cue name="GameLoaded" instantiate="true" namespace="this">
+      <conditions><event_game_loaded /></conditions>
+      <actions>
+        <set_value name="$PreviousToken" exact="'UNSET'" />
+        <set_value name="$SavedSequence" exact="'UNSET'" />
+        <set_value name="$SavedAssignments" exact="'UNSET'" />
+        <set_value name="$SavedCallback" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsSessionDiagToken?"><set_value name="$PreviousToken" exact="md.$LifeSignsSessionDiagToken" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagSequence?"><set_value name="$SavedSequence" exact="md.$LifeSignsSessionDiagSequence" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagAssignments?"><set_value name="$SavedAssignments" exact="md.$LifeSignsSessionDiagAssignments" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagCallback?"><set_value name="$SavedCallback" exact="md.$LifeSignsSessionDiagCallback" /></do_if>
+        <do_if value="not md.$LifeSignsSessionDiagSequence?"><set_value name="md.$LifeSignsSessionDiagSequence" exact="0" /></do_if>
+        <set_value name="md.$LifeSignsSessionDiagSequence" operation="add" />
+        <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|lifecycle|callback=event_game_loaded|phase=before|seq=%s|previous=%s|state_seq=%s|state_assignments=%s|state_callback=%s|token=%s|END'.[md.$LifeSignsSessionDiagSequence, $PreviousToken, $SavedSequence, $SavedAssignments, $SavedCallback, $PreviousToken]" filter="general" context="false" />
+        <set_value name="md.$LifeSignsSessionDiagCallback" exact="'event_game_loaded'" />
+      </actions>
+    </cue>
+    <cue name="GameStarted" instantiate="true" namespace="this">
+      <conditions><event_game_started /></conditions>
+      <actions>
+        <set_value name="$PreviousToken" exact="'UNSET'" />
+        <set_value name="$SavedSequence" exact="'UNSET'" />
+        <set_value name="$SavedAssignments" exact="'UNSET'" />
+        <set_value name="$SavedCallback" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsSessionDiagToken?"><set_value name="$PreviousToken" exact="md.$LifeSignsSessionDiagToken" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagSequence?"><set_value name="$SavedSequence" exact="md.$LifeSignsSessionDiagSequence" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagAssignments?"><set_value name="$SavedAssignments" exact="md.$LifeSignsSessionDiagAssignments" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagCallback?"><set_value name="$SavedCallback" exact="md.$LifeSignsSessionDiagCallback" /></do_if>
+        <do_if value="not md.$LifeSignsSessionDiagSequence?"><set_value name="md.$LifeSignsSessionDiagSequence" exact="0" /></do_if>
+        <set_value name="md.$LifeSignsSessionDiagSequence" operation="add" />
+        <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|lifecycle|callback=event_game_started|phase=before|seq=%s|previous=%s|state_seq=%s|state_assignments=%s|state_callback=%s|token=%s|END'.[md.$LifeSignsSessionDiagSequence, $PreviousToken, $SavedSequence, $SavedAssignments, $SavedCallback, $PreviousToken]" filter="general" context="false" />
+        <set_value name="md.$LifeSignsSessionDiagCallback" exact="'event_game_started'" />
+      </actions>
+    </cue>
+    <cue name="UniverseGenerated" instantiate="true" namespace="this">
+      <conditions><event_universe_generated /></conditions>
+      <actions>
+        <set_value name="$PreviousToken" exact="'UNSET'" />
+        <set_value name="$SavedSequence" exact="'UNSET'" />
+        <set_value name="$SavedAssignments" exact="'UNSET'" />
+        <set_value name="$SavedCallback" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsSessionDiagToken?"><set_value name="$PreviousToken" exact="md.$LifeSignsSessionDiagToken" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagSequence?"><set_value name="$SavedSequence" exact="md.$LifeSignsSessionDiagSequence" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagAssignments?"><set_value name="$SavedAssignments" exact="md.$LifeSignsSessionDiagAssignments" /></do_if>
+        <do_if value="md.$LifeSignsSessionDiagCallback?"><set_value name="$SavedCallback" exact="md.$LifeSignsSessionDiagCallback" /></do_if>
+        <do_if value="not md.$LifeSignsSessionDiagSequence?"><set_value name="md.$LifeSignsSessionDiagSequence" exact="0" /></do_if>
+        <set_value name="md.$LifeSignsSessionDiagSequence" operation="add" />
+        <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|lifecycle|callback=event_universe_generated|phase=before|seq=%s|previous=%s|state_seq=%s|state_assignments=%s|state_callback=%s|token=%s|END'.[md.$LifeSignsSessionDiagSequence, $PreviousToken, $SavedSequence, $SavedAssignments, $SavedCallback, $PreviousToken]" filter="general" context="false" />
+        <do_if value="not md.$LifeSignsSessionDiagAssignments?"><set_value name="md.$LifeSignsSessionDiagAssignments" exact="0" /></do_if>
+        <set_value name="md.$LifeSignsSessionDiagAssignments" operation="add" />
+        <!-- Deliberately coarse candidate: collisions are evidence, never repaired. -->
+        <set_value name="md.$LifeSignsSessionDiagToken" exact="player.systemtime.{'%Y-%m-%d_%H-%M-%S'}" />
+        <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|lifecycle|callback=event_universe_generated|phase=assigned|seq=%s|previous=%s|state_seq=%s|state_assignments=%s|state_callback=%s|token=%s|assignments=%s|END'.[md.$LifeSignsSessionDiagSequence, $PreviousToken, $SavedSequence, $SavedAssignments, $SavedCallback, md.$LifeSignsSessionDiagToken, md.$LifeSignsSessionDiagAssignments]" filter="general" context="false" />
+        <set_value name="md.$LifeSignsSessionDiagCallback" exact="'event_universe_generated'" />
+      </actions>
+    </cue>
+    <cue name="PlayerControlledDocked" instantiate="true" namespace="this">
+      <conditions>
+        <event_object_docked group="global.$PlayerControlledGroup" />
+        <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+      </conditions>
+      <actions>
+        <set_value name="$CurrentToken" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsSessionDiagToken?"><set_value name="$CurrentToken" exact="md.$LifeSignsSessionDiagToken" /></do_if>
+        <do_if value="not md.$LifeSignsSessionDiagSequence?"><set_value name="md.$LifeSignsSessionDiagSequence" exact="0" /></do_if>
+        <set_value name="md.$LifeSignsSessionDiagSequence" operation="add" />
+        <debug_text text="'LIFESIGNS_SESSION_DIAG_V1|docked|seq=%s|token=%s|ship=%s|destination=%s|END'.[md.$LifeSignsSessionDiagSequence, $CurrentToken, event.object.idcode, event.param.idcode]" filter="general" context="false" />
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

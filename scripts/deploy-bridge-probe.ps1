@@ -1,10 +1,13 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory = $true)]
-    [string]$GamePath
+    [string]$GamePath,
+    [switch]$SessionDiagnostic,
+    [switch]$RemoveSessionDiagnostic
 )
 
 $ErrorActionPreference = 'Stop'
+if ($SessionDiagnostic -and $RemoveSessionDiagnostic) { throw 'Choose either SessionDiagnostic or RemoveSessionDiagnostic.' }
 $game = (Resolve-Path -LiteralPath $GamePath).ProviderPath
 $source = Join-Path (Split-Path $PSScriptRoot -Parent) 'extension'
 $extensions = Join-Path $game 'extensions'
@@ -42,16 +45,26 @@ if (Test-Path -LiteralPath $target) {
         if ($item.Name -ne 'md' -or -not $item.PSIsContainer) { throw "Unexpected existing probe content: $($item.Name)" }
         foreach ($child in Get-ChildItem -LiteralPath $item.FullName -Force) {
             Assert-NotLinked $child.FullName
-            if ($child.PSIsContainer -or $child.Name -ne 'LifeSigns_BridgeProbe.xml') {
+            if ($child.PSIsContainer -or $child.Name -notin @('LifeSigns_BridgeProbe.xml', 'LifeSigns_SessionDiagnostic.xml')) {
                 throw "Unexpected existing MD content: $($child.Name)"
+            }
+            if ($child.Name -eq 'LifeSigns_SessionDiagnostic.xml' -and -not ($SessionDiagnostic -or $RemoveSessionDiagnostic)) {
+                throw 'Diagnostic is installed. Explicitly choose -SessionDiagnostic to retain it or -RemoveSessionDiagnostic to restore the original probe.'
             }
         }
     }
 }
 
-if ($PSCmdlet.ShouldProcess($target, 'Deploy Life Signs docking probe (two XML files)')) {
+if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDiagnostic=$SessionDiagnostic, RemoveSessionDiagnostic=$RemoveSessionDiagnostic)")) {
     New-Item -ItemType Directory -Path (Join-Path $target 'md') -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $source 'content.xml') -Destination (Join-Path $target 'content.xml') -Force
     Copy-Item -LiteralPath (Join-Path $source 'md\LifeSigns_BridgeProbe.xml') -Destination (Join-Path $target 'md\LifeSigns_BridgeProbe.xml') -Force
+    $diagnostic = Join-Path $target 'md\LifeSigns_SessionDiagnostic.xml'
+    if ($SessionDiagnostic) {
+        Copy-Item -LiteralPath (Join-Path $source 'md\LifeSigns_SessionDiagnostic.xml') -Destination $diagnostic -Force
+    }
+    if ($RemoveSessionDiagnostic -and (Test-Path -LiteralPath $diagnostic)) {
+        Remove-Item -LiteralPath $diagnostic
+    }
     Write-Output "Deployed probe to $target"
 }
