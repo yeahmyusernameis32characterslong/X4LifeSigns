@@ -1,9 +1,9 @@
 # Disposable session lifecycle diagnostic
 
-Status: **Live loaded-save lifecycle/replacement behaviour observed; fresh-game
-docking readiness fix passed fresh-game testing; saved-cue hierarchy correction
-awaiting retest.** Automatic session separation is not implemented
-or verified. Original bridge/persistence results are unchanged.
+Status: **Experimental lifecycle/replacement gate passed in owner-reported live
+X4 testing.** Fresh-game docking and old/corrected-save regression checks passed
+at `1953110`. Automatic session separation and guaranteed token uniqueness remain
+unverified. Original bridge/persistence results are unchanged.
 
 ## Choice and installed evidence
 
@@ -190,8 +190,8 @@ evaluation or any live acceptance criterion.
 
 Owner-reported observations from the X4 9.00 diagnostic introduced by PR #9
 at `7d0eaa714c8faab97e390e7e5e3afcdee59e922d`. The report does not independently
-confirm the deployed checkout SHA or inspect raw logs/saves; confirm the tested
-revision when completing the remaining check. Tokens below are local-clock
+confirm the deployed checkout SHA for those initial runs or inspect raw logs/saves.
+The final retest below explicitly reports revision `1953110`. Tokens below are local-clock
 diagnostic values, not personal paths or production identifiers.
 
 In the table, **Loaded → Universe** means `event_game_loaded` followed by
@@ -207,7 +207,7 @@ In the table, **Loaded → Universe** means `event_game_loaded` followed by
 | Unchanged A reload 3 | Loaded → Universe; same restored token | `2026-10-06_13-52-02` | First docking used replacement; sequence rewound with saved state as expected. |
 | Different-universe B | Loaded → Universe; UNSET | `2026-10-06_13-54-24` | First docking used assigned token; B does not prove restoration of diagnostic state. |
 | B → A | Restored A token `2026-10-06_11-04-49`, then replaced | `2026-10-06_13-57-40` | First docking used replacement. |
-| Fresh new game | Universe → Started; Started saw assigned token; no duplicate assignment observed | `2026-10-06_14-01-17` | Neither listener emitted docking output. Follow-up identified premature group lookup during startup; post-fix docking remains pending. |
+| Fresh new game | Universe → Started; Started saw assigned token; no duplicate assignment observed | `2026-10-06_14-01-17` | Neither listener emitted docking output. Follow-up identified premature group lookup during startup; initial docking was inconclusive; the final corrected retest below passed. |
 | Full X4 restart / later load | A restored saved diagnostic state | `2026-10-06_15-27-36`, later `2026-10-06_15-30-28` | First observed docking used the latter token; no docking confirmation reported for the former. |
 | Already-docked save load | Restored `2026-10-06_20-43-37`, then replaced; no false docking on load | `2026-10-06_20-47-39` | Later genuine docking produced normal bridge and diagnostic records using replacement. |
 | Node absent, then started later | Both markers emitted in raw X4 log without Node | Current MD token unaffected by Node | Reader started at current end, replayed no prior bridge records and acknowledged the next genuine docking. |
@@ -220,10 +220,10 @@ stable state during an uninterrupted loaded game including a Node restart.
 Sequence rewind is expected restoration behaviour, not a new-session identifier.
 Raw-log output establishes that MD emission is independent of Node.
 
-The fresh new game establishes observed lifecycle ordering and a single assignment,
-but does not establish token availability or stability at docking. Follow-up startup errors below identify a shared docking subscription defect.
-Do not classify that defect as a token replacement failure or a passed docking test. Absence of diagnostic MD errors was not explicitly confirmed in this
-report and remains a completion check.
+The initial fresh-game run established ordering and a single assignment but
+could not establish docking behaviour. Follow-up identified the shared startup
+subscription defect; final corrected fresh-game docking passed below. Treat
+these as results from different revisions, not a token replacement failure.
 
 ### Candidate freshness assessment
 
@@ -321,7 +321,7 @@ migration system.
 ### Gate decision and minimum retest
 
 **Fresh-game readiness at 12e357f passed; loaded-save regression failed.**
-The complete gate stays open until the renamed-listener revision passes:
+The following correction retest was prescribed; final results are recorded below:
 
 1. With X4 closed, validate both corrected MD files against the installed X4 9.00
    schema, record the deployed SHA and redeploy with `-SessionDiagnostic`.
@@ -346,11 +346,11 @@ Keep X4 logs and saves local. Report revision, errors checked, callback order,
 restored/replacement tokens and record counts. Unrelated mod/save errors remain
 context unless they interfere.
 
-Installed-schema validation and the live saved-state checks are still required.
-Renaming alone is not proof of successful refresh. If a check fails, retain the
-evidence and investigate only docking readiness and saved-cue compatibility.
+Renaming alone was not proof of successful refresh; the live retest below supplies
+the observed fresh-game and saved-state evidence. Independent installed-schema
+validation of the final revision was not supplied in the owner's retest report.
 
-PR #9 remains unmerged pending retest. Automatic session separation remains
+PR #9 remains unmerged for review. Automatic session separation remains
 unverified; token design, routing and SQLite schema remain unchanged.
 
 Correction validation: the name-only XML changes preserve the readiness gate,
@@ -358,3 +358,41 @@ docking conditions/actions and lifecycle logic. XML well-formedness and diff
 whitespace are checked remotely; installed-schema/runtime save refresh require
 local validation. Earlier remote suite results were 41 passes and two Windows
 deployment skips on Node.js v24.19.0; original Windows results remain separate.
+
+### Final correction retest: 1953110
+
+The owner reports successful X4 9.00 retesting at
+`195311073d568984bca4bb2094dac25e83dbf3eb`. These are reported live results,
+not independent inspection of the owner's raw logs or save files.
+
+| Scenario | Observed result | Assessment |
+| --- | --- | --- |
+| Fresh unsaved game | Two genuine dockings used the same startup token; no Life Signs controlled-group/null-group or duplicate-cue errors. | Passed fresh-game readiness and docking stability. |
+| Unchanged old diagnostic save A | Restored token replaced correctly; two genuine dockings each produced exactly one bridge and one diagnostic record; no duplicate-cue regression. | Passed refresh from old diagnostic state and replacement before docking. |
+| Corrected-copy save B reload | Restored `2026-10-06_21-58-34`; replacement `2026-10-06_22-06-47`; first docking used replacement and produced exactly one record per marker plus a reader acknowledgement; no Life Signs duplicate-cue or controlled-group errors. | Passed corrected-save restoration, replacement and recurring docking subscription. |
+
+B in this final retest is a corrected-copy save, not the earlier
+different-universe B fixture. The owner supplied no exact tokens for the final
+fresh-game or A runs; do not fill them from earlier revisions. A separate
+12e357f-era save fixture was not reported; that optional transition is not
+claimed tested.
+
+**The experimental lifecycle/replacement gate is now passed for the tested
+scenarios.** Earlier observations establish repeated loads, full X4 restart,
+Node restart/late startup and loaded-save ordering. The final corrected retest
+closes the fresh-game docking and saved-cue regression gaps. It establishes
+observed replacement before docking and stable use within uninterrupted sessions,
+not a universal callback-order or delivery guarantee.
+
+**PR #9 is ready to merge as a disposable diagnostic and docking-startup
+correction**, based on final diff review, recorded automated checks and the
+owner-reported live retest. No further live repeat is required for this scoped
+gate. Final-revision installed-schema validation was not separately confirmed;
+do not represent the earlier schema checks as checks of this revision.
+
+No newly assigned token repeats were reported, but wall-clock uniqueness remains
+unproven and the seconds-resolution candidate is not a guaranteed production key.
+Automatic database separation, production session routing, permanent identity,
+AI, voice and return communication are not implemented or verified by this PR.
+The next step may be a separate session-separation design with explicit freshness
+and ambiguity handling. Keep this PR unmerged until the owner chooses to merge.
