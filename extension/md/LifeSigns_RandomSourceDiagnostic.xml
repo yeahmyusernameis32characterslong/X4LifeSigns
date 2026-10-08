@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LifeSigns_RandomSourceDiagnostic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
+  <cues>
+    <cue name="SampleAtUniverseGenerated" instantiate="true" namespace="this">
+      <conditions><event_universe_generated /></conditions>
+      <actions>
+        <set_value name="$Previous" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsRandomDiagTuple?">
+          <set_value name="$Previous" exact="md.$LifeSignsRandomDiagTuple" />
+        </do_if>
+        <debug_text text="'LIFESIGNS_RANDOM_SOURCE_DIAG_V1|before|previous=%s|END'.[$Previous]" filter="general" context="false" />
+        <set_value name="$Clock" exact="player.systemtime.{'%Y-%m-%d_%H-%M-%S'}" />
+        <set_value name="$R1" min="0" max="2147483647" />
+        <set_value name="$R2" min="0" max="2147483647" />
+        <set_value name="$R3" min="0" max="2147483647" />
+        <set_value name="$R4" min="0" max="2147483647" />
+        <set_value name="$Tuple" exact="'%s-%s-%s-%s'.[$R1, $R2, $R3, $R4]" />
+        <set_value name="$Candidate" exact="'s1-%s-%s'.[$Clock, $Tuple]" />
+        <set_value name="$FixedClockCandidate" exact="'s1-2000-01-01_00-00-00-%s'.[$Tuple]" />
+        <set_value name="$Control1" min="0" max="2147483647" seed="42L" />
+        <set_value name="$Control2" min="0" max="2147483647" seed="42L" />
+        <set_value name="md.$LifeSignsRandomDiagTuple" exact="$Tuple" />
+        <debug_text text="'LIFESIGNS_RANDOM_SOURCE_DIAG_V1|sampled|previous=%s|clock=%s|tuple=%s|candidate=%s|fixed_clock=%s|control1=%s|control2=%s|END'.[$Previous, $Clock, $Tuple, $Candidate, $FixedClockCandidate, $Control1, $Control2]" filter="general" context="false" />
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

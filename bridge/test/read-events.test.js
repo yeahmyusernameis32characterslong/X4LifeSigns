@@ -252,7 +252,8 @@ test('deployment copies only the probe, supports redeploy and rejects unrelated 
     assert.equal(await readFile(join(outside, 'LifeSigns_BridgeProbe.xml'), 'utf8'), 'must not overwrite');
   });
 
-test('session diagnostic deployment is opt-in and explicitly reversible',
+for (const name of ['SessionDiagnostic', 'RandomSourceDiagnostic']) {
+test(`${name} deployment is opt-in and explicitly reversible`,
   { skip: process.platform !== 'win32' }, async (t) => {
     const f = await fixture(t);
     const game = join(f.directory, 'game');
@@ -261,31 +262,97 @@ test('session diagnostic deployment is opt-in and explicitly reversible',
     const deploy = (...extra) => spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
       '-File', join(root, 'scripts/deploy-bridge-probe.ps1'), '-GamePath', game, ...extra], { encoding: 'utf8' });
     const target = join(game, 'extensions/lifesigns_bridge_probe');
-    const diagnostic = join(target, 'md/LifeSigns_SessionDiagnostic.xml');
+    const diagnostic = join(target, `md/LifeSigns_${name}.xml`);
     const unrelated = join(game, 'extensions/another_extension');
     await mkdir(unrelated, { recursive: true });
     await writeFile(join(unrelated, 'keep.txt'), 'untouched');
     assert.equal(deploy().status, 0);
     const original = await readFile(join(target, 'md/LifeSigns_BridgeProbe.xml'));
     await assert.rejects(readFile(diagnostic), { code: 'ENOENT' });
-    assert.equal(deploy('-SessionDiagnostic', '-WhatIf').status, 0);
+    assert.equal(deploy(`-${name}`, '-WhatIf').status, 0);
     await assert.rejects(readFile(diagnostic), { code: 'ENOENT' });
     for (let i = 0; i < 2; i++) {
-      const result = deploy('-SessionDiagnostic');
+      const result = deploy(`-${name}`);
       assert.equal(result.status, 0, result.stderr);
     }
-    assert.deepEqual(await readFile(diagnostic), await readFile(join(root, 'extension/md/LifeSigns_SessionDiagnostic.xml')));
+    const expected = await readFile(join(root, `extension/md/LifeSigns_${name}.xml`));
+    assert.deepEqual(await readFile(diagnostic), expected);
     const refusal = deploy();
     assert.notEqual(refusal.status, 0);
     assert.match(refusal.stderr, /Explicitly choose/);
-    assert.notEqual(deploy('-SessionDiagnostic', '-RemoveSessionDiagnostic').status, 0);
-    assert.equal(deploy('-RemoveSessionDiagnostic', '-WhatIf').status, 0);
-    assert.ok((await readFile(diagnostic)).length > 0);
-    const removal = deploy('-RemoveSessionDiagnostic');
+    assert.notEqual(deploy(`-${name}`, `-Remove${name}`).status, 0);
+    assert.equal(deploy(`-Remove${name}`, '-WhatIf').status, 0);
+    assert.deepEqual(await readFile(diagnostic), expected);
+    const removal = deploy(`-Remove${name}`);
     assert.equal(removal.status, 0, removal.stderr);
     await assert.rejects(readFile(diagnostic), { code: 'ENOENT' });
     assert.deepEqual(await readFile(join(target, 'md/LifeSigns_BridgeProbe.xml')), original);
     assert.equal(deploy().status, 0);
-    assert.equal(deploy('-RemoveSessionDiagnostic').status, 0);
+    assert.equal(deploy(`-Remove${name}`).status, 0);
     assert.equal(await readFile(join(unrelated, 'keep.txt'), 'utf8'), 'untouched');
+  });
+}
+
+test('both diagnostics require independent choices and can be retained or removed separately',
+  { skip: process.platform !== 'win32' }, async (t) => {
+    const f = await fixture(t);
+    const game = join(f.directory, 'game');
+    await mkdir(game);
+    await writeFile(join(game, 'X4.exe'), 'test placeholder');
+    const deploy = (...extra) => spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
+      '-File', join(root, 'scripts/deploy-bridge-probe.ps1'), '-GamePath', game, ...extra], { encoding: 'utf8' });
+    const target = join(game, 'extensions/lifesigns_bridge_probe');
+    const session = join(target, 'md/LifeSigns_SessionDiagnostic.xml');
+    const random = join(target, 'md/LifeSigns_RandomSourceDiagnostic.xml');
+    assert.equal(deploy('-SessionDiagnostic', '-RandomSourceDiagnostic', '-WhatIf').status, 0);
+    await assert.rejects(readFile(join(target, 'content.xml')), { code: 'ENOENT' });
+    assert.equal(deploy('-SessionDiagnostic', '-RandomSourceDiagnostic').status, 0);
+    const sessionBytes = await readFile(session);
+    const randomBytes = await readFile(random);
+    for (const choice of ['-SessionDiagnostic', '-RemoveSessionDiagnostic', '-RandomSourceDiagnostic', '-RemoveRandomSourceDiagnostic']) {
+      const refused = deploy(choice);
+      assert.notEqual(refused.status, 0);
+      assert.match(refused.stderr, /Explicitly choose/);
+      assert.deepEqual(await readFile(session), sessionBytes);
+      assert.deepEqual(await readFile(random), randomBytes);
+    }
+    assert.equal(deploy('-SessionDiagnostic', '-RemoveRandomSourceDiagnostic', '-WhatIf').status, 0);
+    assert.deepEqual(await readFile(random), randomBytes);
+    assert.equal(deploy('-SessionDiagnostic', '-RemoveRandomSourceDiagnostic').status, 0);
+    assert.deepEqual(await readFile(session), sessionBytes);
+    await assert.rejects(readFile(random), { code: 'ENOENT' });
+    assert.equal(deploy('-RemoveSessionDiagnostic', '-RandomSourceDiagnostic').status, 0);
+    await assert.rejects(readFile(session), { code: 'ENOENT' });
+    assert.deepEqual(await readFile(random), randomBytes);
+    assert.equal(deploy('-SessionDiagnostic', '-RandomSourceDiagnostic').status, 0);
+    assert.equal(deploy('-RemoveSessionDiagnostic', '-RemoveRandomSourceDiagnostic').status, 0);
+    await assert.rejects(readFile(session), { code: 'ENOENT' });
+    await assert.rejects(readFile(random), { code: 'ENOENT' });
+    assert.equal(deploy().status, 0);
+  });
+
+test('random diagnostic deployment and removal refuse linked MD paths without touching their target',
+  { skip: process.platform !== 'win32' }, async (t) => {
+    const f = await fixture(t);
+    const game = join(f.directory, 'game');
+    await mkdir(game);
+    await writeFile(join(game, 'X4.exe'), 'test placeholder');
+    const deploy = (...extra) => spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
+      '-File', join(root, 'scripts/deploy-bridge-probe.ps1'), '-GamePath', game, ...extra], { encoding: 'utf8' });
+    const target = join(game, 'extensions/lifesigns_bridge_probe');
+    assert.equal(deploy('-RandomSourceDiagnostic').status, 0);
+    await rename(join(target, 'md'), join(f.directory, 'original-md'));
+    const outside = join(f.directory, 'outside');
+    await mkdir(outside);
+    const sentinel = join(outside, 'LifeSigns_RandomSourceDiagnostic.xml');
+    await writeFile(sentinel, 'must not overwrite or remove');
+    await symlink(outside, join(target, 'md'), 'junction');
+    for (const flag of ['-RandomSourceDiagnostic', '-RemoveRandomSourceDiagnostic']) {
+      for (const extra of [[], ['-WhatIf']]) {
+        const refused = deploy(flag, ...extra);
+        assert.notEqual(refused.status, 0);
+        assert.match(refused.stderr, /Refusing linked deployment path/);
+        assert.equal(await readFile(sentinel, 'utf8'), 'must not overwrite or remove');
+      }
+    }
   });

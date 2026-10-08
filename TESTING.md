@@ -2,10 +2,19 @@
 
 ## Current status
 
-The bridge/persistence suite has 42 local tests passing on Node.js v24.21.0.
+The bridge/persistence suite has 46 local tests passing on Node.js v24.21.0.
 **Experimental docking bridge verified in live X4.** Optional SQLite persistence
 is **Verified with live X4 docking across Node.js restarts.** Wider AI and voice
 criteria below describe future verification, not completed results.
+
+The optional [random-source diagnostic](docs/SESSION_KEY_SOURCE_GATE.md) has
+installed X4 9.00 schema validation and mock deployment/removal coverage,
+including independent selection alongside the session diagnostic. Its six-sample owner-reported X4 9.00 live test passed: unchanged-save loads
+restored T0, all six sampled tuples differed, controls matched and no relevant MD
+errors were reported. This establishes no observed tuple replay, not independent
+entropy, 124 random bits or guaranteed uniqueness. Production session separation
+remains unimplemented and unverified. See the result record and scoped source
+recommendation in that document.
 
 ## Docking bridge experiment
 
