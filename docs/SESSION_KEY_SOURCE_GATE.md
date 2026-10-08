@@ -1,15 +1,16 @@
 # Session-key source prerequisite
 
 Status: **Six-sample diagnostic passed in owner-reported live X4 9.00 testing.
-Practical source/encoding recommended for approval with explicit residual risk;
+Practical source/encoding owner-approved on 8 October 2026 with explicit residual risk;
 production session separation remains unimplemented and unverified.** Inspection on 6 October 2026 used current remote `main`,
 `a4c30ee30ad8f8ec147c368e5d5a16c7e61c9e32` (the reviewed baseline).
 
 The lifecycle observations in [SESSION_DIAGNOSTIC_EXPERIMENT.md](SESSION_DIAGNOSTIC_EXPERIMENT.md)
 support replacement before observed docking. They do not establish fresh random
 entropy after loading a save. Independent entropy and a collision probability have not been established.
-The live evidence below supports a practical source assumption, subject to owner
-approval before production changes.
+The live evidence below supports the practical source assumption approved by the
+owner on 8 October 2026. This approves the source/encoding choice; production
+implementation remains a separate task.
 
 ## Installed source findings
 
@@ -120,7 +121,7 @@ clock is exactly `YYYY-MM-DD_HH-MM-SS` and each integer is canonical decimal
 or exponent notation. Maximum length is 66 ASCII characters. The supplied tuples demonstrate canonical decimal limb rendering in these runs.
 Full clock/candidate strings were not supplied in the final report; their exact
 rendering must still be checked during production live verification.
-This encoding is **recommended for scoped production approval**, not yet owner-approved;
+This encoding is **owner-approved for practical local single-player session isolation**;
 there is no production parser, filename or schema contract in this change.
 
 ## Deployment and rollback
@@ -326,7 +327,7 @@ quantitative collision probability from the range or these samples.
 
 **Review recommendation:** sufficient to proceed with the existing clock plus
 four unseeded draws as a practical local single-player session-routing assumption,
-subject to owner approval. Keep the proposed
+approved by the owner on 8 October 2026. Keep the proposed
 `s1-YYYY-MM-DD_HH-MM-SS-r1-r2-r3-r4` encoding, its 66-character maximum and
 strict bounded canonical-decimal validation. Do not change the sampling
 expressions or add retries based on these results.
@@ -346,14 +347,30 @@ different evidenced mechanism is needed. Automatic routing, schema-v2 ownership
 and production docking-key stability still need their own implementation and
 live acceptance tests. Full key formatting belongs in those checks.
 
-PR #10 is ready for owner review as a disposable diagnostic with recorded results.
-Leave it unmerged until the owner decides. The next step is to approve or reject
-the practical source/encoding assumption, then prepare the separate production
-session-isolation task preserving manual V1 behaviour and old databases.
+### Owner approval and merge readiness: 8 October 2026
+
+The owner explicitly approved the clock-plus-four-unseeded-draws source and
+`s1` encoding as a practical local single-player session-isolation assumption,
+accepting the documented unquantified residual collision risk. The approval
+explicitly does not treat the evidence as proof of independent entropy, 124 random
+bits, uniformity or guaranteed uniqueness.
+
+The source/encoding approval gate is passed for this limited purpose. PR #10
+is ready to merge as an optional disposable diagnostic with recorded live
+results and the approved assumption. No remaining technical blocker was found
+in the final diff review. Existing schema/automated results remain separate from
+owner-reported live observations; no new tests are claimed for this documentation
+update. Missing deployed-SHA/full-key details remain evidence limitations,
+not invented results, and full production encoding must be verified live later.
+
+Leave PR #10 unmerged until the owner authorises merging. After merge, start a
+separate production automatic-session-routing PR preserving V1/manual behaviour
+and old databases. Production implementation is not authorised by this approval
+record alone; automatic session separation remains unimplemented and unverified.
 
 ## Deferred production scope
 
-After the source and final encoding gates are approved, a separate implementation
+With the practical source and encoding now owner-approved, a separate implementation
 may add lifecycle assignment, V2 docking records, opt-in `--auto-db`, schema-v2
 per-session ownership, routing under ignored `local-data/sessions/`, and independent
 readback. Preserve V1/manual/schema-v1 behaviour and the optional diagnostic.
