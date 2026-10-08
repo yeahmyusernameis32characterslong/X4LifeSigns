@@ -78,13 +78,15 @@ The experimental bridge captures completed dockings while the player is personal
 
 See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 
+**Persistent entity identity is In Progress**, beginning with the disposable six-ship identity diagnostic in [PR #12](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/12). The diagnostic is **Implemented, unverified pending live X4 testing**.
+
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
   <tbody>
     <tr><td valign="middle">X4 docking bridge</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
     <tr><td valign="middle">SQLite persistence across Node.js restarts</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
     <tr><td valign="middle">Automatic session separation</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
-    <tr><td valign="middle">Persistent entity identity</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
+    <tr><td valign="middle">Persistent entity identity</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
     <tr><td valign="middle">Return path to X4</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
     <tr><td valign="middle">Local LLM integration</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
     <tr><td valign="middle">Voice input and output</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
