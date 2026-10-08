@@ -206,6 +206,29 @@ reuse the same database only for Node restarts while X4 remains running in the
 controlled history. No probe redeployment is needed. Follow
 [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md) for the live test procedure and completed verification record.
 
+Automatic session routing is opt-in and **Verified live in X4 9.00 with Node.js
+v24.21.0** under the approved practical local single-player `s1` assumption:
+
+```powershell
+node .\bridge\src\read-events.js --log 'YOUR_CONFIRMED_DEBUG_LOG' --auto-db
+node .\bridge\src\read-stored-events.js --db '.\local-data\sessions\SESSION_KEY.db'
+```
+
+Replace SESSION_KEY with the complete observed production key. Do not combine
+`--db` and `--auto-db`. Auto mode consumes V2 only and lazily selects a schema-v2
+owned database beneath the reader's repository `local-data/sessions/`, even when
+launched from another working directory. Manual/console modes continue using
+V1 only. Readback displays v2 ownership as well as rows and count, without X4 or
+the log; existing v1 readback remains supported.
+
+Use the exact owner-run [production acceptance procedure](docs/AUTOMATIC_SESSION_ROUTING.md),
+including explicit removal of both optional diagnostics before deployment.
+The owner completed live deployment and verification; automated tests do not
+deploy into the real X4 installation. Use local, non-synchronised storage; linked/junction paths,
+multiply linked database files, existing sidecars and incompatible ownership
+fail closed. Never repair an automatically rejected file by overwriting it.
+Preserve it for inspection. An existing empty target is also rejected.
+
 The wider system's startup commands have not yet been defined.
 
 The following are illustrative future commands for the wider system. For the

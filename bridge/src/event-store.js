@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-const SCHEMA = `CREATE TABLE docking_events (
+export const SCHEMA = `CREATE TABLE docking_events (
   event_id INTEGER PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (event_type = 'docked'),
   ship_idcode TEXT NOT NULL,
