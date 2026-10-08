@@ -7,7 +7,10 @@ unverified. Original bridge/persistence results are unchanged.
 
 Follow-up: [session-key source prerequisite](SESSION_KEY_SOURCE_GATE.md) records
 the installed random-source inspection and an independent optional reload
-diagnostic. Production remains blocked on random freshness and final key approval.
+diagnostic. Its six-sample live test passed with no observed tuple replay.
+Clock-plus-four-draws is recommended for practical session routing with explicit
+residual risk, subject to owner approval; independent entropy and guaranteed
+uniqueness remain unproven. Production routing remains unimplemented.
 
 ## Choice and installed evidence
 

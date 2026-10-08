@@ -1,13 +1,14 @@
 # Session-key source prerequisite
 
-Status: **Blocked before production implementation; production session separation
-remains unverified.** Inspection on 6 October 2026 used current remote `main`,
+Status: **Six-sample diagnostic passed in owner-reported live X4 9.00 testing.
+Practical source/encoding recommended for approval with explicit residual risk;
+production session separation remains unimplemented and unverified.** Inspection on 6 October 2026 used current remote `main`,
 `a4c30ee30ad8f8ec147c368e5d5a16c7e61c9e32` (the reviewed baseline).
 
 The lifecycle observations in [SESSION_DIAGNOSTIC_EXPERIMENT.md](SESSION_DIAGNOSTIC_EXPERIMENT.md)
 support replacement before observed docking. They do not establish fresh random
-entropy after loading a save. No collision-resistant source has yet been
-established. The source prerequisite and final production key encoding require
+entropy after loading a save. Independent entropy and a collision probability have not been established.
+The live evidence below supports a practical source assumption, subject to owner
 approval before production changes.
 
 ## Installed source findings
@@ -56,14 +57,16 @@ sources. Freshly executing a draw and replacing a saved variable are distinct
 from obtaining entropy independent of the save. Four draws cannot be described
 as 124 independent bits without evidence about the generator and its state.
 
-Consequently clock-plus-fresh-random is unsupported at this gate. There is no
+At the initial source-inspection gate, clock-plus-fresh-random was unsupported.
+The later live results and scoped recommendation are recorded below; they do not
+supply an RNG restoration/reseeding contract. There is no
 timestamp-only routing fallback. V1 emission, console-only/manual `--db`,
 schema-v1 files, the verified docking filter, PR #9 readiness/cue-name fixes and
 the existing optional diagnostic remain unchanged.
 
 ## Optional diagnostic: replay of an unchanged save
 
-The optional diagnostic is **implemented, live behaviour unverified** in
+The optional diagnostic has **passed the six-sample owner-reported live test** in
 [`LifeSigns_RandomSourceDiagnostic.xml`](../extension/md/LifeSigns_RandomSourceDiagnostic.xml).
 It uses a separate script, marker and variables. The existing session diagnostic
 remains independent. It never supplies a routing key or writes SQLite. Its random
@@ -114,8 +117,10 @@ source belongs in this test. Do not silently replace `set_value` with
 The diagnostic encoding is `s1-<clock>-<r1>-<r2>-<r3>-<r4>`, where the
 clock is exactly `YYYY-MM-DD_HH-MM-SS` and each integer is canonical decimal
 `0..2147483647`, without signs, leading zeroes (except `0`), padding, whitespace
-or exponent notation. Maximum length is 66 ASCII characters. Expected MD `%s`
-rendering must be confirmed live. This encoding is **not approved for production**;
+or exponent notation. Maximum length is 66 ASCII characters. The supplied tuples demonstrate canonical decimal limb rendering in these runs.
+Full clock/candidate strings were not supplied in the final report; their exact
+rendering must still be checked during production live verification.
+This encoding is **recommended for scoped production approval**, not yet owner-approved;
 there is no production parser, filename or schema contract in this change.
 
 ## Deployment and rollback
@@ -229,7 +234,7 @@ This does not establish 124 independent bits, guaranteed uniqueness or verified
 automatic session separation.
 
 The larger procedure below is optional, not a prerequisite for the initial test.
-No live results have been collected.
+The completed initial results are recorded below.
 
 ## Optional extended test
 
@@ -274,13 +279,77 @@ No live results have been collected.
    trials**. Variable scheduling and other consumers of a restored RNG could
    produce different outputs without independent entropy. A finite successful
    test does not prove non-restoration, entropy width or universal uniqueness.
-   Production remains blocked until a source contract or other reviewed evidence
-   resolves that limitation, and the owner approves the source assumption and
-   exact final key encoding. A collision is a stop, not permission to use the
+   Production requires an explicit review of the residual risk and owner approval
+   of the practical source assumption and exact final key encoding. The initial
+   live assessment below recommends that scoped approval without claiming that
+   the source-contract limitation has been resolved. A collision is a stop, not permission to use the
    clock alone or silently choose another source.
 
 This experiment targets the unresolved source question. It does not repeat or
 supersede the passed lifecycle diagnostic, and cannot verify production routing.
+
+## Live results and source assessment: reported 8 October 2026
+
+The owner reports completion of the six-sample X4 9.00 test. These are supplied
+observations, not independent inspection of raw logs or saves. The current PR
+head at review was `361aa571b0f05461851a615745ba59ae61a14ed7`; the owner did
+not separately supply the deployed checkout SHA, exact clock/candidate strings,
+enabled-extension list or diagnostic-removal result. Do not infer those details.
+
+T0 is `766367488-1221458688-1772234880-385250656`.
+
+| Transition | Previous tuple | Newly sampled tuple |
+| --- | --- | --- |
+| Fresh game | Initial state not separately restated in final report | `766367488-1221458688-1772234880-385250656` |
+| A reload 1 | T0 | `1350704256-941531904-1924927744-231301344` |
+| A reload 2 | T0 | `734295552-198622560-113342944-1347539200` |
+| A reload 3 | T0 | `2078967424-836117824-99570336-444803680` |
+| X4 restart 1, unchanged A | T0 | `1539085696-1460277632-768014848-949240960` |
+| X4 restart 2, unchanged A | T0 | `289843104-194821472-148644352-906973568` |
+
+All six complete newly sampled tuples were distinct and all supplied limbs were
+bounded canonical decimal integers. Every load of unchanged A restored T0.
+Exactly one before/sampled pair occurred per transition. Both controls equalled
+`586094016` on every sample. No relevant Life Signs random-source MD errors
+were reported. The repeated unsigned loose-file `.sig` warning is recorded as
+test context; it did not prevent the observed callbacks or samples.
+
+**The six-sample observational diagnostic passed: no tuple replay was observed.**
+The comparison uses tuples alone, so different clock readings cannot hide replay.
+It does not prove that engine RNG state is not restored: scheduling and other
+random consumers could produce different draws from restored state.
+
+Every reported limb, including the control, is a multiple of 32. This is observed
+output granularity, not a diagnosis of the generator or numeric conversion.
+Do not infer 31 random bits per limb, 124 independent bits, uniformity or a
+quantitative collision probability from the range or these samples.
+
+**Review recommendation:** sufficient to proceed with the existing clock plus
+four unseeded draws as a practical local single-player session-routing assumption,
+subject to owner approval. Keep the proposed
+`s1-YYYY-MM-DD_HH-MM-SS-r1-r2-r3-r4` encoding, its 66-character maximum and
+strict bounded canonical-decimal validation. Do not change the sampling
+expressions or add retries based on these results.
+
+This is a probabilistic operational choice, not proof of independent entropy or
+guaranteed uniqueness. It combines newly sampled clock context with an observed
+non-replaying tuple and the previously verified lifecycle replacement behaviour.
+The chance of a repeated complete key is unknown. An exact repeated key across
+loads can be indistinguishable from the same uninterrupted session after Node
+restart, including when Node missed the load. Database ownership cannot detect
+that case. The design must state this residual possibility of mixed histories;
+it must not claim absolute isolation or silently fall back to timestamp-only keys.
+
+No further arbitrary reload count is required for this scoped recommendation.
+If guaranteed separation is required, this evidence is insufficient and a
+different evidenced mechanism is needed. Automatic routing, schema-v2 ownership
+and production docking-key stability still need their own implementation and
+live acceptance tests. Full key formatting belongs in those checks.
+
+PR #10 is ready for owner review as a disposable diagnostic with recorded results.
+Leave it unmerged until the owner decides. The next step is to approve or reject
+the practical source/encoding assumption, then prepare the separate production
+session-isolation task preserving manual V1 behaviour and old databases.
 
 ## Deferred production scope
 
@@ -316,5 +385,6 @@ passed. This verifies schema structure, not MD expression evaluation or RNG
 behaviour. Mock checks cover each diagnostic's opt-in, redeployment, conflicting
 flags, WhatIf, explicit and repeated removal, independent retain/remove choices,
 linked MD directory refusal for random-source deployment/removal, and preservation
-of the normal probe and another extension. No deployment into the real X4
-installation or live random-source acceptance has been performed.
+of the normal probe and another extension. Those automated checks did not deploy
+into the real X4 installation. Subsequent owner-reported live results are recorded
+separately above; no automated suite rerun is claimed for this documentation update.

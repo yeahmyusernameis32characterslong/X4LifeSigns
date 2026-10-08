@@ -9,9 +9,12 @@ criteria below describe future verification, not completed results.
 
 The optional [random-source diagnostic](docs/SESSION_KEY_SOURCE_GATE.md) has
 installed X4 9.00 schema validation and mock deployment/removal coverage,
-including independent selection alongside the session diagnostic. Its live
-behaviour and production session separation remain unverified. Non-repeating
-samples alone would not prove entropy independent of restored RNG state.
+including independent selection alongside the session diagnostic. Its six-sample owner-reported X4 9.00 live test passed: unchanged-save loads
+restored T0, all six sampled tuples differed, controls matched and no relevant MD
+errors were reported. This establishes no observed tuple replay, not independent
+entropy, 124 random bits or guaranteed uniqueness. Production session separation
+remains unimplemented and unverified. See the result record and scoped source
+recommendation in that document.
 
 ## Docking bridge experiment
 
