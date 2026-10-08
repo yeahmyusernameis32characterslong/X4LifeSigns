@@ -41,8 +41,9 @@ Database files and journals belong in ignored `local-data/`. See
 
 ## Automatic session schema version 2
 
-Opt-in `--auto-db` is **implemented, unverified / in progress** pending the
-[production live matrix](docs/AUTOMATIC_SESSION_ROUTING.md). It uses the exact
+Opt-in `--auto-db` is **Verified live in X4 9.00 with Node.js v24.21.0** under
+the approved practical local single-player `s1` assumption; see the
+[production live results](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record). It uses the exact
 same `docking_events` table semantics and adds exactly one ownership table:
 
 ```sql

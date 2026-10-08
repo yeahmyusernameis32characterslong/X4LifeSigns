@@ -1,9 +1,10 @@
 # Automatic session routing: production live acceptance
 
-Status: **Implemented, unverified / in progress.** Automated synthetic tests and
-installed X4 9.00 schema validation are separate from live verification. The owner
-must complete this production matrix before automatic session separation can be
-marked Verified under the approved practical `s1` assumption.
+Status: **Verified live in X4 9.00 with Node.js v24.21.0 under the approved
+practical local single-player `s1` session-key assumption.** The full owner-run
+production matrix passed. Automated synthetic tests and installed-schema
+validation are separate from this live evidence; the procedure below is retained
+for repeatable verification.
 
 ## Contract and limits
 
@@ -209,6 +210,49 @@ X4 9.00 `md.xsd` and `common.xsd`; their MD5 values match the installed 08.cat
 entries recorded by the source prerequisite. This checks XML structure, not
 clock/key rendering or live callback behaviour.
 
-Automated results are recorded in [TESTING.md](../TESTING.md). **No production
-live acceptance result is claimed.** Leave the implementation PR unmerged for
-review and owner-run verification.
+Automated results are recorded in [TESTING.md](../TESTING.md). Owner-run live
+results are recorded below; no production behaviour changed in this status update.
+
+## Live verification record
+
+The owner reported the full production acceptance matrix passed on **X4 9.00
+with Node.js v24.21.0**, testing implementation
+`424d571f66f314b81943f7a2322b6af089e7aeff` against baseline
+`d42a06259ca425d140bfd26ae5449f90c04e487f`. Both optional diagnostics were removed.
+The Windows automated suite separately passed **97/97**, with zero failures or
+skips; automated validation does not substitute for the live results.
+
+| Live check | Observed result |
+| --- | --- |
+| Initial A / Node restart | Two dockings used K0; Node restart reused K0 without replay and the third docking appended to its DB. |
+| Unchanged A, two reloads | Each restored K0, invalidated it before use and assigned a distinct replacement key; each session wrote to its own owned DB. |
+| Separate fresh universe B / B → A | Separate keys and databases; returning to unchanged A created a new session without altering earlier histories. |
+| Completely fresh unsaved game | One assignment at universe generation, none at game start; two genuine dockings used the same key and DB. |
+| Full X4 restart / unchanged A | Restored K0 was invalidated and replaced; docking persisted to a new DB. |
+| Node absent during load | X4 assigned independently; Node started later and routed the next docking from V2 correctly. |
+| Already-docked A2 | No false docking on load; a genuine undock/re-dock produced exactly one row. |
+| Filtering and V1/manual compatibility | AI-controlled docking produced no V1/V2 event or acknowledgement; console V1 passed; manual schema-v1 mode persisted exactly one row. |
+| Lifecycle / rendering / error audit | Canonical full `s1` keys; correct invalidation → assignment; no unexpected `no_ready_session`, duplicate cue or relevant MD/runtime failure. Expected loose-development `.sig` warnings only. |
+
+Independent readback found **nine schema-v2 session databases**, each with exact
+ownership metadata and expected row counts. Clock fragments below are supplied
+abbreviations, not complete keys or filenames; no raw logs or databases are committed.
+
+| Session | Abbreviated key clock | Rows |
+| --- | --- | ---: |
+| K0 | `21-16-39…` | 3 |
+| K1 | `21-28-46…` | 1 |
+| K2 | `21-35-05…` | 1 |
+| Fresh universe B | `21-45-14…` | 1 |
+| A after B | `21-49-20…` | 1 |
+| Fresh unsaved game | `21-53-38…` | 2 |
+| Full-restart A | `22-01-15…` | 1 |
+| Node-absent A | `22-05-01…` | 1 |
+| Already-docked A2 | `22-15-53…` | 1 |
+
+**Automatic session separation — Verified**, within the tested docking-persistence
+scenarios and approved practical local single-player `s1` assumption. Residual
+complete-key collision risk remains unquantified: these results do not prove
+independent entropy, 124 random bits, uniformity or guaranteed uniqueness. They
+do not establish permanent entity identity, cross-session NPC memory lineage,
+deduplication or exactly-once delivery. No migration, repair or fallback is added.

@@ -206,7 +206,8 @@ reuse the same database only for Node restarts while X4 remains running in the
 controlled history. No probe redeployment is needed. Follow
 [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md) for the live test procedure and completed verification record.
 
-Automatic session routing is opt-in and **implemented but live-unverified**:
+Automatic session routing is opt-in and **Verified live in X4 9.00 with Node.js
+v24.21.0** under the approved practical local single-player `s1` assumption:
 
 ```powershell
 node .\bridge\src\read-events.js --log 'YOUR_CONFIRMED_DEBUG_LOG' --auto-db
@@ -222,8 +223,8 @@ the log; existing v1 readback remains supported.
 
 Use the exact owner-run [production acceptance procedure](docs/AUTOMATIC_SESSION_ROUTING.md),
 including explicit removal of both optional diagnostics before deployment.
-This implementation has not been deployed into the real X4 installation by the
-automated work. Use local, non-synchronised storage; linked/junction paths,
+The owner completed live deployment and verification; automated tests do not
+deploy into the real X4 installation. Use local, non-synchronised storage; linked/junction paths,
 multiply linked database files, existing sidecars and incompatible ownership
 fail closed. Never repair an automatically rejected file by overwriting it.
 Preserve it for inspection. An existing empty target is also rejected.

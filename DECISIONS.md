@@ -58,10 +58,11 @@ histories and is an accepted, unquantified residual risk. There is no timestamp
 fallback, random retry, save parsing, migration, deduplication or permanent
 entity identity. Existing log startup/replacement behaviour remains unchanged.
 
-Status: **Implemented, unverified / in progress** until the owner completes
-[production live acceptance](docs/AUTOMATIC_SESSION_ROUTING.md) with both optional
-diagnostics absent. Automated checks and installed-schema validation cannot
-verify full clock/key rendering or live isolation.
+Status: **Verified live in X4 9.00 with Node.js v24.21.0** under the approved
+practical local single-player `s1` assumption. The owner completed
+[production live acceptance](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record)
+with both optional diagnostics absent. Automated checks and installed-schema
+validation remain separate from the live isolation and key-rendering evidence.
 
 ## Repository naming
 

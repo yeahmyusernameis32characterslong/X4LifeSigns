@@ -47,7 +47,8 @@ guarantee is established. See
 
 ### Automatic session routing
 
-Status: **Implemented, unverified / in progress.** Production state in the normal
+Status: **Verified live in X4 9.00 with Node.js v24.21.0** under the approved
+practical local single-player `s1` assumption. Production state in the normal
 probe is independent of both optional diagnostic scripts. A root game-loaded
 listener invalidates restored readiness; universe generation samples the approved
 clock plus four unseeded draws exactly once and publishes the production `s1`
@@ -69,9 +70,10 @@ unquantified residual collision risk, not guaranteed uniqueness. Reusing an
 identical complete key across actual X4 sessions cannot be detected by ownership
 and can mix histories. There is no fallback, migration, retry, deduplication,
 durable checkpoint, permanent entity identity or exactly-once claim.
-The [production acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md) must run
-with both optional diagnostics removed; static checks do not establish live
-callback ordering or complete clock/key rendering.
+The [owner-run production acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record)
+passed with both optional diagnostics removed, including live callback ordering
+and complete canonical clock/key rendering. Static validation remains separate
+from this live evidence.
 
 ### X4 MD and Lua
 

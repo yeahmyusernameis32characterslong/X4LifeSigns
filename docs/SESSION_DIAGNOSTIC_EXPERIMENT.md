@@ -2,17 +2,17 @@
 
 Status: **Experimental lifecycle/replacement gate passed in owner-reported live
 X4 testing.** Fresh-game docking and old/corrected-save regression checks passed
-at `1953110`. Automatic session separation and guaranteed token uniqueness remain
-unverified. Original bridge/persistence results are unchanged.
+at `1953110`. This diagnostic did not verify automatic session separation or
+guaranteed token uniqueness. Original bridge/persistence results are unchanged.
 
 Follow-up: [session-key source prerequisite](SESSION_KEY_SOURCE_GATE.md) records
 the installed random-source inspection and an independent optional reload
 diagnostic. Its six-sample live test passed with no observed tuple replay.
 Clock-plus-four-draws and the s1 encoding were owner-approved on 8 October 2026
 for practical local session routing with explicit residual risk; independent entropy and guaranteed
-uniqueness remain unproven. Production routing is now implemented but unverified;
-its independent [production acceptance matrix](AUTOMATIC_SESSION_ROUTING.md)
-runs with both optional diagnostics removed. The results below remain the
+uniqueness remain unproven. Production routing is now Verified under that practical
+assumption; its independent [production acceptance matrix](AUTOMATIC_SESSION_ROUTING.md#live-verification-record)
+passed with both optional diagnostics removed on X4 9.00 with Node.js v24.21.0. The results below remain the
 historical diagnostic evidence, not production verification.
 
 ## Choice and installed evidence

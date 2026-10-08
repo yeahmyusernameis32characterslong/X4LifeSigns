@@ -2,8 +2,9 @@
 
 ## Current status
 
-The full bridge/persistence/routing suite has **97 local tests passing, zero
-failures or skips**, on Node.js v24.21.0 with built-in `node:sqlite`.
+The owner-reported Windows automated bridge/persistence/routing suite passed
+**97/97 tests, zero failures or skips**, on Node.js v24.21.0 with built-in
+`node:sqlite`. This automated validation is separate from live X4 verification.
 **Experimental docking bridge verified in live X4.** Optional SQLite persistence
 is **Verified with live X4 docking across Node.js restarts.** Wider AI and voice
 criteria below describe future verification, not completed results.
@@ -14,8 +15,9 @@ including independent selection alongside the session diagnostic. Its six-sample
 restored T0, all six sampled tuples differed, controls matched and no relevant MD
 errors were reported. This establishes no observed tuple replay, not independent
 entropy, 124 random bits or guaranteed uniqueness. Production session separation
-is **implemented but unverified / in progress** pending the separate production
-live matrix. The source decision remains closed; see the approved assumption
+is **Verified** through the separate owner-run X4 9.00 production live matrix
+on Node.js v24.21.0 under the approved practical local single-player `s1` assumption.
+The source decision remains closed; see the approved assumption
 and its limitations in that document.
 
 ## Docking bridge experiment
@@ -73,14 +75,22 @@ requires both optional diagnostics removed, A saved after production state is
 assigned and retained unchanged, two reloads of A showing restored invalidation
 and replacement, Node-only restart reuse, B-to-A, fresh games, full X4 restart,
 late Node startup, already-docked loading, the docking filter/V1 compatibility
-and independent ownership/history readback. No real-game deployment or live
-production pass is claimed. Full production clock/key rendering remains a live
-check even though diagnostic limbs rendered canonically.
+and independent ownership/history readback. The owner completed this matrix
+on X4 9.00 with Node.js v24.21.0 at `424d571f66f314b81943f7a2322b6af089e7aeff`.
+All observed full V2 keys were canonical; the independent audit found nine
+correctly owned schema-v2 databases with the expected counts (12 rows total).
+See the [live verification record](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record)
+for the scenarios and results.
 
-Automatic session separation remains **implemented, unverified / in progress**.
-A live pass would verify it only under the approved practical s1 assumption,
-not guaranteed uniqueness, permanent entity identity, RNG entropy or exactly-once
-delivery.
+Automatic session separation is **Verified** only under the approved practical
+local single-player `s1` assumption, not guaranteed uniqueness, permanent entity
+identity, RNG entropy or exactly-once delivery.
+
+The documentation-update rerun on Linux/Node.js v24.19.0 produced 91 passes,
+five Windows-only skips and the previously reviewed lock-fixture timeout. The
+fixture closes a file descriptor while holding a SQLite lock, releasing POSIX
+process locks; this test-only portability issue is non-blocking for the verified
+Windows/X4 9.00 milestone. It does not supersede the owner-reported 97/97 run.
 
 ## Proposed first milestone: Remember one real event
 

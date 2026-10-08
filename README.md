@@ -74,7 +74,7 @@ The diagram shows the intended design. The working experiments are described bel
 
 The experimental bridge captures completed dockings while the player is personally piloting and acknowledges them in Node.js. Optional SQLite storage preserves those events for readback after Node.js restarts. Both have passed live X4 verification, with X4 kept running during the persistence test.
 
-**Automatic session separation is implemented but unverified / in progress.** Opt-in `--auto-db` routes V2 dockings into owned per-session databases under the approved practical `s1` key assumption. The [production live acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md) remains owner-run and pending. Manual `--db` still needs a fresh database after a game reload or for another save/universe. Permanent entity identity, AI, voice and return communication remain unverified.
+**Automatic session separation is Verified live in X4 9.00 with Node.js v24.21.0**, under the approved practical local single-player `s1` session-key assumption. Opt-in `--auto-db` routes V2 dockings into owned per-session databases; the [owner-run production acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record) passed. This does not establish guaranteed key uniqueness or continuity across sessions. Manual `--db` still needs a fresh database after a game reload or for another save/universe. Permanent entity identity, AI, voice and return communication remain unverified.
 
 See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 
@@ -83,7 +83,7 @@ See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence exp
   <tbody>
     <tr><td valign="middle">X4 docking bridge</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
     <tr><td valign="middle">SQLite persistence across Node.js restarts</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
-    <tr><td valign="middle">Automatic session separation</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
+    <tr><td valign="middle">Automatic session separation</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
     <tr><td valign="middle">Persistent entity identity</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
     <tr><td valign="middle">Return path to X4</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
     <tr><td valign="middle">Local LLM integration</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>

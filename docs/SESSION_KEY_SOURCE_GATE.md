@@ -2,7 +2,8 @@
 
 Status: **Six-sample diagnostic passed in owner-reported live X4 9.00 testing.
 Practical source/encoding owner-approved on 8 October 2026 with explicit residual risk;
-production session separation is now implemented but unverified / in progress.** Inspection on 6 October 2026 used current remote `main`,
+production session separation is now Verified live in X4 9.00 with Node.js
+v24.21.0 under that practical local single-player `s1` assumption.** Inspection on 6 October 2026 used current remote `main`,
 `a4c30ee30ad8f8ec147c368e5d5a16c7e61c9e32` (the reviewed baseline).
 
 The lifecycle observations in [SESSION_DIAGNOSTIC_EXPERIMENT.md](SESSION_DIAGNOSTIC_EXPERIMENT.md)
@@ -374,7 +375,7 @@ separate production automatic-session-routing PR preserving V1/manual behaviour
 and old databases. Production implementation is not authorised by this approval
 record alone; automatic session separation remains unimplemented and unverified.
 
-## Deferred production scope
+## Historical deferred production scope (PR #10)
 
 With the practical source and encoding now owner-approved, a separate implementation
 may add lifecycle assignment, V2 docking records, opt-in `--auto-db`, schema-v2
