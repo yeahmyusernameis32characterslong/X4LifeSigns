@@ -81,8 +81,10 @@ The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernamei
 
 The controlled docking experiment uses Node's built-in SQLite and a version-1
 docking_events table. See DATABASE.md. Wider persistence remains planned. Use a
-fresh database for another save/universe or game reload; no automatic save
-identification or permanent ID-code uniqueness is established.
+fresh manual database for another save/universe or game reload. Opt-in automatic
+routing uses owned schema-v2 files and remains implemented but live-unverified;
+see docs/AUTOMATIC_SESSION_ROUTING.md. Preserve manual v1 behaviour and do not
+migrate existing files. No permanent ID-code uniqueness is established.
 
 Database changes must be deliberate and documented.
 

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openEventStore } from './event-store.js';
+import { openReadbackStore } from './session-store.js';
 
 export function parseArgs(args) {
   if (args.length !== 2 || args[0] !== '--db' || !args[1] || args[1].startsWith('--')) {
@@ -10,9 +10,10 @@ export function parseArgs(args) {
 }
 
 export function main(args = process.argv.slice(2)) {
-  const store = openEventStore(parseArgs(args), { readOnly: true });
+  const store = openReadbackStore(parseArgs(args));
   try {
     const rows = store.list();
+    if (store.ownership) console.log(`Session ownership: ${JSON.stringify(store.ownership)}`);
     for (const row of rows) console.log(JSON.stringify(row));
     console.log(`Stored docking count: ${rows.length}`);
   } finally {

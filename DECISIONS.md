@@ -25,6 +25,44 @@ save/universe or reload. ID codes are not claimed permanently unique. Status:
 **Verified with live X4 docking across Node.js restarts.** Original bridge verification
 remains unchanged.
 
+## Production automatic session routing
+
+The source prerequisite was closed by the owner-approved practical `s1`
+assumption in merged PR #10. This implementation uses one clock sample plus four
+newly executed unseeded `set_value` draws from `0..2147483647`, assigned only at
+`event_universe_generated`. `event_game_loaded` invalidates restored readiness;
+game start and docking never create, repair or replace a key. No source gate is
+reopened. Independent entropy, 124 random bits, uniformity, reseeding and
+guaranteed uniqueness are not established.
+
+Keep the saved cue tree, PR #9 readiness fix and docking filter. Preserve V1
+output and console/manual consumption. V2 carries the complete production key;
+opt-in `--auto-db` consumes only V2, strictly validates it and lazily routes to
+source-relative `local-data/sessions/<key>.db`. Dedicated
+`LIFESIGNS_SESSION_ROUTING_V1` lifecycle/failure messages are diagnostics only.
+Both optional diagnostic scripts remain independent and are removed for live
+production acceptance.
+
+Schema v2 adds exactly one `session_metadata` ownership table while preserving
+`docking_events`. Existing files are validated read-only before writable opening;
+schema and ownership are rechecked transactionally. Initialise only exclusively
+created new files, never existing empty or v1 targets. Reject unsafe paths,
+incompatible/corrupt files, wrong owners and unexpected objects without migration,
+repair or modification. Refuse pre-existing sidecars and WAL-format v2 targets
+to preserve read-only rejection. Commit and read back each docking before
+acknowledging; any automatic storage failure stops with non-zero exit.
+
+Reuse an identical key as the same owner across Node restarts. Do not invent
+collision suffixes: an actual cross-session complete-key collision can mix
+histories and is an accepted, unquantified residual risk. There is no timestamp
+fallback, random retry, save parsing, migration, deduplication or permanent
+entity identity. Existing log startup/replacement behaviour remains unchanged.
+
+Status: **Implemented, unverified / in progress** until the owner completes
+[production live acceptance](docs/AUTOMATIC_SESSION_ROUTING.md) with both optional
+diagnostics absent. Automated checks and installed-schema validation cannot
+verify full clock/key rendering or live isolation.
+
 ## Repository naming
 
 The X4 implementation is called:

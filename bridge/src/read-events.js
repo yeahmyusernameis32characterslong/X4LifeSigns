@@ -2,6 +2,7 @@ import { open, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
+import { validateSessionRecord } from './session-key.js';
 
 export const MARKER = 'LIFESIGNS_BRIDGE_V1';
 const MAX_LINE_BYTES = 64 * 1024;
@@ -16,17 +17,37 @@ export function parseRecord(line) {
   return { ship: match[1], destination: match[2] };
 }
 
+export function parseV2Record(line) {
+  const index = line.indexOf('LIFESIGNS_BRIDGE_V2');
+  if (index === -1) return null;
+  const match = /^LIFESIGNS_BRIDGE_V2\|docked\|session=([^|]+)\|ship=([A-Z]{3}-[0-9]{3})\|destination=([A-Z]{3}-[0-9]{3})\|END(?![\s\S])/.exec(line.slice(index));
+  try {
+    if (!match) throw new Error('Invalid fields');
+    return validateSessionRecord({ session: match[1], ship: match[2], destination: match[3] });
+  } catch {
+    throw new Error('Malformed LIFESIGNS_BRIDGE_V2 record (canonical s1 session and docking fields required)');
+  }
+}
+
 export function parseArgs(args) {
   const options = {};
-  for (let i = 0; i < args.length; i += 2) {
+  const usage = 'Usage: node bridge/src/read-events.js --log <path> [--db <database> | --auto-db]';
+  for (let i = 0; i < args.length; i++) {
     const key = args[i];
+    if (key === '--auto-db') {
+      if (options[key]) throw new Error(usage);
+      options[key] = true;
+      continue;
+    }
     if (!['--log', '--db'].includes(key) || options[key] || !args[i + 1] || args[i + 1].startsWith('--')) {
-      throw new Error('Usage: node bridge/src/read-events.js --log <path> [--db <database>]');
+      throw new Error(usage);
     }
     options[key] = resolve(args[i + 1]);
+    i++;
   }
-  if (!options['--log']) throw new Error('Usage: node bridge/src/read-events.js --log <path> [--db <database>]');
-  return { logPath: options['--log'], dbPath: options['--db'] };
+  if (options['--db'] && options['--auto-db']) throw new Error('--db and --auto-db are mutually exclusive');
+  if (!options['--log']) throw new Error(usage);
+  return { logPath: options['--log'], dbPath: options['--db'], ...(options['--auto-db'] ? { autoDb: true } : {}) };
 }
 
 async function readAt(handle, position, length) {
@@ -40,7 +61,7 @@ function identity(stat) {
 }
 
 // Polls are sequential. All handles use read-only mode and close after each poll.
-export async function createTail(logPath, { onRecord = () => {}, onWarning = () => {} } = {}) {
+export async function createTail(logPath, { onRecord = () => {}, onWarning = () => {}, parse = parseRecord } = {}) {
   let offset;
   let fileIdentity;
   let anchor = Buffer.alloc(0);
@@ -73,7 +94,7 @@ export async function createTail(logPath, { onRecord = () => {}, onWarning = () 
           const line = Buffer.concat([pending, part]).toString('utf8').replace(/\r$/, '');
           let record;
           try {
-            record = parseRecord(line);
+            record = parse(line);
           } catch (error) {
             onWarning(error.message);
           }
@@ -138,7 +159,7 @@ export async function createTail(logPath, { onRecord = () => {}, onWarning = () 
 }
 
 async function main() {
-  const { logPath, dbPath } = parseArgs(process.argv.slice(2));
+  const { logPath, dbPath, autoDb } = parseArgs(process.argv.slice(2));
   const controller = new AbortController();
   const stop = () => controller.abort();
   process.once('SIGINT', stop);
@@ -159,7 +180,9 @@ async function main() {
       // Validate/open storage before watching the log. Console-only needs no SQLite import.
       store = (await import('./event-store.js')).openEventStore(dbPath);
     }
+    if (autoDb) store = (await import('./session-store.js')).createSessionRouter();
     const tail = await createTail(logPath, {
+      parse: autoDb ? parseV2Record : parseRecord,
       onRecord: (record) => {
         if (store) {
           const row = store.persist(record);

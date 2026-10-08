@@ -10,7 +10,10 @@ the installed random-source inspection and an independent optional reload
 diagnostic. Its six-sample live test passed with no observed tuple replay.
 Clock-plus-four-draws and the s1 encoding were owner-approved on 8 October 2026
 for practical local session routing with explicit residual risk; independent entropy and guaranteed
-uniqueness remain unproven. Production routing remains unimplemented.
+uniqueness remain unproven. Production routing is now implemented but unverified;
+its independent [production acceptance matrix](AUTOMATIC_SESSION_ROUTING.md)
+runs with both optional diagnostics removed. The results below remain the
+historical diagnostic evidence, not production verification.
 
 ## Choice and installed evidence
 

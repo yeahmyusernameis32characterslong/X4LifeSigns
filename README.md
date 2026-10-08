@@ -74,7 +74,7 @@ The diagram shows the intended design. The working experiments are described bel
 
 The experimental bridge captures completed dockings while the player is personally piloting and acknowledges them in Node.js. Optional SQLite storage preserves those events for readback after Node.js restarts. Both have passed live X4 verification, with X4 kept running during the persistence test.
 
-**Automatic session separation is the active milestone.** Automatic save/session continuity across reloads, permanent entity identity, AI, voice and return-channel communication remain unverified. For now, use a fresh database after a game reload or for another save/universe.
+**Automatic session separation is implemented but unverified / in progress.** Opt-in `--auto-db` routes V2 dockings into owned per-session databases under the approved practical `s1` key assumption. The [production live acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md) remains owner-run and pending. Manual `--db` still needs a fresh database after a game reload or for another save/universe. Permanent entity identity, AI, voice and return communication remain unverified.
 
 See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 

@@ -2,7 +2,8 @@
 
 ## Current status
 
-The bridge/persistence suite has 46 local tests passing on Node.js v24.21.0.
+The full bridge/persistence/routing suite has **97 local tests passing, zero
+failures or skips**, on Node.js v24.21.0 with built-in `node:sqlite`.
 **Experimental docking bridge verified in live X4.** Optional SQLite persistence
 is **Verified with live X4 docking across Node.js restarts.** Wider AI and voice
 criteria below describe future verification, not completed results.
@@ -13,8 +14,9 @@ including independent selection alongside the session diagnostic. Its six-sample
 restored T0, all six sampled tuples differed, controls matched and no relevant MD
 errors were reported. This establishes no observed tuple replay, not independent
 entropy, 124 random bits or guaranteed uniqueness. Production session separation
-remains unimplemented and unverified. See the result record and scoped source
-recommendation in that document.
+is **implemented but unverified / in progress** pending the separate production
+live matrix. The source decision remains closed; see the approved assumption
+and its limitations in that document.
 
 ## Docking bridge experiment
 
@@ -45,6 +47,40 @@ or game reload. See [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
 This establishes no identity continuity across game reloads. Completed
 owner-reported results and the tested revision are in the
 [live verification record](docs/PERSISTENCE_EXPERIMENT.md#live-verification-record-5-october-2026).
+
+## Automatic session routing
+
+Run the full suite with `npm.cmd --prefix bridge test`. The 51 new focused tests
+cover exact canonical V2 parsing and bounds; malformed input without storage;
+V1-only console/manual and V2-only auto consumption; argument conflicts;
+source-relative storage from another working directory; separate-process reuse;
+different keys (including identical-clock/different-tuple keys); identical-key
+reuse without suffixes; transactional schema/ownership creation; rejection of
+wrong/absent/extra owners, schemes, schemas, v1, empty and corrupt targets without
+modification; independent v1/v2 readback; committed readback before success; real
+lock and injected open/write/commit/readback failures; exclusive competing
+creation; junction/hard-link/sidecar refusal and ignored generated files.
+WAL-header refusal prevents even read-only SQLite shared-memory sidecar creation.
+The original 46 tests, including Windows mock deployment, remain passing.
+
+The changed `LifeSigns_BridgeProbe.xml` validates against installed X4 9.00
+`md.xsd`/`common.xsd` extracts. Their MD5 hashes match the installed 08.cat entries:
+`d7ac24747687e15d9be608ff63b52ccd` and `de2c08eabd2f3e22d705ed473b7940ce`.
+This is static schema validation, not live verification.
+
+The exact [owner-run production matrix](docs/AUTOMATIC_SESSION_ROUTING.md)
+requires both optional diagnostics removed, A saved after production state is
+assigned and retained unchanged, two reloads of A showing restored invalidation
+and replacement, Node-only restart reuse, B-to-A, fresh games, full X4 restart,
+late Node startup, already-docked loading, the docking filter/V1 compatibility
+and independent ownership/history readback. No real-game deployment or live
+production pass is claimed. Full production clock/key rendering remains a live
+check even though diagnostic limbs rendered canonically.
+
+Automatic session separation remains **implemented, unverified / in progress**.
+A live pass would verify it only under the approved practical s1 assumption,
+not guaranteed uniqueness, permanent entity identity, RNG entropy or exactly-once
+delivery.
 
 ## Proposed first milestone: Remember one real event
 

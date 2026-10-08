@@ -1,6 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mdscript name="LifeSigns_BridgeProbe" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
   <cues>
+    <!-- Production state is independent of both optional diagnostic scripts.
+         New root cue names preserve the existing saved docking-cue tree. -->
+    <cue name="ProductionSessionLoaded" instantiate="true" namespace="this">
+      <conditions><event_game_loaded /></conditions>
+      <actions>
+        <!-- Invalidate first: restored readiness must never authorise routing. -->
+        <set_value name="md.$LifeSignsProductionSessionReady" exact="false" />
+        <set_value name="$Previous" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsProductionSessionKey?">
+          <set_value name="$Previous" exact="md.$LifeSignsProductionSessionKey" />
+        </do_if>
+        <debug_text text="'LIFESIGNS_SESSION_ROUTING_V1|invalidated|callback=event_game_loaded|previous=%s|ready=false|END'.[$Previous]" filter="general" context="false" />
+      </actions>
+    </cue>
+    <cue name="ProductionSessionUniverseGenerated" instantiate="true" namespace="this">
+      <conditions><event_universe_generated /></conditions>
+      <actions>
+        <set_value name="md.$LifeSignsProductionSessionReady" exact="false" />
+        <set_value name="$Previous" exact="'UNSET'" />
+        <do_if value="md.$LifeSignsProductionSessionKey?">
+          <set_value name="$Previous" exact="md.$LifeSignsProductionSessionKey" />
+        </do_if>
+        <!-- Sole assignment point. Four newly executed unseeded draws, no retries. -->
+        <set_value name="$Clock" exact="player.systemtime.{'%Y-%m-%d_%H-%M-%S'}" />
+        <set_value name="$R1" min="0" max="2147483647" />
+        <set_value name="$R2" min="0" max="2147483647" />
+        <set_value name="$R3" min="0" max="2147483647" />
+        <set_value name="$R4" min="0" max="2147483647" />
+        <set_value name="md.$LifeSignsProductionSessionKey" exact="'s1-%s-%s-%s-%s-%s'.[$Clock, $R1, $R2, $R3, $R4]" />
+        <set_value name="md.$LifeSignsProductionSessionReady" exact="true" />
+        <debug_text text="'LIFESIGNS_SESSION_ROUTING_V1|assigned|callback=event_universe_generated|previous=%s|session=%s|ready=true|END'.[$Previous, md.$LifeSignsProductionSessionKey]" filter="general" context="false" />
+      </actions>
+    </cue>
+    <!-- event_game_started deliberately has no production assignment. -->
     <!-- The shipped setup.xml maintains this group when player control changes. -->
     <!-- Enable the event subscription only after shipped setup creates its group. -->
     <cue name="WaitForPlayerControlledGroup" checkinterval="1s">
@@ -16,6 +50,17 @@
           <actions>
             <!-- ID codes are game-derived display identifiers, not a persistence contract. -->
             <debug_text text="'LIFESIGNS_BRIDGE_V1|docked|ship=%s|destination=%s|END'.[event.object.idcode, event.param.idcode]" filter="general" context="false" />
+            <do_if value="md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?">
+              <do_if value="md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''">
+                <debug_text text="'LIFESIGNS_BRIDGE_V2|docked|session=%s|ship=%s|destination=%s|END'.[md.$LifeSignsProductionSessionKey, event.object.idcode, event.param.idcode]" filter="general" context="false" />
+              </do_if>
+              <do_else>
+                <debug_text text="'LIFESIGNS_SESSION_ROUTING_V1|no_ready_session|reason=not_ready_or_empty_key|ship=%s|destination=%s|END'.[event.object.idcode, event.param.idcode]" filter="general" context="false" />
+              </do_else>
+            </do_if>
+            <do_else>
+              <debug_text text="'LIFESIGNS_SESSION_ROUTING_V1|no_ready_session|reason=missing_state|ship=%s|destination=%s|END'.[event.object.idcode, event.param.idcode]" filter="general" context="false" />
+            </do_else>
           </actions>
         </cue>
       </cues>

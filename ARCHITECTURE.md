@@ -45,6 +45,34 @@ save/universe or a game reload. No permanent identity or production delivery
 guarantee is established. See
 [PERSISTENCE_EXPERIMENT.md](docs/PERSISTENCE_EXPERIMENT.md).
 
+### Automatic session routing
+
+Status: **Implemented, unverified / in progress.** Production state in the normal
+probe is independent of both optional diagnostic scripts. A root game-loaded
+listener invalidates restored readiness; universe generation samples the approved
+clock plus four unseeded draws exactly once and publishes the production `s1`
+key. Game start and docking do not assign a key. Existing saved cue names and
+the controlled-group readiness gate remain in place.
+
+V1 docking output is preserved. A ready eligible docking also emits V2 carrying
+the current session key; missing readiness emits a separate
+`LIFESIGNS_SESSION_ROUTING_V1` diagnostic instead of V2.
+Console/manual modes consume V1 only. Opt-in `--auto-db` consumes V2 only,
+validates the entire record, then lazily routes to source-relative repository
+`local-data/sessions/<session-key>.db`. It holds at most one automatic store,
+switching on a different key. Schema-v2 ownership is checked read-only before
+writable opening and rechecked transactionally. Independent readback supports
+both schema versions. See [DATABASE.md](DATABASE.md).
+
+The complete key is a practical local single-player assumption with accepted,
+unquantified residual collision risk, not guaranteed uniqueness. Reusing an
+identical complete key across actual X4 sessions cannot be detected by ownership
+and can mix histories. There is no fallback, migration, retry, deduplication,
+durable checkpoint, permanent entity identity or exactly-once claim.
+The [production acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md) must run
+with both optional diagnostics removed; static checks do not establish live
+callback ordering or complete clock/key rendering.
+
 ### X4 MD and Lua
 
 Mission Director and Lua code are intended to provide the connection to X4: Foundations.
@@ -96,7 +124,8 @@ Possible stored information includes:
 - reputation or sentiment data
 
 The controlled docking experiment implements a version-1 `docking_events` schema.
-Wider memory schemas remain planned. See [DATABASE.md](DATABASE.md) for the
+Automatic routing adds schema-v2 session ownership without changing that table
+or migrating v1 files. Wider memory schemas remain planned. See [DATABASE.md](DATABASE.md) for the
 implemented schema, requirements and experimental limitations.
 
 ### Local LLM
