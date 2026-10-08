@@ -92,6 +92,24 @@ fixture closes a file descriptor while holding a SQLite lock, releasing POSIX
 process locks; this test-only portability issue is non-blocking for the verified
 Windows/X4 9.00 milestone. It does not supersede the owner-reported 97/97 run.
 
+## Optional ship-identity diagnostic
+
+Status: **Implemented, unverified** pending the
+[six-ship live matrix](docs/SHIP_IDENTITY_DIAGNOSTIC.md). The full Custom Start
+fixture is retained; enrolment is one-time and snapshots never re-identify ships.
+The automated suite includes diagnostic exclusion from console/manual/automatic
+readers and persistence, plus opt-in/removal and independent mock deployment.
+The local Windows / Node.js v24.21.0 run passed **104/104 tests**, with zero
+failures or skips. All four MD scripts passed installed X4 9.00 schema validation;
+`git diff --check` passed. This is separate from the historical 97-test owner run.
+Installed-schema validation cannot prove reference restoration, rename behaviour,
+commander changes or replacement identity. Broad Persistent entity identity is
+not Verified. No live deployment is performed by these tests.
+
+For any subsequent production-routing-only acceptance run, also explicitly
+use `-RemoveIdentityDiagnostic` with the deployer and check its file is
+absent. The earlier verified production matrix predates this optional script.
+
 ## Proposed first milestone: Remember one real event
 
 Use one real X4 event involving one identifiable entity. The current contained

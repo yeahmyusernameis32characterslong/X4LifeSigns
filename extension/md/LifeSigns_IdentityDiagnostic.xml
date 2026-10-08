@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LifeSigns_IdentityDiagnostic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
+  <cues>
+    <!-- One-time saved diagnostic state. No load reset, re-enrolment or production writes. -->
+    <cue name="InitialiseIdentityFixture">
+      <actions>
+        <set_value name="md.$LifeSignsIdentityDiagAttempted" exact="false" />
+        <set_value name="md.$LifeSignsIdentityDiagEnrolled" exact="false" />
+        <set_value name="md.$LifeSignsIdentityDiagSnapshot" exact="0" />
+        <set_value name="md.$LifeSignsIdentityDiagRefs" exact="table[]" />
+        <set_value name="md.$LifeSignsIdentityDiagOriginals" exact="table[]" />
+      </actions>
+      <cues>
+        <cue name="IdentityWaitForControlledGroup" checkinterval="1s">
+          <conditions><check_value value="global.$PlayerControlledGroup?" /></conditions>
+          <cues>
+            <cue name="IdentityPersonallyControlledDocked" instantiate="true" namespace="this">
+              <conditions>
+                <event_object_docked group="global.$PlayerControlledGroup" />
+                <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+              </conditions>
+              <actions>
+                <set_value name="$Ready" exact="false" />
+                <do_if value="md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?">
+                  <set_value name="$Ready" exact="md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''" />
+                </do_if>
+                <do_if value="$Ready">
+                  <set_value name="$Session" exact="md.$LifeSignsProductionSessionKey" />
+                  <!-- Literal labels, never display-name output. The owner labels the full six-ship fixture. -->
+                  <set_value name="$Labels" exact="['LSID-XF', 'LSID-COL', 'LSID-BEH1', 'LSID-BEH2', 'LSID-BEH3', 'LSID-BEH4']" />
+                  <do_if value="md.$LifeSignsIdentityDiagAttempted? and md.$LifeSignsIdentityDiagSnapshot?">
+                    <do_if value="not md.$LifeSignsIdentityDiagAttempted">
+                      <!-- Freeze even a failed attempt. Recovery requires a pre-diagnostic disposable save. -->
+                      <set_value name="md.$LifeSignsIdentityDiagAttempted" exact="true" />
+                      <set_value name="$Candidates" exact="table[]" />
+                      <set_value name="$AllUnique" exact="true" />
+                      <find_ship name="$Ships" space="player.galaxy" trueowner="faction.player" checkoperational="true" multiple="true" recursive="true" />
+                      <do_for_each name="$Label" in="$Labels">
+                        <set_value name="$Matches" exact="0" />
+                        <do_for_each name="$Ship" in="$Ships">
+                          <do_if value="$Ship.name == $Label">
+                            <set_value name="$Matches" exact="$Matches + 1" />
+                            <set_value name="$Candidates.{$Label}" exact="$Ship" />
+                          </do_if>
+                        </do_for_each>
+                        <do_if value="$Matches != 1">
+                          <set_value name="$AllUnique" exact="false" />
+                        </do_if>
+                      </do_for_each>
+                      <do_if value="$AllUnique">
+                        <do_for_each name="$Label" in="$Labels">
+                          <set_value name="md.$LifeSignsIdentityDiagRefs.{$Label}" exact="$Candidates.{$Label}" />
+                          <set_value name="md.$LifeSignsIdentityDiagOriginals.{$Label}" exact="$Candidates.{$Label}.idcode" />
+                        </do_for_each>
+                        <set_value name="md.$LifeSignsIdentityDiagEnrolled" exact="true" />
+                      </do_if>
+                      <debug_text text="'LIFESIGNS_IDENTITY_DIAG_V1|enrolment|session=%s|complete=%s|END'.[$Session, md.$LifeSignsIdentityDiagEnrolled]" filter="general" context="false" />
+                    </do_if>
+                    <set_value name="md.$LifeSignsIdentityDiagSnapshot" exact="md.$LifeSignsIdentityDiagSnapshot + 1" />
+                    <!-- Exactly six fixed slots, including missing/invalid ones. No searches below this point. -->
+                    <do_for_each name="$Label" in="$Labels">
+                      <set_value name="$RefState" exact="'missing'" />
+                      <set_value name="$Original" exact="'UNSET'" />
+                      <set_value name="$Current" exact="'UNAVAILABLE'" />
+                      <set_value name="$Class" exact="'UNAVAILABLE'" />
+                      <set_value name="$Operational" exact="false" />
+                      <set_value name="$CommanderState" exact="'UNAVAILABLE'" />
+                      <set_value name="$CommanderCode" exact="'UNAVAILABLE'" />
+                      <set_value name="$CommanderLabel" exact="'UNAVAILABLE'" />
+                      <do_if value="md.$LifeSignsIdentityDiagOriginals.{$Label}?">
+                        <set_value name="$Original" exact="md.$LifeSignsIdentityDiagOriginals.{$Label}" />
+                      </do_if>
+                      <do_if value="md.$LifeSignsIdentityDiagRefs.{$Label}?">
+                        <set_value name="$Ref" exact="md.$LifeSignsIdentityDiagRefs.{$Label}" />
+                        <set_value name="$RefState" exact="'invalid'" />
+                        <do_if value="$Ref.exists">
+                          <set_value name="$RefState" exact="'valid'" />
+                          <set_value name="$Current" exact="$Ref.idcode" />
+                          <set_value name="$Operational" exact="$Ref.isoperational" />
+                          <!-- Fixed class tokens avoid relying on enum/display string encoding. -->
+                          <set_value name="$Class" exact="'OTHER'" />
+                          <do_if value="$Ref.isclass.ship_s"><set_value name="$Class" exact="'ship_s'" /></do_if>
+                          <do_elseif value="$Ref.isclass.ship_m"><set_value name="$Class" exact="'ship_m'" /></do_elseif>
+                          <do_elseif value="$Ref.isclass.ship_l"><set_value name="$Class" exact="'ship_l'" /></do_elseif>
+                          <do_elseif value="$Ref.isclass.ship_xl"><set_value name="$Class" exact="'ship_xl'" /></do_elseif>
+                          <do_if value="$Ref.isclass.ship">
+                            <set_value name="$Commander" exact="$Ref.commander" />
+                            <set_value name="$CommanderState" exact="'none_or_invalid'" />
+                            <set_value name="$CommanderCode" exact="'NONE'" />
+                            <set_value name="$CommanderLabel" exact="'NONE'" />
+                            <do_if value="$Commander.exists">
+                              <set_value name="$CommanderState" exact="'valid'" />
+                              <set_value name="$CommanderCode" exact="$Commander.idcode" />
+                              <set_value name="$CommanderLabel" exact="'OUTSIDE_ROSTER'" />
+                              <do_for_each name="$OtherLabel" in="$Labels">
+                                <do_if value="md.$LifeSignsIdentityDiagRefs.{$OtherLabel}?">
+                                  <do_if value="$Commander == md.$LifeSignsIdentityDiagRefs.{$OtherLabel}">
+                                    <set_value name="$CommanderLabel" exact="$OtherLabel" />
+                                  </do_if>
+                                </do_if>
+                              </do_for_each>
+                            </do_if>
+                          </do_if>
+                        </do_if>
+                      </do_if>
+                      <debug_text text="'LIFESIGNS_IDENTITY_DIAG_V1|ship|session=%s|snapshot=%s|fixture=%s|reference=%s|original=%s|current=%s|class=%s|operational=%s|commander_reference=%s|commander_idcode=%s|commander_fixture=%s|END'.[$Session, md.$LifeSignsIdentityDiagSnapshot, $Label, $RefState, $Original, $Current, $Class, $Operational, $CommanderState, $CommanderCode, $CommanderLabel]" filter="general" context="false" />
+                    </do_for_each>
+                  </do_if>
+                  <do_else>
+                    <debug_text text="'LIFESIGNS_IDENTITY_DIAG_V1|blocked|session=%s|reason=missing_diagnostic_state|END'.[$Session]" filter="general" context="false" />
+                  </do_else>
+                </do_if>
+                <do_else>
+                  <debug_text text="'LIFESIGNS_IDENTITY_DIAG_V1|blocked|reason=no_ready_production_session|END'" filter="general" context="false" />
+                </do_else>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+  </cues>
+</mdscript>

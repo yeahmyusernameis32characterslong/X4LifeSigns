@@ -64,6 +64,19 @@ practical local single-player `s1` assumption. The owner completed
 with both optional diagnostics absent. Automated checks and installed-schema
 validation remain separate from the live isolation and key-rendering evidence.
 
+## Disposable ship-identity observation
+
+The optional [identity diagnostic](docs/SHIP_IDENTITY_DIAGNOSTIC.md) observes the
+owner's full six-ship fixture using one-time unambiguous labels and retained MD
+component references/original ID codes. A failed enrolment is not retried in that
+saved state. Current names, ID codes and enumeration order never repair references.
+Snapshots read ready production session state without modifying it; diagnostics
+stay outside production persistence. Display names remain in a local worksheet.
+Status: **Implemented, unverified** pending live testing. No production identity
+resolver, schema change, history merging or lineage inference is introduced.
+Automatic replacement retaining name/role but receiving a new ID is an owner
+assumption for a separate optional test; a manual replacement cannot verify it.
+
 ## Repository naming
 
 The X4 implementation is called:

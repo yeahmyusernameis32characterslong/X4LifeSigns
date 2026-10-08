@@ -78,6 +78,10 @@ The experimental bridge captures completed dockings while the player is personal
 
 See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 
+An optional [six-ship identity diagnostic](docs/SHIP_IDENTITY_DIAGNOSTIC.md) is
+**Implemented, unverified** pending live tests. It observes retained references
+in disposable saves; it does not implement persistent entity identity.
+
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
   <tbody>

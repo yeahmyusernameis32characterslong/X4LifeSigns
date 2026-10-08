@@ -5,12 +5,15 @@ param(
     [switch]$SessionDiagnostic,
     [switch]$RemoveSessionDiagnostic,
     [switch]$RandomSourceDiagnostic,
-    [switch]$RemoveRandomSourceDiagnostic
+    [switch]$RemoveRandomSourceDiagnostic,
+    [switch]$IdentityDiagnostic,
+    [switch]$RemoveIdentityDiagnostic
 )
 
 $ErrorActionPreference = 'Stop'
 if ($SessionDiagnostic -and $RemoveSessionDiagnostic) { throw 'Choose either SessionDiagnostic or RemoveSessionDiagnostic.' }
 if ($RandomSourceDiagnostic -and $RemoveRandomSourceDiagnostic) { throw 'Choose either RandomSourceDiagnostic or RemoveRandomSourceDiagnostic.' }
+if ($IdentityDiagnostic -and $RemoveIdentityDiagnostic) { throw 'Choose either IdentityDiagnostic or RemoveIdentityDiagnostic.' }
 $game = (Resolve-Path -LiteralPath $GamePath).ProviderPath
 $source = Join-Path (Split-Path $PSScriptRoot -Parent) 'extension'
 $extensions = Join-Path $game 'extensions'
@@ -48,7 +51,7 @@ if (Test-Path -LiteralPath $target) {
         if ($item.Name -ne 'md' -or -not $item.PSIsContainer) { throw "Unexpected existing probe content: $($item.Name)" }
         foreach ($child in Get-ChildItem -LiteralPath $item.FullName -Force) {
             Assert-NotLinked $child.FullName
-            if ($child.PSIsContainer -or $child.Name -notin @('LifeSigns_BridgeProbe.xml', 'LifeSigns_SessionDiagnostic.xml', 'LifeSigns_RandomSourceDiagnostic.xml')) {
+            if ($child.PSIsContainer -or $child.Name -notin @('LifeSigns_BridgeProbe.xml', 'LifeSigns_SessionDiagnostic.xml', 'LifeSigns_RandomSourceDiagnostic.xml', 'LifeSigns_IdentityDiagnostic.xml')) {
                 throw "Unexpected existing MD content: $($child.Name)"
             }
             if ($child.Name -eq 'LifeSigns_SessionDiagnostic.xml' -and -not ($SessionDiagnostic -or $RemoveSessionDiagnostic)) {
@@ -57,11 +60,14 @@ if (Test-Path -LiteralPath $target) {
             if ($child.Name -eq 'LifeSigns_RandomSourceDiagnostic.xml' -and -not ($RandomSourceDiagnostic -or $RemoveRandomSourceDiagnostic)) {
                 throw 'Random source diagnostic is installed. Explicitly choose -RandomSourceDiagnostic to retain it or -RemoveRandomSourceDiagnostic to remove it.'
             }
+            if ($child.Name -eq 'LifeSigns_IdentityDiagnostic.xml' -and -not ($IdentityDiagnostic -or $RemoveIdentityDiagnostic)) {
+                throw 'Identity diagnostic is installed. Explicitly choose -IdentityDiagnostic to retain it or -RemoveIdentityDiagnostic to remove it.'
+            }
         }
     }
 }
 
-if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDiagnostic=$SessionDiagnostic, RemoveSessionDiagnostic=$RemoveSessionDiagnostic, RandomSourceDiagnostic=$RandomSourceDiagnostic, RemoveRandomSourceDiagnostic=$RemoveRandomSourceDiagnostic)")) {
+if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDiagnostic=$SessionDiagnostic, RemoveSessionDiagnostic=$RemoveSessionDiagnostic, RandomSourceDiagnostic=$RandomSourceDiagnostic, RemoveRandomSourceDiagnostic=$RemoveRandomSourceDiagnostic, IdentityDiagnostic=$IdentityDiagnostic, RemoveIdentityDiagnostic=$RemoveIdentityDiagnostic)")) {
     New-Item -ItemType Directory -Path (Join-Path $target 'md') -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $source 'content.xml') -Destination (Join-Path $target 'content.xml') -Force
     Copy-Item -LiteralPath (Join-Path $source 'md\LifeSigns_BridgeProbe.xml') -Destination (Join-Path $target 'md\LifeSigns_BridgeProbe.xml') -Force
@@ -78,6 +84,13 @@ if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDi
     }
     if ($RemoveRandomSourceDiagnostic -and (Test-Path -LiteralPath $randomDiagnostic)) {
         Remove-Item -LiteralPath $randomDiagnostic
+    }
+    $identityDiagnosticPath = Join-Path $target 'md\LifeSigns_IdentityDiagnostic.xml'
+    if ($IdentityDiagnostic) {
+        Copy-Item -LiteralPath (Join-Path $source 'md\LifeSigns_IdentityDiagnostic.xml') -Destination $identityDiagnosticPath -Force
+    }
+    if ($RemoveIdentityDiagnostic -and (Test-Path -LiteralPath $identityDiagnosticPath)) {
+        Remove-Item -LiteralPath $identityDiagnosticPath
     }
     Write-Output "Deployed probe to $target"
 }
