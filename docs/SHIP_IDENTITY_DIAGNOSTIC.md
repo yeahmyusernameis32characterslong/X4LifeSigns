@@ -1,9 +1,12 @@
 # Disposable six-ship identity diagnostic
 
-Status: **Implemented, unverified** pending owner-run live X4 tests. Broad
+Status: **Verified for the completed owner-run X4 9.00 scenarios**. Broad
 Persistent entity identity remains **In Progress**, not Verified. This is an optional
 observation script, not an identity resolver or a database identity contract.
-Starting main/reviewed baseline: `733dbc2b64ef67ed935eec538d4d30e7265acdaa`.
+Starting implementation baseline: `733dbc2b64ef67ed935eec538d4d30e7265acdaa`.
+Verified implementation: `5921126a8e24e394b36850017649bb0a9cf6b5cc`.
+PR review base: `9c27cb9a9315121afb2d2c8f8f932a15e044f3fc`.
+See the [live verification record](#live-verification-record) for scope and exclusions.
 
 ## Evidence gate and provenance (9 October 2026)
 
@@ -37,7 +40,7 @@ The cited shipped examples were also extracted and hash-checked from base
 | --- | --- | --- |
 | Enumeration | `find_ship name="$Ships" space="player.galaxy" trueowner="faction.player" checkoperational="true" multiple="true" recursive="true"`; common.xsd:28349, findship:6664, trueowner:5598; same attributes in md/setup.xml:401 | Operational player-owned ships only at enrolment. Recursive search includes contained objects; no enumeration order or stable index contract. |
 | Multiple/recursive | common.xsd:745,764 documents all matching objects as a list and recursive contained-object search | Single-result lookup can pick a random match; this diagnostic never uses it. No search after enrolment. |
-| References and storage | `set_value ... exact="$Ship"`, table entries `.{'$' + $Label}`, `table[]`; common.xsd:36233; md/setup.xml:713 stores a commander component reference, :69,87 create tables; md/notifications.xml:3616 sets keyed table entries | These are engine component references in MD state, not serialised external IDs. Actual save/reload and destroyed-reference behaviour require the live matrix. |
+| References and storage | `set_value ... exact="$Ship"`, table entries `.{'$' + $Label}`, `table[]`; common.xsd:36233; md/setup.xml:713 stores a commander component reference, :69,87 create tables; md/notifications.xml:3616 sets keyed table entries | These are engine component references in MD state, not serialised external IDs. Save/reload behaviour passed the recorded matrix; destroyed-reference behaviour was not exercised. |
 | Validity | `$Ref.exists`, `$Ref.isoperational`, `$Ref.isclass.ship`; scriptproperties.xml:13-19 | Exists means present in the game graph, not operational/alive. A wreck may still exist. A missing slot and an invalid reference are different observations. |
 | ID code | `$Ref.idcode`; scriptproperties.xml:198, object type | Documented string format `AAA-123`; no permanent uniqueness, reuse or cross-universe guarantee. Original string is retained independently of the reference. |
 | Player-visible name | `$Ship.name` (display name), `.rawname`, `.knownname`, `.hasbeenrenamed`; scriptproperties.xml:50-53 | Name is used only for one-time exact fixture-label matching. No delimiter/newline escaping contract was established; never emit names. Owner records later name observations locally. |
@@ -81,15 +84,18 @@ are deliberately the subject of the experiment, not a prerequisite assumed true.
 
 ## Fixture, enrolment and records
 
-Preserve the owner's entire Custom Start fixture: one independent Xperimental
-Fighter, one Colossus E and four Behemoth E destroyers. Do not sell, delete or
-replace ships to simplify the experiment. Before the first diagnostic docking,
+Observe six selected ships within the owner's larger Custom Start fixture: one
+independent Xperimental Shuttle (small fighter class), one Colossus E and four
+Behemoth E destroyers. The wider fixture contains additional ships and assets;
+these six are the observation roster, not the entire Custom Start. Preserve the
+wider fixture rather than selling, deleting or replacing ships to simplify testing.
+Before the first diagnostic docking,
 record the original visible names, ID codes, ship models/classes and commander
 assignments in a local worksheet. Temporarily assign these exact unique names:
 
 | Fixed fixture label / temporary name | Owner-confirmed object |
 | --- | --- |
-| LSID-XF | Independent Xperimental Fighter |
+| LSID-XF | Independent Xperimental Shuttle (small fighter class) |
 | LSID-COL | Colossus E |
 | LSID-BEH1 | First individually recorded Behemoth E |
 | LSID-BEH2 | Second individually recorded Behemoth E |
@@ -142,7 +148,7 @@ or replace a retained reference.
 
 ## Opt-in deployment and removal
 
-Implementation/testing does not deploy into live X4. For later owner testing,
+Automated testing does not deploy into live X4. To repeat owner testing,
 close X4 and use a disposable pre-diagnostic save. Keep actual paths in ignored
 SETUP.local.md. Record checkout SHA and enabled extensions. Run:
 
@@ -173,7 +179,11 @@ Expect False. Removal targets only named diagnostic files; it does not clean
 saved MD state. Archive/discard disposable trial saves and return to a normal
 save never used with this diagnostic. Do not claim save="0" means no saved state.
 
-## Owner-run live matrix (blocked pending corrected enrolment retest)
+## Owner-run live matrix
+
+Core owner Tests 0–20 passed; the numbered scenarios below are the repeatable
+procedure, not a one-to-one mapping to the owner test numbers. Results are
+recorded [below](#live-verification-record).
 
 Use a local worksheet in `local-data/identity-diagnostic/` with run label, game/
 code version, save label, production lifecycle/key, snapshot, fixture label,
@@ -183,8 +193,8 @@ MD errors. Save raw logs there before another X4 launch replaces them. Keep save
 private; do not parse them. Use separate worksheet rows for each of six ships in
 every scenario. Missing evidence is inconclusive; preserve contradictions.
 
-1. **Baseline:** use the full labelled fixture; personally dock, expect one
-   complete=1 enrolment and six valid rows. Check all labels against the
+1. **Baseline:** use the six labelled observation ships within the larger fixture;
+   personally dock, expect one complete=1 enrolment and six valid rows. Check all labels against the
    worksheet and game UI, including the independent fighter and all four distinct
    destroyers. Undock/dock again: another six rows, same references' original/current
    IDs and relationships, no second enrolment. Save disposable **A now**, with
@@ -214,7 +224,8 @@ every scenario. Missing evidence is inconclusive; preserve contradictions.
    genuinely dock. Compare six slots with A; observe the new ready production
    key independently. No second enrolment is expected.
 9. **Independent fresh universe C:** use a separate fresh Custom Start with the
-   same full six-ship composition. Label it before the first diagnostic docking.
+   same six selected ship roles within the larger fixture. Label the selected
+   ships before the first diagnostic docking.
    Expect its own one-time enrolment and six rows. Reused labels/names or equal
    ID strings prove no relationship to A/B. Do not link their histories.
 10. **Node restart and late startup:** in one loaded session, stop/restart the
@@ -272,7 +283,7 @@ in-game test was performed at that validation stage. Subsequent live results and
 the correction are recorded below. Logs/extracts remain ignored and local.
 
 
-## Blocking enrolment defect and correction
+## Historical blocking enrolment defect and correction (resolved)
 
 At reviewed head `b1092e38d5406704488857727589440a535a2678`, owner Tests
 0–2 passed (104/104 Windows tests, optional deployment, and labelled fresh fixture).
@@ -304,33 +315,78 @@ components, write failure, invalid-key mutation, no retry and retained snapshots
 including commander lookup. This harness is not the X4 engine and cannot prove
 save restoration or engine/schema compatibility.
 
-Correction validation: the eight focused regressions pass on Linux / Node.js
-v24.19.0. Full-suite results are recorded in TESTING.md. Installed X4 9.00 schemas
-and Windows are unavailable in this review environment: **fresh installed-schema
-validation and the full Windows / Node.js v24.21.0 suite remain required**.
-Historical 104/104 and schema passes do not validate this correction.
+Initial correction validation passed the eight focused regressions on Linux /
+Node.js v24.19.0; the full-suite limitations are retained in TESTING.md. Windows
+and installed-schema validation were unavailable in that review environment.
+Those outstanding checks were subsequently completed by the owner on `5921126`,
+followed by the live matrix below. The earlier 104/104/schema result was never
+used as validation of the correction.
 
-### Minimum restart of live testing
+## Live verification record
 
-1. Close X4. Validate the corrected MD against the effective installed 9.00
-   schemas, run the full Windows suite and `git diff --check`. Redeploy explicitly
-   with `-IdentityDiagnostic`, removing the two older diagnostics as above.
-2. Load the preserved **pre-enrolment** save, made before the first eligible
-   docking. It may already contain initialised diagnostic state; Attempted must
-   still be false. The unchanged cue tree permits this reuse in principle;
-   confirm no refresh/duplicate-cue/property errors. Do not use a save made after
-   the failed attempt, reset cues or clear Attempted to repair that trial.
-3. Confirm all six unique fixture names, then genuinely dock. Require exactly
-   one `complete=1` enrolment followed by six `reference=valid` rows, all original
-   and current codes present and equal to the UI worksheet. Production docking
-   must still acknowledge normally. Stop immediately on any contradiction.
-4. Undock/dock again: six valid retained rows, no second enrolment and no relevant
-   MD errors. Save a new disposable A only after this passes, then resume the
-   remaining unchanged reload/rename/assignment matrix above.
-5. On separate disposable branches of the pre-enrolment save, remove one label
-   and then all labels before the first docking. Each trial must emit `complete=0`.
-   Correct the labels after that failed attempt and dock again: no new enrolment,
-   no substitution, still missing references. Never overwrite the preserved save.
+Owner-reported completion on **9 October 2026**, with **X4 9.00** and
+**Node.js v24.21.0**, at implementation
+`5921126a8e24e394b36850017649bb0a9cf6b5cc`. The final documentation tidy-up does
+not change implementation or tests. Raw logs, saves and local worksheets remain
+private; the following is the supplied result summary, not independently rerun
+live evidence.
 
-PR #12 remains unmerged. Ship identity diagnostic remains **Implemented,
-unverified**; broad Persistent entity identity remains **In Progress**.
+| Check | Result and scope |
+| --- | --- |
+| Corrected Windows automated suite | **112/112 passed, 0 failed, 0 skipped**. Includes enrolment regression harness, reader isolation and deployment safeguards. |
+| Installed-schema validation | **4/4 passed** using .NET XmlReader and effective installed X4 9.00 `md.xsd` / `common.xsd` with the hashes recorded above. Files: `LifeSigns_BridgeProbe.xml`, `LifeSigns_IdentityDiagnostic.xml`, `LifeSigns_RandomSourceDiagnostic.xml`, `LifeSigns_SessionDiagnostic.xml`. |
+| Core owner Tests 0–20 | **Passed**. Corrected one-time enrolment, six valid retained rows and second docking without a second enrolment. |
+| Same-universe restoration | Unchanged A reloads #1 and #2, changed B reload, rollback to untouched A and full X4 process restart passed with retained references and stable original/current ID codes. |
+| Mutable display/relationship state | Post-enrolment rename, duplicate visible names and commander reassignment passed without changing physical ship identity. Rollback restored A's commander relationship. |
+| Independent Universe C | Independently enrolled its own six ships. Reused fixture labels imply no continuity with A. |
+| Node independence | Node restart and late start after X4 load passed; neither caused re-enrolment. |
+| Event filtering | AI/passenger docking, genuine approach/abort and already-docked save/load were ignored. A later genuine docking produced the expected snapshot. |
+| Final error audit and comparison | Passed; the supplied core matrix reported no blocking diagnostic/runtime regression. |
+| Optional destruction/replacement Test 21 | **Not exercised / optional path unavailable in current fixture**. No suitable X4-driven automatic replacement path was exposed; no manual replacement substituted. Not a failure. |
+| Cleanup Test 22 | **Passed**, with Node stopped and X4 fully exited: `LifeSigns_IdentityDiagnostic.xml` absent and `LifeSigns_BridgeProbe.xml` still present. This proves file removal while preserving the production bridge, not removal of diagnostic state from saves. |
+
+### Observed ship codes
+
+These are in-game observation values, not permanent external identifiers.
+
+| Fixed observation slot | Universe A (stable throughout tested scenarios) | Independent Universe C |
+| --- | --- | --- |
+| LSID-XF | OWX-378 | OMG-821 |
+| LSID-COL | JQK-918 | GSW-707 |
+| LSID-BEH1 | AUI-778 | CVM-497 |
+| LSID-BEH2 | DJX-426 | HBA-299 |
+| LSID-BEH3 | NZA-408 | HIV-500 |
+| LSID-BEH4 | RPU-549 | YBO-099 |
+
+The retained ship `AUI-778` changed commander from `JQK-918 / LSID-COL` to
+`ZEC-039 / OUTSIDE_ROSTER`. Rollback to untouched A restored
+`JQK-918 / LSID-COL`. The ship's physical reference and ID code stayed unchanged;
+commander membership was observed as mutable relationship state.
+
+### Scoped conclusion and remaining limits
+
+**The optional six-ship identity diagnostic is Verified for the completed
+owner-run X4 9.00 scenarios.** In the tested universe, six selected ships,
+including four same-class Behemoth E destroyers, were recognised through retained
+MD component references after the tested saves/reloads and process restart.
+Their observed ID codes remained stable despite renaming, duplicate visible
+names and commander changes. The independent universe enrolled separately;
+fixture-label reuse was not treated as identity continuity.
+
+This supports `idcode` as a candidate for scoped physical-ship identification;
+it does not prove permanent or globally unique `idcode`, cross-universe identity,
+NPC/crew identity, named-vessel lineage, automatic save ancestry or automatic
+destruction/replacement behaviour. No production identity resolver or database
+identity contract is implemented. **Persistent entity identity remains In Progress.**
+
+Failed enrolment remains one-shot and missing/invalid retained references are
+reported rather than replaced. Zero/partial-match, missing-ID and write-failure
+cases are covered by the regression harness; no separate live negative-fixture
+trial or destroyed-reference trial is claimed beyond the owner's supplied matrix.
+The harness is not an X4 emulator. The known Linux lock-fixture limitation remains
+test-only and does not override the successful Windows validation.
+
+The historical recovery rule remains: renaming is preparation, not enrolment.
+Enrolment occurs on the first eligible personally controlled docking. A preserved
+save before that attempt can be used for a new trial; a failed-attempt save must
+not be repaired by resetting cues, clearing flags or substituting references.

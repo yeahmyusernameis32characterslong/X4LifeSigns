@@ -67,15 +67,22 @@ validation remain separate from the live isolation and key-rendering evidence.
 ## Disposable ship-identity observation
 
 The optional [identity diagnostic](docs/SHIP_IDENTITY_DIAGNOSTIC.md) observes the
-owner's full six-ship fixture using one-time unambiguous labels and retained MD
-component references/original ID codes. A failed enrolment is not retried in that
+six selected ships within the owner's larger Custom Start fixture using one-time
+unambiguous labels and retained MD component references/original ID codes. A failed enrolment is not retried in that
 saved state. Current names, ID codes and enumeration order never repair references.
 Snapshots read ready production session state without modifying it; diagnostics
 stay outside production persistence. Display names remain in a local worksheet.
-Status: **Implemented, unverified** pending live testing. No production identity
-resolver, schema change, history merging or lineage inference is introduced.
-Automatic replacement retaining name/role but receiving a new ID is an owner
-assumption for a separate optional test; a manual replacement cannot verify it.
+Status: **Verified for the completed owner-run X4 9.00 scenarios** at `5921126`.
+Core Tests 0–20 and cleanup Test 22 passed; optional destruction/replacement
+Test 21 was not exercised because a suitable automatic path was unavailable.
+The selected ships were an independent Xperimental Shuttle (small fighter),
+a Colossus E and four Behemoth E destroyers. Retained references and ID codes
+remained stable through the tested saves/reloads, renames and commander changes.
+Persistent entity identity remains **In Progress**. No permanent/global ID-code
+uniqueness, cross-universe identity, NPC/crew identity, named-vessel lineage or
+automatic save ancestry is established. No production resolver, schema change
+or history merging is introduced. Automatic replacement retaining name/role but
+receiving a new ID remains an owner assumption; manual replacement cannot verify it.
 
 ## Repository naming
 

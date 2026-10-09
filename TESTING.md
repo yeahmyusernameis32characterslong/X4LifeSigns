@@ -94,31 +94,51 @@ Windows/X4 9.00 milestone. It does not supersede the owner-reported 97/97 run.
 
 ## Optional ship-identity diagnostic
 
-Status: **Implemented, unverified** pending the
-[six-ship live matrix](docs/SHIP_IDENTITY_DIAGNOSTIC.md). The full Custom Start
-fixture is retained; enrolment is one-time and snapshots never re-identify ships.
-The automated suite includes diagnostic exclusion from console/manual/automatic
-readers and persistence, plus opt-in/removal and independent mock deployment.
-The historical Windows / Node.js v24.21.0 run at `b1092e3` passed **104/104 tests**, with zero
-failures or skips. All four MD scripts passed installed X4 9.00 schema validation;
-`git diff --check` passed. This is separate from the historical 97-test owner run.
-Installed-schema validation cannot prove reference restoration, rename behaviour,
-commander changes or replacement identity. Broad Persistent entity identity is
-not Verified. No live deployment is performed by these tests.
+Status: **Verified for the completed owner-run X4 9.00 scenarios** in the
+[six-ship live matrix](docs/SHIP_IDENTITY_DIAGNOSTIC.md#live-verification-record).
+Six selected ships within the larger Custom Start fixture were observed: an
+independent Xperimental Shuttle (small fighter), a Colossus E and four Behemoth E
+destroyers. Enrolment is one-time; snapshots never re-identify ships.
 
-Owner live Test 3 subsequently exposed false successful enrolment with six
-missing references. The optional diagnostic now uses valid `$`-prefixed table
-keys and checks retained-reference/original-code readback before completion.
-Eight new tests execute its actual XML actions in a limited fake-component
-harness, including incomplete/failed enrolment and no retry. They do not replace
-X4 runtime testing. The corrected revision requires a fresh installed X4 9.00
-schema check and full Windows / Node.js v24.21.0 run; neither is available in the
-Linux review environment. Corrected Linux / Node.js v24.19.0 results: **112 tests,
-103 passed, 1 failed, 8 skipped**. All eight new regressions passed. The failure is
-the unchanged POSIX lock-fixture timeout documented above; the eight skips are
-Windows deployment checks. XML well-formedness and `git diff --check` passed;
-well-formedness is not installed-schema validation. See the experiment's defect
-record and retest steps.
+Owner-reported validation of corrected implementation
+`5921126a8e24e394b36850017649bb0a9cf6b5cc`:
+
+- Windows / Node.js **v24.21.0: 112/112 passed, 0 failed, 0 skipped**.
+- All four MD files (`LifeSigns_BridgeProbe.xml`, `LifeSigns_IdentityDiagnostic.xml`,
+  `LifeSigns_RandomSourceDiagnostic.xml`, `LifeSigns_SessionDiagnostic.xml`)
+  passed .NET XmlReader validation against hash-checked installed X4 9.00 schemas:
+  `md.xsd` MD5 `d7ac24747687e15d9be608ff63b52ccd` and `common.xsd` MD5
+  `de2c08eabd2f3e22d705ed473b7940ce`.
+- Separately, live **core Tests 0–20 passed**, including retained references across
+  reloads/restart, renaming, duplicate names, commander changes/rollback,
+  independent Universe C, Node independence, event filtering and final audits.
+- Optional Test 21: **Not exercised / optional path unavailable in current fixture**.
+  No manual replacement was substituted; this is not a failure.
+- Cleanup Test 22 passed with Node stopped and X4 exited: identity diagnostic
+  absent, production bridge still present.
+
+The historical `b1092e3` Windows 104/104 and schema passes did not prevent live
+Test 3 exposing false successful enrolment with six missing references. The
+correction uses `$`-prefixed table keys and validates retained references/original
+codes before reporting success. Eight regression tests execute actual XML actions
+in a limited fake-component harness, including zero/partial matches, failed writes
+and no retry. Reader-isolation and deployment tests remain separate from this
+harness and from X4 runtime evidence. The defect history is preserved in the
+experiment document.
+
+The earlier corrected-head Linux / Node.js v24.19.0 run reported 112 total,
+103 passed, 1 failed and 8 skipped. Its known POSIX lock-fixture timeout and
+Windows-only deployment skips do not override the subsequent owner Windows
+112/112 result. XML well-formedness and `git diff --check` also passed then.
+The final documentation-only review reran the eight enrolment regressions and
+four reader-isolation cases on Linux: **12/12 passed**, with no failures or skips.
+No implementation/test bytes changed; `git diff --check` passed again.
+
+Broad Persistent entity identity remains **In Progress**. The evidence establishes
+scoped ship-reference/ID-code stability, not permanent/global uniqueness,
+cross-universe identity, crew identity, lineage, automatic save ancestry or
+replacement behaviour. Negative-enrolment/no-retry cases have automated coverage;
+no additional live negative-fixture trial is claimed in the supplied results.
 
 For any subsequent production-routing-only acceptance run, also explicitly
 use `-RemoveIdentityDiagnostic` with the deployer and check its file is

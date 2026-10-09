@@ -80,9 +80,10 @@ See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence exp
 
 **Persistent entity identity is In Progress**, beginning with the disposable
 [six-ship identity diagnostic](docs/SHIP_IDENTITY_DIAGNOSTIC.md). The optional
-diagnostic is **Implemented, unverified pending live X4 testing**. It observes
-retained references in disposable saves; it does not implement persistent entity
-identity.
+diagnostic is **Verified for the completed owner-run X4 9.00 scenarios**. Six
+selected ships retained their references and ID codes across the tested reloads,
+renames and commander changes. This is scoped stability evidence, not permanent
+identity or cross-universe continuity.
 
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
