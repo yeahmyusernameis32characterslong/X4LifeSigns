@@ -1,7 +1,7 @@
 # Disposable six-ship identity diagnostic
 
 Status: **Implemented, unverified** pending owner-run live X4 tests. Broad
-Persistent entity identity remains **Planned**, not Verified. This is an optional
+Persistent entity identity remains **In Progress**, not Verified. This is an optional
 observation script, not an identity resolver or a database identity contract.
 Starting main/reviewed baseline: `733dbc2b64ef67ed935eec538d4d30e7265acdaa`.
 
@@ -37,7 +37,7 @@ The cited shipped examples were also extracted and hash-checked from base
 | --- | --- | --- |
 | Enumeration | `find_ship name="$Ships" space="player.galaxy" trueowner="faction.player" checkoperational="true" multiple="true" recursive="true"`; common.xsd:28349, findship:6664, trueowner:5598; same attributes in md/setup.xml:401 | Operational player-owned ships only at enrolment. Recursive search includes contained objects; no enumeration order or stable index contract. |
 | Multiple/recursive | common.xsd:745,764 documents all matching objects as a list and recursive contained-object search | Single-result lookup can pick a random match; this diagnostic never uses it. No search after enrolment. |
-| References and storage | `set_value ... exact="$Ship"`, table entries `.{$Label}`, `table[]`; common.xsd:36233; md/setup.xml:713 stores a commander component reference, :69,87 create tables; md/notifications.xml:3616 sets keyed table entries | These are engine component references in MD state, not serialised external IDs. Actual save/reload and destroyed-reference behaviour require the live matrix. |
+| References and storage | `set_value ... exact="$Ship"`, table entries `.{'$' + $Label}`, `table[]`; common.xsd:36233; md/setup.xml:713 stores a commander component reference, :69,87 create tables; md/notifications.xml:3616 sets keyed table entries | These are engine component references in MD state, not serialised external IDs. Actual save/reload and destroyed-reference behaviour require the live matrix. |
 | Validity | `$Ref.exists`, `$Ref.isoperational`, `$Ref.isclass.ship`; scriptproperties.xml:13-19 | Exists means present in the game graph, not operational/alive. A wreck may still exist. A missing slot and an invalid reference are different observations. |
 | ID code | `$Ref.idcode`; scriptproperties.xml:198, object type | Documented string format `AAA-123`; no permanent uniqueness, reuse or cross-universe guarantee. Original string is retained independently of the reference. |
 | Player-visible name | `$Ship.name` (display name), `.rawname`, `.knownname`, `.hasbeenrenamed`; scriptproperties.xml:50-53 | Name is used only for one-time exact fixture-label matching. No delimiter/newline escaping contract was established; never emit names. Owner records later name observations locally. |
@@ -103,10 +103,13 @@ Ensure all six fixture ships are operational at enrolment.
 
 At the first eligible docking with ready production state, the script attempts
 enrolment exactly once. Every label must match exactly one enumerated ship.
-Only if all six succeed does it retain all six references and original ID codes
-in diagnostic-only MD tables. A failed attempt remains failed, including after
-reload; it produces `complete=false` and six missing-reference rows. Correct the
-fixture in a disposable save that predates diagnostic state and retry there.
+Only if all six uniquely match valid components with nonempty ID codes does it
+retain all six references and original ID codes in diagnostic-only MD tables.
+Completion is checked by reading back all six retained references and originals;
+match counts alone cannot report success. Internal string keys have a `$` prefix;
+fixture labels, name matching and protocol values remain unchanged. A failed attempt remains failed, including after
+reload; it produces `complete=0` and six missing-reference rows. Correct the
+fixture in a disposable save made before the first enrolment attempt and retry there.
 Never reset/reinstall cues to repair a saved trial or silently substitute ships.
 
 Each ready docking increments the saved snapshot counter and emits six records:
@@ -170,7 +173,7 @@ Expect False. Removal targets only named diagnostic files; it does not clean
 saved MD state. Archive/discard disposable trial saves and return to a normal
 save never used with this diagnostic. Do not claim save="0" means no saved state.
 
-## Owner-run live matrix (all pending)
+## Owner-run live matrix (blocked pending corrected enrolment retest)
 
 Use a local worksheet in `local-data/identity-diagnostic/` with run label, game/
 code version, save label, production lifecycle/key, snapshot, fixture label,
@@ -181,7 +184,7 @@ private; do not parse them. Use separate worksheet rows for each of six ships in
 every scenario. Missing evidence is inconclusive; preserve contradictions.
 
 1. **Baseline:** use the full labelled fixture; personally dock, expect one
-   complete=true enrolment and six valid rows. Check all labels against the
+   complete=1 enrolment and six valid rows. Check all labels against the
    worksheet and game UI, including the independent fighter and all four distinct
    destroyers. Undock/dock again: another six rows, same references' original/current
    IDs and relationships, no second enrolment. Save disposable **A now**, with
@@ -258,11 +261,76 @@ console, manual v1, empty auto and existing auto v2 modes, proving no diagnostic
 acknowledgements, new automatic files or changes to existing database bytes/rows.
 These checks do not execute MD expressions or verify the live matrix.
 
-Local result on Windows / Node.js **v24.21.0**: **104/104 tests passed, zero
+Historical result at `b1092e3`, before the live enrolment defect, on Windows / Node.js **v24.21.0**: **104/104 tests passed, zero
 failures or skips**, including all mock deployment tests and four focused reader
 modes above. All four MD files passed .NET XmlReader validation against the freshly
 hash-checked installed X4 9.00 schemas. `git diff --check` passed. Production MD,
 manifest and bridge source files have no changes relative to the reviewed baseline.
 The initial mock run found a switch/path variable-name collision in the new
 deployer code; the corrected version passed the full rerun. No live deployment or
-in-game test was performed. Logs/extracts remain ignored and local.
+in-game test was performed at that validation stage. Subsequent live results and
+the correction are recorded below. Logs/extracts remain ignored and local.
+
+
+## Blocking enrolment defect and correction
+
+At reviewed head `b1092e38d5406704488857727589440a535a2678`, owner Tests
+0–2 passed (104/104 Windows tests, optional deployment, and labelled fresh fixture).
+Test 3 failed: the normal production docking acknowledgement worked, but the
+identity diagnostic emitted `complete=1` followed by six missing-reference rows
+with no original ID codes. This is a diagnostic failure, not identity evidence.
+
+The code used plain `LSID-*` strings as MD table keys. The
+[Egosoft MD guide, Tables section](https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/)
+requires string keys to start with `$`. Name-match counts could therefore succeed
+while candidate/retained table writes failed. The old `$AllUnique` branch set
+Enrolled true without checking stored references or originals. This explains the
+contradiction; the supplied output does not show a failure to find ship names.
+Existing reader tests injected synthetic protocol records and checked isolation;
+they did not execute enrolment. XML schema validity does not validate these
+runtime key values or the completion invariant.
+
+The correction prefixes every internal candidate/retained/commander lookup key,
+checks candidate validity and original ID availability, and reports completion
+only after readback of six valid retained references with matching nonempty
+original codes. Failed attempts remain one-shot; there is no retry, saved-state
+repair, name-based recovery or production-state write. Cue names, hierarchy and
+saved diagnostic variable names remain unchanged.
+
+Eight regression tests execute the actual XML action tree in a deliberately
+limited test harness with fake components and MD string-key restrictions. They
+cover complete, zero/partial/duplicate matches, missing/empty IDs, invalid
+components, write failure, invalid-key mutation, no retry and retained snapshots
+including commander lookup. This harness is not the X4 engine and cannot prove
+save restoration or engine/schema compatibility.
+
+Correction validation: the eight focused regressions pass on Linux / Node.js
+v24.19.0. Full-suite results are recorded in TESTING.md. Installed X4 9.00 schemas
+and Windows are unavailable in this review environment: **fresh installed-schema
+validation and the full Windows / Node.js v24.21.0 suite remain required**.
+Historical 104/104 and schema passes do not validate this correction.
+
+### Minimum restart of live testing
+
+1. Close X4. Validate the corrected MD against the effective installed 9.00
+   schemas, run the full Windows suite and `git diff --check`. Redeploy explicitly
+   with `-IdentityDiagnostic`, removing the two older diagnostics as above.
+2. Load the preserved **pre-enrolment** save, made before the first eligible
+   docking. It may already contain initialised diagnostic state; Attempted must
+   still be false. The unchanged cue tree permits this reuse in principle;
+   confirm no refresh/duplicate-cue/property errors. Do not use a save made after
+   the failed attempt, reset cues or clear Attempted to repair that trial.
+3. Confirm all six unique fixture names, then genuinely dock. Require exactly
+   one `complete=1` enrolment followed by six `reference=valid` rows, all original
+   and current codes present and equal to the UI worksheet. Production docking
+   must still acknowledge normally. Stop immediately on any contradiction.
+4. Undock/dock again: six valid retained rows, no second enrolment and no relevant
+   MD errors. Save a new disposable A only after this passes, then resume the
+   remaining unchanged reload/rename/assignment matrix above.
+5. On separate disposable branches of the pre-enrolment save, remove one label
+   and then all labels before the first docking. Each trial must emit `complete=0`.
+   Correct the labels after that failed attempt and dock again: no new enrolment,
+   no substitution, still missing references. Never overwrite the preserved save.
+
+PR #12 remains unmerged. Ship identity diagnostic remains **Implemented,
+unverified**; broad Persistent entity identity remains **In Progress**.

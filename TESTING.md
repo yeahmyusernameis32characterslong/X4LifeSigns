@@ -99,12 +99,26 @@ Status: **Implemented, unverified** pending the
 fixture is retained; enrolment is one-time and snapshots never re-identify ships.
 The automated suite includes diagnostic exclusion from console/manual/automatic
 readers and persistence, plus opt-in/removal and independent mock deployment.
-The local Windows / Node.js v24.21.0 run passed **104/104 tests**, with zero
+The historical Windows / Node.js v24.21.0 run at `b1092e3` passed **104/104 tests**, with zero
 failures or skips. All four MD scripts passed installed X4 9.00 schema validation;
 `git diff --check` passed. This is separate from the historical 97-test owner run.
 Installed-schema validation cannot prove reference restoration, rename behaviour,
 commander changes or replacement identity. Broad Persistent entity identity is
 not Verified. No live deployment is performed by these tests.
+
+Owner live Test 3 subsequently exposed false successful enrolment with six
+missing references. The optional diagnostic now uses valid `$`-prefixed table
+keys and checks retained-reference/original-code readback before completion.
+Eight new tests execute its actual XML actions in a limited fake-component
+harness, including incomplete/failed enrolment and no retry. They do not replace
+X4 runtime testing. The corrected revision requires a fresh installed X4 9.00
+schema check and full Windows / Node.js v24.21.0 run; neither is available in the
+Linux review environment. Corrected Linux / Node.js v24.19.0 results: **112 tests,
+103 passed, 1 failed, 8 skipped**. All eight new regressions passed. The failure is
+the unchanged POSIX lock-fixture timeout documented above; the eight skips are
+Windows deployment checks. XML well-formedness and `git diff --check` passed;
+well-formedness is not installed-schema validation. See the experiment's defect
+record and retest steps.
 
 For any subsequent production-routing-only acceptance run, also explicitly
 use `-RemoveIdentityDiagnostic` with the deployer and check its file is

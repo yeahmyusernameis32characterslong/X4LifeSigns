@@ -30,8 +30,9 @@
                   <set_value name="$Labels" exact="['LSID-XF', 'LSID-COL', 'LSID-BEH1', 'LSID-BEH2', 'LSID-BEH3', 'LSID-BEH4']" />
                   <do_if value="md.$LifeSignsIdentityDiagAttempted? and md.$LifeSignsIdentityDiagSnapshot?">
                     <do_if value="not md.$LifeSignsIdentityDiagAttempted">
-                      <!-- Freeze even a failed attempt. Recovery requires a pre-diagnostic disposable save. -->
+                      <!-- Freeze even a failed attempt. Recovery requires a disposable save from before the attempt. -->
                       <set_value name="md.$LifeSignsIdentityDiagAttempted" exact="true" />
+                      <!-- MD string table keys require a $ prefix; fixture/output labels do not. -->
                       <set_value name="$Candidates" exact="table[]" />
                       <set_value name="$AllUnique" exact="true" />
                       <find_ship name="$Ships" space="player.galaxy" trueowner="faction.player" checkoperational="true" multiple="true" recursive="true" />
@@ -40,19 +41,40 @@
                         <do_for_each name="$Ship" in="$Ships">
                           <do_if value="$Ship.name == $Label">
                             <set_value name="$Matches" exact="$Matches + 1" />
-                            <set_value name="$Candidates.{$Label}" exact="$Ship" />
+                            <set_value name="$Candidates.{'$' + $Label}" exact="$Ship" />
                           </do_if>
                         </do_for_each>
                         <do_if value="$Matches != 1">
                           <set_value name="$AllUnique" exact="false" />
                         </do_if>
                       </do_for_each>
-                      <do_if value="$AllUnique">
+                      <set_value name="$CandidateCount" exact="0" />
+                      <do_for_each name="$Label" in="$Labels">
+                        <do_if value="$Candidates.{'$' + $Label}?">
+                          <do_if value="$Candidates.{'$' + $Label}.exists and $Candidates.{'$' + $Label}.idcode?">
+                            <do_if value="$Candidates.{'$' + $Label}.idcode != ''">
+                              <set_value name="$CandidateCount" exact="$CandidateCount + 1" />
+                            </do_if>
+                          </do_if>
+                        </do_if>
+                      </do_for_each>
+                      <do_if value="$AllUnique and $CandidateCount == 6">
                         <do_for_each name="$Label" in="$Labels">
-                          <set_value name="md.$LifeSignsIdentityDiagRefs.{$Label}" exact="$Candidates.{$Label}" />
-                          <set_value name="md.$LifeSignsIdentityDiagOriginals.{$Label}" exact="$Candidates.{$Label}.idcode" />
+                          <set_value name="md.$LifeSignsIdentityDiagRefs.{'$' + $Label}" exact="$Candidates.{'$' + $Label}" />
+                          <set_value name="md.$LifeSignsIdentityDiagOriginals.{'$' + $Label}" exact="$Candidates.{'$' + $Label}.idcode" />
                         </do_for_each>
-                        <set_value name="md.$LifeSignsIdentityDiagEnrolled" exact="true" />
+                        <!-- Success requires readback of all six retained references AND originals. -->
+                        <set_value name="$RetainedCount" exact="0" />
+                        <do_for_each name="$Label" in="$Labels">
+                          <do_if value="md.$LifeSignsIdentityDiagRefs.{'$' + $Label}? and md.$LifeSignsIdentityDiagOriginals.{'$' + $Label}?">
+                            <do_if value="md.$LifeSignsIdentityDiagRefs.{'$' + $Label}.exists">
+                              <do_if value="md.$LifeSignsIdentityDiagOriginals.{'$' + $Label} != '' and md.$LifeSignsIdentityDiagOriginals.{'$' + $Label} == md.$LifeSignsIdentityDiagRefs.{'$' + $Label}.idcode">
+                                <set_value name="$RetainedCount" exact="$RetainedCount + 1" />
+                              </do_if>
+                            </do_if>
+                          </do_if>
+                        </do_for_each>
+                        <set_value name="md.$LifeSignsIdentityDiagEnrolled" exact="$RetainedCount == 6" />
                       </do_if>
                       <debug_text text="'LIFESIGNS_IDENTITY_DIAG_V1|enrolment|session=%s|complete=%s|END'.[$Session, md.$LifeSignsIdentityDiagEnrolled]" filter="general" context="false" />
                     </do_if>
@@ -67,11 +89,11 @@
                       <set_value name="$CommanderState" exact="'UNAVAILABLE'" />
                       <set_value name="$CommanderCode" exact="'UNAVAILABLE'" />
                       <set_value name="$CommanderLabel" exact="'UNAVAILABLE'" />
-                      <do_if value="md.$LifeSignsIdentityDiagOriginals.{$Label}?">
-                        <set_value name="$Original" exact="md.$LifeSignsIdentityDiagOriginals.{$Label}" />
+                      <do_if value="md.$LifeSignsIdentityDiagOriginals.{'$' + $Label}?">
+                        <set_value name="$Original" exact="md.$LifeSignsIdentityDiagOriginals.{'$' + $Label}" />
                       </do_if>
-                      <do_if value="md.$LifeSignsIdentityDiagRefs.{$Label}?">
-                        <set_value name="$Ref" exact="md.$LifeSignsIdentityDiagRefs.{$Label}" />
+                      <do_if value="md.$LifeSignsIdentityDiagRefs.{'$' + $Label}?">
+                        <set_value name="$Ref" exact="md.$LifeSignsIdentityDiagRefs.{'$' + $Label}" />
                         <set_value name="$RefState" exact="'invalid'" />
                         <do_if value="$Ref.exists">
                           <set_value name="$RefState" exact="'valid'" />
@@ -93,8 +115,8 @@
                               <set_value name="$CommanderCode" exact="$Commander.idcode" />
                               <set_value name="$CommanderLabel" exact="'OUTSIDE_ROSTER'" />
                               <do_for_each name="$OtherLabel" in="$Labels">
-                                <do_if value="md.$LifeSignsIdentityDiagRefs.{$OtherLabel}?">
-                                  <do_if value="$Commander == md.$LifeSignsIdentityDiagRefs.{$OtherLabel}">
+                                <do_if value="md.$LifeSignsIdentityDiagRefs.{'$' + $OtherLabel}?">
+                                  <do_if value="$Commander == md.$LifeSignsIdentityDiagRefs.{'$' + $OtherLabel}">
                                     <set_value name="$CommanderLabel" exact="$OtherLabel" />
                                   </do_if>
                                 </do_if>
