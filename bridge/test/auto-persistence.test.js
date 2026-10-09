@@ -87,6 +87,41 @@ function seed(f) {
   try { router.persist(record()); } finally { router.close(); }
 }
 
+for (const mode of ['console', 'manual', 'auto-empty', 'auto-existing']) {
+  test(`identity diagnostic records never persist in ${mode} mode`, async (t) => {
+    const f = await fixture(t);
+    const manual = join(f.directory, 'manual.db');
+    if (mode === 'manual') {
+      const store = openEventStore(manual);
+      try { store.persist(record()); } finally { store.close(); }
+    }
+    if (mode === 'auto-existing') seed(f);
+    const database = mode === 'manual' ? manual : f.filename();
+    const before = existsSync(database) ? await readFile(database) : null;
+    const auto = mode.startsWith('auto');
+    const running = await writer(f, { args: auto ? ['--auto-db'] : mode === 'manual' ? ['--db', manual] : [] });
+    const rows = ['valid', 'invalid', 'missing'].map((state, i) =>
+      `LIFESIGNS_IDENTITY_DIAG_V1|ship|session=${key}|snapshot=1|fixture=LSID-BEH${i + 1}|reference=${state}|original=ABC-123|current=${state === 'valid' ? 'ABC-123' : 'UNAVAILABLE'}|class=ship_l|operational=false|commander_reference=none_or_invalid|commander_idcode=NONE|commander_fixture=NONE|END\n`).join('');
+    await appendFile(f.log, rows +
+      `LIFESIGNS_IDENTITY_DIAG_V1|enrolment|session=${key}|complete=false|END\n` +
+      'LIFESIGNS_IDENTITY_DIAG_V1|blocked|reason=no_ready_production_session|END\n' +
+      'LIFESIGNS_IDENTITY_DIAG_V1|malformed\n' +
+      // A following parser warning is a barrier proving the earlier lines were consumed.
+      (auto ? 'LIFESIGNS_BRIDGE_V2|malformed\n' : 'LIFESIGNS_BRIDGE_V1|malformed\n'));
+    await running.waitFor(`Malformed LIFESIGNS_BRIDGE_${auto ? 'V2' : 'V1'}`, true);
+    await running.stop();
+    assert.equal(running.output().includes('Docking '), false);
+    assert.equal(running.errors().includes('LIFESIGNS_IDENTITY_DIAG_V1'), false);
+    if (before) {
+      assert.deepEqual(await readFile(database), before);
+      assert.equal(read(database).rows.length, 1);
+    } else {
+      assert.equal(existsSync(join(f.repo, 'local-data')), false);
+    }
+    assert.equal(existsSync(f.filename(other)), false);
+  });
+}
+
 test('auto CLI is lazy, warns on malformed keys and consumes only V2 of paired records', async (t) => {
   const f = await fixture(t);
   const running = await writer(f);

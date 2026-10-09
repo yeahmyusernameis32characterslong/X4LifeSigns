@@ -78,7 +78,12 @@ The experimental bridge captures completed dockings while the player is personal
 
 See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 
-**Persistent entity identity is In Progress**, beginning with the disposable six-ship identity diagnostic in [PR #12](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/12). The diagnostic is **Implemented, unverified pending live X4 testing**.
+**Persistent entity identity is In Progress**, beginning with the disposable
+[six-ship identity diagnostic](docs/SHIP_IDENTITY_DIAGNOSTIC.md). The optional
+diagnostic is **Verified for the completed owner-run X4 9.00 scenarios**. Six
+selected ships retained their references and ID codes across the tested reloads,
+renames and commander changes. This is scoped stability evidence, not permanent
+identity or cross-universe continuity.
 
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
