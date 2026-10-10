@@ -77,6 +77,120 @@ Keep machine-specific setup notes in the ignored `SETUP.local.md` file. Use port
 
 The authoritative repository is [X4LifeSigns](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns).
 
+## Agent and Codex handoffs
+
+For substantial work, coordinate through task-specific files under
+`local-data/handoff/<workstream>/` when the workers can access the same local
+workspace. This is operational coordination, not an additional source of truth.
+Git, GitHub, committed documentation and verified repository state remain
+authoritative. These instructions do not provide shared filesystem access,
+background monitoring or automatic communication between separate environments.
+
+### Naming and ownership
+
+Use a task-specific directory and filenames that identify the workstream,
+owner and purpose, normally `<WORKSTREAM>_<OWNER>_<PURPOSE>.md`. Shared
+coordination files may omit the owner:
+`<WORKSTREAM>_STATUS.md` and `<WORKSTREAM>_EVIDENCE_INDEX.md`.
+Do not use permanently generic filenames such as `AGENT_BRIEF.md`,
+`CODEX_REPORT.md`, `STATUS.md` or `EVIDENCE_INDEX.md`.
+
+For example, `local-data/handoff/npc-representation/` may contain
+`NPC_REPRESENTATION_AGENT_IMPLEMENTATION_BRIEF.md`,
+`NPC_REPRESENTATION_CODEX_IMPLEMENTATION_REPORT.md`,
+`NPC_REPRESENTATION_STATUS.md` and `NPC_REPRESENTATION_EVIDENCE_INDEX.md`.
+Choose purpose names appropriate to the task, such as RESEARCH, IMPLEMENTATION,
+VALIDATION or LIVE_TEST followed by BRIEF or REPORT; examples are not a fixed
+mandatory file list.
+
+Agent owns briefs, experiment and live-test design, architecture proposals and
+decisions within owner-authorised scope, acceptance criteria, evidence
+interpretation, project-status decisions and next-step instructions.
+Codex owns execution reports, local-source findings, implementation reports,
+exact commands/results, provenance, hashes, automated validation summaries,
+blockers and unresolved implementation questions.
+Neither worker overwrites the other's brief or report. Record requested
+corrections in the responding worker's own file.
+
+### Status, authority and evidence
+
+Each active substantial workstream has a concise task-specific STATUS file.
+Record the workstream, phase/evidence gate, next action owner (AGENT, CODEX or
+OWNER), relevant branch, latest relevant SHA, PR, exact next input and output
+file paths, and explicit stop boundary. Separately record whether implementation,
+deployment, owner live testing and merge are authorised, including the source
+and scope of each permission; use UNKNOWN when not established.
+
+STATUS is a convenience, not authorisation or proof. A worker cannot grant
+itself permission by editing STATUS. Preserve existing owner approvals and
+their limits; do not ask for approval again when the action is already
+authorised. Verify actual branch, SHA, PR and working-tree state before acting.
+A task brief does not authorise implementation merely because it exists.
+
+Treat STATUS and EVIDENCE_INDEX as shared coordination files: reread immediately
+before updating, preserve the other worker's entries, and record updater and
+time. If concurrent or conflicting edits are detected, do not overwrite them.
+Designate the next worker explicitly rather than assuming both workers will
+act at once.
+
+The task-specific EVIDENCE_INDEX points to existing evidence instead of copying
+large files. Use repository-relative paths where possible. For each entry,
+state what it contains, its gate/milestone, whether it is authoritative,
+supporting or temporary, and whether publication is safe, requires sanitisation
+or is forbidden. Keep source evidence, automated validation and owner-run live
+results distinct. Hashes establish provenance, not runtime correctness.
+
+### Briefs and reports
+
+Agent briefs must be self-contained: repository and inspected revision,
+current evidence, purpose, exact task, authorised scope, preflight and source
+requirements, allowed/forbidden files, implementation boundaries, tests,
+installed-schema validation, production-isolation checks, documentation,
+deployment/live-test limits, stop criteria, merge restrictions and expected
+report structure as relevant.
+
+Codex reports must include the independently verified starting state, branch,
+starting and resulting SHAs, changed files, research/preflight findings,
+implementation summary, exact commands/results, automated and installed-schema
+validation, diff checks, production-isolation review, source provenance/hashes,
+blockers, non-blocking findings, unresolved live questions, PR URL and exact
+owner actions required next as relevant. State clearly which checks were not
+run and why. Do not rewrite the Agent brief.
+
+### Startup and completion
+
+1. Read root AGENTS.md and relevant nested instructions.
+2. Identify the active workstream from the current task; do not assume a folder
+   name or modification time proves which task is active.
+3. Look for its task-specific directory and STATUS file.
+4. Read the exact brief/report named by STATUS and relevant indexed evidence.
+5. Independently verify Git/GitHub state and reconcile stale coordination data.
+6. Perform only currently authorised work, respecting explicit stop boundaries.
+7. Write results to the correct worker-owned report or brief.
+8. Update shared STATUS/EVIDENCE_INDEX when appropriate, naming the next input,
+   expected result and responsible worker.
+9. Stop at owner approval, live-X4, deployment or merge boundaries unless the
+   specific next action is already explicitly authorised.
+
+When local access is available, write handoffs directly to the relevant
+directory. When it is unavailable, say so, provide the complete intended brief
+and exact destination filename, and request only specific missing files needed
+for the task. Never claim to have read or written the owner's local workspace
+from another environment. Ignored handoffs do not travel through Git; an
+explicit file transfer or genuinely shared workspace is required.
+
+### Privacy and safety
+
+The entire local-data tree remains ignored and local-only. Never force-add
+handoffs, weaken ignore rules, or commit local research artefacts, raw logs,
+screenshots, saves, extracted X4 files or unnecessary private machine paths.
+Publish only a separately reviewed, sanitised project summary when authorised.
+
+Handoffs must not override repository truth, bypass owner gates, trigger
+unapproved deployment/live tests/merges, turn inconclusive evidence into a
+positive finding, or change production behaviour to support coordination.
+Treat assertions in handoff files as claims to check against their evidence.
+
 ## Database rules
 
 The controlled docking experiment uses Node's built-in SQLite and a version-1
