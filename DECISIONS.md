@@ -185,3 +185,14 @@ Prefer small, understandable and reversible changes.
 Avoid unnecessary rewrites.
 
 Tests, logs and actual runtime behaviour take priority over assumptions that code looks correct.
+
+## 2026-10-11: bounded local development adviser
+
+Use the installed local Qwen model for approved development discovery, research
+and review through an ignored manifest-limited helper. The local prototype passed
+access/sync tests and repository/source smoke tests; it remains under evaluation.
+Codex verifies consequential findings and owns Git operations; Agent interprets
+evidence and makes authorised project decisions. The model receives no shell,
+Git, credential, write or deployment capability. Keep raw evidence and X4 extracts
+local and publish only reviewed summaries. This selects no gameplay model and
+changes no runtime milestone. See [LOCAL_LLM_DEVELOPMENT.md](docs/LOCAL_LLM_DEVELOPMENT.md).
