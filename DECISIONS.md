@@ -185,3 +185,32 @@ Prefer small, understandable and reversible changes.
 Avoid unnecessary rewrites.
 
 Tests, logs and actual runtime behaviour take priority over assumptions that code looks correct.
+
+## 2026-10-11: bounded local development adviser
+
+Use the installed local Qwen model for approved development discovery, research
+and review through an ignored manifest-limited helper. The local prototype passed
+access/sync tests and repository/source smoke tests; it remains under evaluation.
+Codex verifies consequential findings and owns Git operations; Agent interprets
+evidence and makes authorised project decisions. The model receives no shell,
+Git, credential, write or deployment capability. Keep raw evidence and X4 extracts
+local and publish only reviewed summaries. This selects no gameplay model and
+changes no runtime milestone. See [LOCAL_LLM_DEVELOPMENT.md](docs/LOCAL_LLM_DEVELOPMENT.md).
+
+## 2026-10-11: Qwen3.8 27B is development research only
+
+The owner excludes the installed qwen3.8:27b-q4_K_M from gameplay runtime
+candidacy, live gameplay testing, NPC dialogue during X4, production Node/Qwen
+integration and GPU sharing with X4 during normal gameplay. The practical
+resource concern is the 16 GB RTX 5080 development target; no concurrent
+X4/model benchmark is claimed. Runtime model selection remains separate and
+unmade, requiring suitable latency, VRAM use and coexistence with X4 and voice.
+
+Agent designs and manages the work; Qwen researches approved sources and returns
+a compact evidence packet; Codex verifies consequential claims against exact
+applicable sources and implements only authorised work; the owner retains final
+authority. A bounded existing-source inventory and acquisition plan are approved,
+with documentation amendments. A broader corpus, new acquisitions and helper
+access expansion remain proposals requiring separate approval. The existing
+four-file source grant is unchanged. See the
+[research workflow and corpus boundaries](docs/LOCAL_LLM_DEVELOPMENT.md).

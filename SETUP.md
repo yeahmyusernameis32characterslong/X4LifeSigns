@@ -11,7 +11,7 @@ Optional docking persistence now uses built-in `node:sqlite` on that recorded
 version. **Verified with live X4 docking across Node.js restarts.** No database server or
 npm database dependency is needed.
 
-This file records development setup notes and intended dependencies. The owner's current installations have not been independently verified during the repository review.
+This file records development setup notes and intended dependencies. The dated local LLM checks below verify only the listed environment; other installation claims retain their stated limits.
 
 ## Operating system
 
@@ -25,7 +25,7 @@ Choose a local checkout folder outside synchronised storage, for example `C:\Pro
 
 The existing setup notes record DB Browser for SQLite and Codex CLI as installed. Codex CLI 0.160.0 was the version recorded during initial setup, not a verified current version.
 
-Installation status for the other tools below is not established by this repository. Verify locally when implementation requires them.
+Except for the dated local LLM development checks below, other tool installations remain unverified. Recheck locally when implementation requires them.
 
 ## Development tools and intended dependencies
 
@@ -69,7 +69,39 @@ DB Browser for SQLite was recorded as installed for manual inspection of develop
 
 Ollama is intended to run the project's local language model.
 
-Do not assume a particular model until one has been tested and selected.
+No gameplay model has been selected. On 2026-10-11, local development checks
+verified Windows 11 Home build 26300, Node.js v24.21.0, Git 2.56.0.windows.1 and
+Ollama 0.40.2. The exact installed tag was qwen3.8:27b-q4_K_M, with digest
+25b843619e944cd0ae6069f94ff4e5e26a16e109ccbc0a66a0f05979ed70098e.
+Ollama reported architecture qwen35, 27.3B parameters, Q4_K_M quantisation,
+262,144 model context length and completion/vision/tools/thinking capabilities.
+The evaluated helper uses only text completion through chat, with a smaller
+16,384-token context; advertised capabilities are not all tested.
+
+A bounded local invocation returned the requested marker. Repository and source
+research smoke tests also completed; see
+[LOCAL_LLM_DEVELOPMENT.md](docs/LOCAL_LLM_DEVELOPMENT.md). This is advisory
+development evaluation, not runtime integration or a production model choice.
+During the initial 4,096-context invocation, Ollama reported 21% CPU / 79% GPU
+placement; that observation is not a performance or available-VRAM guarantee.
+
+Windows device enumeration reported Intel(R) AI Boost with status OK. Its
+claimed 13 TOPS, framework/backend support and Ollama/NPU acceleration were not
+verified. No NPU driver/backend was installed or selected. The existing hardware
+target below remains the recorded target; combined X4/LLM/voice load is untested.
+
+The installed qwen3.8:27b-q4_K_M is **development research only**. The owner
+excludes it from gameplay runtime candidacy, NPC dialogue during X4, production
+Node/Qwen integration and normal gameplay GPU sharing. This constraint reflects
+resource concerns on the 16 GB RTX 5080 target, not a combined-workload benchmark.
+
+A logical reference corpus is proposed under ignored
+local-data/x4-reference-corpus/, reusing existing extracts through manifest
+references. The bounded inventory and acquisition plan do not establish that
+an offline corpus has been installed or approved for helper access. Any later
+acquisition or wider grant requires its own approval and item-level rights,
+version, hash and effective-source checks. Raw references stay local; see the
+[corpus boundaries](docs/LOCAL_LLM_DEVELOPMENT.md#proposed-reference-corpus).
 
 ### LM Studio
 
