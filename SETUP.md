@@ -90,6 +90,19 @@ claimed 13 TOPS, framework/backend support and Ollama/NPU acceleration were not
 verified. No NPU driver/backend was installed or selected. The existing hardware
 target below remains the recorded target; combined X4/LLM/voice load is untested.
 
+The installed qwen3.8:27b-q4_K_M is **development research only**. The owner
+excludes it from gameplay runtime candidacy, NPC dialogue during X4, production
+Node/Qwen integration and normal gameplay GPU sharing. This constraint reflects
+resource concerns on the 16 GB RTX 5080 target, not a combined-workload benchmark.
+
+A logical reference corpus is proposed under ignored
+local-data/x4-reference-corpus/, reusing existing extracts through manifest
+references. The bounded inventory and acquisition plan do not establish that
+an offline corpus has been installed or approved for helper access. Any later
+acquisition or wider grant requires its own approval and item-level rights,
+version, hash and effective-source checks. Raw references stay local; see the
+[corpus boundaries](docs/LOCAL_LLM_DEVELOPMENT.md#proposed-reference-corpus).
+
 ### LM Studio
 
 LM Studio may be used to compare and test local models.

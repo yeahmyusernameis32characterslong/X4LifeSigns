@@ -22,7 +22,9 @@ The wider flows describe intent, not working connections.
 Local [development adviser tooling](docs/LOCAL_LLM_DEVELOPMENT.md) has passed
 bounded local retrieval and smoke tests. It remains an ignored prototype under
 evaluation, separate from the proposed gameplay local LLM; it adds no runtime
-AI, voice, persistence or X4 return connection.
+AI, voice, persistence or X4 return connection. The installed Qwen3.8 27B model
+is development research only and is excluded from gameplay runtime candidacy.
+Selection of a future gameplay model remains a separate decision.
 
 ## Purpose
 
