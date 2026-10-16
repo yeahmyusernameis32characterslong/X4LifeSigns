@@ -26,6 +26,13 @@ AI, voice, persistence or X4 return connection. The installed Qwen3.8 27B model
 is development research only and is excluded from gameplay runtime candidacy.
 Selection of a future gameplay model remains a separate decision.
 
+The [standing development research workflow](docs/LOCAL_LLM_DEVELOPMENT.md#standing-owner-approved-research-workflow)
+uses Qwen for broad authorised source discovery. Codex asks focused questions,
+verifies consequential cited claims and narrow dependencies, then implements
+authorised work or returns a focused gap to Qwen. Codex does not normally
+repeat Qwen's broad discovery. Historical trial limits are not current research
+depth rules.
+
 ## Purpose
 
 X4LifeSigns is a mod and supporting local software system for X4: Foundations.

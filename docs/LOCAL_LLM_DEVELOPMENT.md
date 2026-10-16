@@ -1,7 +1,9 @@
 # Local LLM development adviser
 
-Status: **local prototype tested on 2026-10-11; under evaluation**. This is an
-ignored, disposable development tool, not a distributed or production service.
+Status: **standing research workflow adopted on 2026-10-16**.
+The original prototype and smoke evaluation below are historical evidence.
+The helper remains an ignored local development tool, not a distributed or
+production service.
 A fresh clone does not contain the helper. Runtime local LLM integration remains
 Exploring; persistent entity identity remains In Progress.
 
@@ -17,7 +19,8 @@ selection remains separate future work.
 ## Roles and authority
 
 A local Qwen model may research, discover and review explicitly approved
-repository or X4 textual sources. It can propose bounded search/read requests.
+repository or X4 textual sources. Qwen independently chooses searches and reads
+within the authorised corpus to the depth its question requires.
 Codex verifies consequential findings against exact source bytes and owns Git,
 implementation and sanitised reporting. Agent owns evidence interpretation,
 architecture and project-status decisions within owner-approved scope.
@@ -52,6 +55,7 @@ already authorised engineering objective into focused questions and small
 follow-ups without owner approval for each question or individual search/read.
 
 After an answer, Codex:
+
 1. identifies claims that materially affect implementation;
 2. inspects the exact cited source locations;
 3. checks narrow dependencies necessary to interpret them correctly;
@@ -116,10 +120,13 @@ summaries and links only. HTML is inert data; any future PDF text conversion
 needs page mappings. Existing path, type, privacy, size and retrieval-budget
 controls remain in force; inventory does not relax them.
 
-## Local layout and operation
+## Historical prototype layout and operation (2026-10-11)
 
 The following layout and commands describe the original evaluated prototype;
 use the current authorised local driver for the standing research workflow.
+The old per-run review wording and bounded-question interface below are historical
+prototype mechanics, not approval requirements for routine follow-up research.
+Preserve earlier evidence without requiring owner approval for each new question.
 
 The evaluated prototype lives beneath ignored local-data/local-llm-development/:
 
@@ -158,11 +165,12 @@ expected branch; it is a separate human-invoked operation.
 | verify-citations | Task name; compare recorded citation ranges and hashes with current files |
 
 JSON arguments must reach Node unchanged using the caller's shell quoting.
-Each ask writes only a fixed task-named result beneath the ignored evidence
-directory and refuses to overwrite an existing result. Preserve earlier evidence
-and prepare a new reviewed task/output identifier for another run.
+The historical ask command wrote a fixed task-named result beneath the ignored
+evidence directory and refused to overwrite it. That trial prepared a reviewed
+task/output identifier for each run. This is not a standing per-question approval
+requirement; earlier evidence must still be preserved.
 
-## Access contract and limits
+## Existing access and integrity boundaries
 
 Repository candidates come from tracked files, narrowed to explicit task files
 and safe textual names/extensions. Tracking alone never grants access. Exact
@@ -177,21 +185,31 @@ ambiguous Windows names, case-mismatched requests, links/junction escapes and
 hard-linked files are rejected. Byte, UTF-8, secret-pattern and freshness checks
 run before text enters model context. Secret screening is defence in depth.
 
+### Historical smoke configuration (2026-10-11)
+
+The settings in this subsection record the old evaluation, not current research
+limits or required inference configuration. They do not override the standing
+workflow above.
+
 The original 2026-10-11 smoke evaluation used eight model retrieval rounds,
 20 search hits, 200 lines per read, 256 KiB per ordinary file, 24 KiB cumulative
 excerpts and 12,000 bytes for complete serialised model messages. These figures
-record that historical trial; they are not standing limits for Qwen research. The four verified source files have an
+record that historical trial; they are not standing limits for Qwen research.
+The four evaluated source files had an
 explicit 2 MiB file cap because the schema/property files exceed 256 KiB.
 Those excerpt and prompt limits applied to that trial. Search used literal matching
 over the approved inventory, with explicit truncation reporting.
 
-Inference uses the configured local model on the IPv4 loopback endpoint, with
+Inference used the configured local model on the IPv4 loopback endpoint, with
 16,384 configured context tokens, at most 2,000 generated tokens, disabled
 thinking, a 180-second request timeout and a 192 KiB response limit. Byte limits
 are conservative controls, not exact token estimates. Missing local models,
-unknown actions, redirects, malformed responses and exhausted budgets fail
-closed. No model pull, installation, remote fallback or service reconfiguration
+unknown actions, redirects, malformed responses and exhausted budgets failed
+closed in that prototype. Exhaustion recorded incomplete research, not absence
+of the sought fact. No model pull, installation, remote fallback or service reconfiguration
 occurs. HTTP uses a direct loopback connection without environment proxies.
+
+### Existing repository synchronisation safeguards
 
 Git uses a trusted executable, fixed argument arrays, no shell interpolation,
 bounded output/time and a reduced environment. Hooks, fsmonitor, global/system
@@ -211,12 +229,13 @@ handoff fetch failed with credentials disabled; Codex separately verified it
 through existing authorised Git access. Private authentication is deliberately
 not available to model-driven retrieval.
 
-## Evidence and evaluated results
+## Historical evidence and evaluated results (2026-10-11)
 
 Helper-issued citations record alias, relative path, lines, file/excerpt hashes
 and repository snapshot or installed-source provenance. Raw traces record the
 text actually supplied to the model. Hash/range checks establish attribution;
-Codex still checks whether the cited text supports each claim. Modified inputs
+Codex checks whether cited text supports consequential claims and any narrow
+dependencies; it need not reconstruct the broad research trail. Modified inputs
 invalidate a session. Retrieval inspection labels remote freshness UNKNOWN unless
 separately established by a recorded sync.
 

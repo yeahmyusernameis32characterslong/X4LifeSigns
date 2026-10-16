@@ -75,8 +75,9 @@ Ollama 0.40.2. The exact installed tag was qwen3.8:27b-q4_K_M, with digest
 25b843619e944cd0ae6069f94ff4e5e26a16e109ccbc0a66a0f05979ed70098e.
 Ollama reported architecture qwen35, 27.3B parameters, Q4_K_M quantisation,
 262,144 model context length and completion/vision/tools/thinking capabilities.
-The evaluated helper uses only text completion through chat, with a smaller
-16,384-token context; advertised capabilities are not all tested.
+That historical helper evaluation used only text completion through chat, with
+a smaller 16,384-token context; these trial settings are not current research
+limits, and advertised capabilities were not all tested.
 
 A bounded local invocation returned the requested marker. Repository and source
 research smoke tests also completed; see
@@ -94,6 +95,13 @@ The installed qwen3.8:27b-q4_K_M is **development research only**. The owner
 excludes it from gameplay runtime candidacy, NPC dialogue during X4, production
 Node/Qwen integration and normal gameplay GPU sharing. This constraint reflects
 resource concerns on the 16 GB RTX 5080 target, not a combined-workload benchmark.
+
+For current development research, follow the
+[standing owner-approved workflow](docs/LOCAL_LLM_DEVELOPMENT.md#standing-owner-approved-research-workflow):
+Qwen performs broad authorised discovery and returns plain-English findings with
+exact sources and uncertainty. Codex verifies consequential cited claims and
+narrow dependencies, then implements authorised work or asks the next focused
+question. Routine follow-ups do not require per-read or per-question approval.
 
 A logical reference corpus is proposed under ignored
 local-data/x4-reference-corpus/, reusing existing extracts through manifest

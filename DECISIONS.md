@@ -186,10 +186,14 @@ Avoid unnecessary rewrites.
 
 Tests, logs and actual runtime behaviour take priority over assumptions that code looks correct.
 
-## 2026-10-11: bounded local development adviser
+## 2026-10-11: bounded local development adviser (historical evaluation)
 
-Use the installed local Qwen model for approved development discovery, research
-and review through an ignored manifest-limited helper. The local prototype passed
+The operating method and trial limits from this evaluation are superseded by
+the standing owner decision of 2026-10-16 below. Its access, privacy and integrity
+boundaries remain in force.
+
+The initial evaluation used the installed local Qwen model for approved
+development discovery, research and review through an ignored manifest-limited helper. The local prototype passed
 access/sync tests and repository/source smoke tests; it remains under evaluation.
 Codex verifies consequential findings and owns Git operations; Agent interprets
 evidence and makes authorised project decisions. The model receives no shell,
@@ -209,9 +213,10 @@ unmade, requiring suitable latency, VRAM use and coexistence with X4 and voice.
 Agent designs and manages the work; Qwen researches approved sources; Codex
 verifies consequential claims and implements authorised work; the owner retains
 final authority. The operating method is superseded by the standing owner decision
-of 2026-10-16 below. A bounded existing-source inventory and acquisition plan are approved,
-with documentation amendments. A broader corpus, new acquisitions and helper
-access expansion remain proposals requiring separate approval. The four-file source grant was the scope of that historical decision; current
+of 2026-10-16 below. At this earlier stage, the owner approved a bounded
+existing-source inventory and acquisition plan with documentation amendments.
+Broader corpus acquisitions and access expansion required separate approval.
+The four-file source grant was the scope of that historical decision; current
 authorised corpus access is determined by the applicable task manifests. See the
 [research workflow and corpus boundaries](docs/LOCAL_LLM_DEVELOPMENT.md).
 
@@ -237,6 +242,7 @@ already authorised engineering objective into focused questions and small
 follow-ups without owner approval for each question or individual search/read.
 
 After an answer, Codex:
+
 1. identifies claims that materially affect implementation;
 2. inspects the exact cited source locations;
 3. checks narrow dependencies necessary to interpret them correctly;

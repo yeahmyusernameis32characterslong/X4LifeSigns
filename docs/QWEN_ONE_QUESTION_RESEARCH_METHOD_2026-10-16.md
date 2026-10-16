@@ -44,10 +44,10 @@ The method does not establish that Qwen used less total time or Codex allowance.
 ## Repeatable practice for the next research round
 
 1. Ask one short question about one observable event or field, in plain English.
-2. Let Qwen search the exact granted corpus and read any needed adjacent lines. Keep the corpus guide optional and treat it as navigation only.
+2. Let Qwen independently search and read the authorised corpus, follow references and investigate as deeply as the question requires. Keep the corpus guide optional and treat it as navigation only.
 3. If results are truncated or a document remains partly read, allow new ranges and different terms. A repeated identical zero-result search is not progress.
 4. Ask for a plain-English answer with document and line. When no relevant source was read, retain “unresolved” rather than force an answer. A `finish` pass is appropriate only when useful original excerpts are already in the journal.
 5. Check each consequential claim against the original source, including event timing, object/parameter meanings and whether the event truly covers the requested case. Check effective-source overrides and live X4 behaviour separately when the task requires them.
-6. Carry confirmed findings and unresolved questions into a consolidated report before implementation. Keep raw journals and personal save details local.
+6. Use verified findings for authorised implementation, or ask Qwen the next focused question when a consequential gap remains. No consolidated packet or report is a prerequisite. Keep raw journals and personal save details local.
 
 The existing [local LLM development policy](LOCAL_LLM_DEVELOPMENT.md) remains in force: Qwen is a development researcher, Codex verifies consequential evidence, and no local model is thereby approved as a gameplay runtime model.
