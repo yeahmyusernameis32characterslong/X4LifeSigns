@@ -7,17 +7,24 @@ param(
     [switch]$RandomSourceDiagnostic,
     [switch]$RemoveRandomSourceDiagnostic,
     [switch]$IdentityDiagnostic,
-    [switch]$RemoveIdentityDiagnostic
+    [switch]$RemoveIdentityDiagnostic,
+    [switch]$NpcObservationDiagnostic,
+    [switch]$RemoveNpcObservationDiagnostic,
+    [string]$NpcObservationSourcePath
 )
 
 $ErrorActionPreference = 'Stop'
 if ($SessionDiagnostic -and $RemoveSessionDiagnostic) { throw 'Choose either SessionDiagnostic or RemoveSessionDiagnostic.' }
 if ($RandomSourceDiagnostic -and $RemoveRandomSourceDiagnostic) { throw 'Choose either RandomSourceDiagnostic or RemoveRandomSourceDiagnostic.' }
 if ($IdentityDiagnostic -and $RemoveIdentityDiagnostic) { throw 'Choose either IdentityDiagnostic or RemoveIdentityDiagnostic.' }
+if ($NpcObservationDiagnostic -and $RemoveNpcObservationDiagnostic) { throw 'Choose either NpcObservationDiagnostic or RemoveNpcObservationDiagnostic.' }
+if ($NpcObservationDiagnostic -and -not $NpcObservationSourcePath) { throw 'NpcObservationDiagnostic requires NpcObservationSourcePath.' }
+if (-not $NpcObservationDiagnostic -and $NpcObservationSourcePath) { throw 'NpcObservationSourcePath requires NpcObservationDiagnostic.' }
 $game = (Resolve-Path -LiteralPath $GamePath).ProviderPath
 $source = Join-Path (Split-Path $PSScriptRoot -Parent) 'extension'
 $extensions = Join-Path $game 'extensions'
 $target = Join-Path $extensions 'lifesigns_bridge_probe'
+$npcObservationSource = $null
 
 function Assert-NotLinked([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
@@ -34,6 +41,19 @@ if (-not (Test-Path -LiteralPath (Join-Path $game 'X4.exe') -PathType Leaf)) {
 foreach ($path in @($game, $extensions, $target)) { Assert-NotLinked $path }
 [xml]$manifest = Get-Content -LiteralPath (Join-Path $source 'content.xml')
 if ($manifest.content.id -ne 'lifesigns_bridge_probe') { throw 'Unexpected source extension identity.' }
+if ($NpcObservationDiagnostic) {
+    $localRoot = (Resolve-Path -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) 'local-data')).ProviderPath
+    $npcObservationSource = (Resolve-Path -LiteralPath $NpcObservationSourcePath).ProviderPath
+    if (-not $npcObservationSource.StartsWith($localRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'NPC observation source must be an ignored local-data file.'
+    }
+    if (-not (Test-Path -LiteralPath $npcObservationSource -PathType Leaf)) { throw 'NPC observation source must be a file.' }
+    foreach ($path in @($localRoot, (Split-Path $npcObservationSource -Parent), $npcObservationSource)) { Assert-NotLinked $path }
+    $npcObservationText = Get-Content -LiteralPath $npcObservationSource -Raw
+    if ($npcObservationText -match '@[A-Z_]+@') { throw 'NPC observation source still contains fixture placeholders.' }
+    [xml]$npcObservationXml = $npcObservationText
+    if ($npcObservationXml.mdscript.name -ne 'LifeSigns_NpcObservationDiagnostic') { throw 'Unexpected NPC observation script identity.' }
+}
 
 if (Test-Path -LiteralPath $target) {
     if (-not (Test-Path -LiteralPath $target -PathType Container)) { throw 'Deployment target is not a folder.' }
@@ -51,7 +71,7 @@ if (Test-Path -LiteralPath $target) {
         if ($item.Name -ne 'md' -or -not $item.PSIsContainer) { throw "Unexpected existing probe content: $($item.Name)" }
         foreach ($child in Get-ChildItem -LiteralPath $item.FullName -Force) {
             Assert-NotLinked $child.FullName
-            if ($child.PSIsContainer -or $child.Name -notin @('LifeSigns_BridgeProbe.xml', 'LifeSigns_SessionDiagnostic.xml', 'LifeSigns_RandomSourceDiagnostic.xml', 'LifeSigns_IdentityDiagnostic.xml')) {
+            if ($child.PSIsContainer -or $child.Name -notin @('LifeSigns_BridgeProbe.xml', 'LifeSigns_SessionDiagnostic.xml', 'LifeSigns_RandomSourceDiagnostic.xml', 'LifeSigns_IdentityDiagnostic.xml', 'LifeSigns_NpcObservationDiagnostic.xml')) {
                 throw "Unexpected existing MD content: $($child.Name)"
             }
             if ($child.Name -eq 'LifeSigns_SessionDiagnostic.xml' -and -not ($SessionDiagnostic -or $RemoveSessionDiagnostic)) {
@@ -63,11 +83,14 @@ if (Test-Path -LiteralPath $target) {
             if ($child.Name -eq 'LifeSigns_IdentityDiagnostic.xml' -and -not ($IdentityDiagnostic -or $RemoveIdentityDiagnostic)) {
                 throw 'Identity diagnostic is installed. Explicitly choose -IdentityDiagnostic to retain it or -RemoveIdentityDiagnostic to remove it.'
             }
+            if ($child.Name -eq 'LifeSigns_NpcObservationDiagnostic.xml' -and -not ($NpcObservationDiagnostic -or $RemoveNpcObservationDiagnostic)) {
+                throw 'NPC observation diagnostic is installed. Explicitly choose -NpcObservationDiagnostic to retain it or -RemoveNpcObservationDiagnostic to remove it.'
+            }
         }
     }
 }
 
-if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDiagnostic=$SessionDiagnostic, RemoveSessionDiagnostic=$RemoveSessionDiagnostic, RandomSourceDiagnostic=$RandomSourceDiagnostic, RemoveRandomSourceDiagnostic=$RemoveRandomSourceDiagnostic, IdentityDiagnostic=$IdentityDiagnostic, RemoveIdentityDiagnostic=$RemoveIdentityDiagnostic)")) {
+if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDiagnostic=$SessionDiagnostic, RemoveSessionDiagnostic=$RemoveSessionDiagnostic, RandomSourceDiagnostic=$RandomSourceDiagnostic, RemoveRandomSourceDiagnostic=$RemoveRandomSourceDiagnostic, IdentityDiagnostic=$IdentityDiagnostic, RemoveIdentityDiagnostic=$RemoveIdentityDiagnostic, NpcObservationDiagnostic=$NpcObservationDiagnostic, RemoveNpcObservationDiagnostic=$RemoveNpcObservationDiagnostic)")) {
     New-Item -ItemType Directory -Path (Join-Path $target 'md') -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $source 'content.xml') -Destination (Join-Path $target 'content.xml') -Force
     Copy-Item -LiteralPath (Join-Path $source 'md\LifeSigns_BridgeProbe.xml') -Destination (Join-Path $target 'md\LifeSigns_BridgeProbe.xml') -Force
@@ -91,6 +114,13 @@ if ($PSCmdlet.ShouldProcess($target, "Deploy Life Signs docking probe (SessionDi
     }
     if ($RemoveIdentityDiagnostic -and (Test-Path -LiteralPath $identityDiagnosticPath)) {
         Remove-Item -LiteralPath $identityDiagnosticPath
+    }
+    $npcObservationTarget = Join-Path $target 'md\LifeSigns_NpcObservationDiagnostic.xml'
+    if ($NpcObservationDiagnostic) {
+        Copy-Item -LiteralPath $npcObservationSource -Destination $npcObservationTarget -Force
+    }
+    if ($RemoveNpcObservationDiagnostic -and (Test-Path -LiteralPath $npcObservationTarget)) {
+        Remove-Item -LiteralPath $npcObservationTarget
     }
     Write-Output "Deployed probe to $target"
 }

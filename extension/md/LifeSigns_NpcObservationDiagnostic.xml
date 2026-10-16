@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LifeSigns_NpcObservationDiagnostic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
+  <cues>
+    <!-- This source is a template. Only a rendered ignored local copy may be deployed. -->
+    <cue name="InitialiseNpcObservation">
+      <actions>
+        <set_value name="md.$LifeSignsNpcObsAttempted" exact="false" />
+        <set_value name="md.$LifeSignsNpcObsEnrolled" exact="false" />
+        <set_value name="md.$LifeSignsNpcObsSeq" exact="0" />
+        <set_value name="md.$LifeSignsNpcObsRefs" exact="table[]" />
+      </actions>
+      <cues>
+        <cue name="WaitForControlledGroup" checkinterval="1s">
+          <conditions><check_value value="global.$PlayerControlledGroup?" /></conditions>
+          <cues>
+            <cue name="Docked" instantiate="true" namespace="this">
+              <conditions>
+                <event_object_docked group="global.$PlayerControlledGroup" />
+                <check_value value="event.object == player.controlled and event.object.isclass.ship and not event.object.isclass.spacesuit" />
+              </conditions>
+              <actions>
+                <do_if value="not md.$LifeSignsNpcObsAttempted">
+                  <!-- Freeze the first attempt. An unsuccessful attempt requires a pre-attempt save. -->
+                  <set_value name="md.$LifeSignsNpcObsAttempted" exact="true" />
+                  <set_value name="$AMatches" exact="0" />
+                  <set_value name="$BMatches" exact="0" />
+                  <set_value name="$SMatches" exact="0" />
+                  <find_ship name="$Ships" space="player.galaxy" trueowner="faction.player" checkoperational="true" multiple="true" recursive="true" />
+                  <do_for_each name="$Ship" in="$Ships">
+                    <do_if value="$Ship.exists and $Ship.idcode == '@SHIP_A_CODE@'">
+                      <set_value name="$AMatches" exact="$AMatches + 1" />
+                      <set_value name="$CandidateA" exact="$Ship" />
+                    </do_if>
+                    <do_if value="$Ship.exists and $Ship.idcode == '@SHIP_B_CODE@'">
+                      <set_value name="$BMatches" exact="$BMatches + 1" />
+                      <set_value name="$CandidateB" exact="$Ship" />
+                    </do_if>
+                  </do_for_each>
+                  <find_station_by_true_owner name="$Stations" faction="faction.player" space="player.galaxy" multiple="true" />
+                  <do_for_each name="$Station" in="$Stations">
+                    <do_if value="$Station.exists and $Station.idcode == '@STATION_CODE@'">
+                      <set_value name="$SMatches" exact="$SMatches + 1" />
+                      <set_value name="$CandidateS" exact="$Station" />
+                    </do_if>
+                  </do_for_each>
+                  <set_value name="$Reason" exact="'FIXTURE_MATCH_COUNT'" />
+                  <do_if value="$AMatches == 1 and $BMatches == 1 and $SMatches == 1">
+                    <set_value name="$Reason" exact="'P1_NOT_ASSIGNED_TO_A'" />
+                    <set_value name="$Pilot" exact="$CandidateA.assignedaipilot" />
+                    <do_if value="$Pilot.exists">
+                      <do_if value="$Pilot.isclass.npc and $Pilot.name == '@PERSON_NAME@'">
+                        <set_value name="md.$LifeSignsNpcObsRefs.$A" exact="$CandidateA" />
+                        <set_value name="md.$LifeSignsNpcObsRefs.$B" exact="$CandidateB" />
+                        <set_value name="md.$LifeSignsNpcObsRefs.$S" exact="$CandidateS" />
+                        <set_value name="md.$LifeSignsNpcObsOriginalP1" exact="$Pilot" />
+                        <set_value name="md.$LifeSignsNpcObsOriginalTemplate" exact="$Pilot.npctemplate" />
+                        <do_if value="md.$LifeSignsNpcObsRefs.$A? and md.$LifeSignsNpcObsRefs.$B? and md.$LifeSignsNpcObsRefs.$S? and md.$LifeSignsNpcObsOriginalP1?">
+                          <do_if value="md.$LifeSignsNpcObsRefs.$A == $CandidateA and md.$LifeSignsNpcObsRefs.$B == $CandidateB and md.$LifeSignsNpcObsRefs.$S == $CandidateS and md.$LifeSignsNpcObsOriginalP1 == $Pilot">
+                            <set_value name="md.$LifeSignsNpcObsEnrolled" exact="true" />
+                            <set_value name="$Reason" exact="'COMPLETE'" />
+                          </do_if>
+                          <do_else><set_value name="$Reason" exact="'READBACK_MISMATCH'" /></do_else>
+                        </do_if>
+                        <do_else><set_value name="$Reason" exact="'RETAINED_REFERENCE_MISSING'" /></do_else>
+                      </do_if>
+                    </do_if>
+                  </do_if>
+                  <debug_text text="'LIFESIGNS_NPC_OBS_V1|enrolment|complete=%s|reason=%s|ship_a_matches=%s|ship_b_matches=%s|station_matches=%s|END'.[md.$LifeSignsNpcObsEnrolled, $Reason, $AMatches, $BMatches, $SMatches]" filter="general" context="false" />
+                </do_if>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <do_if value="event.object == md.$LifeSignsNpcObsRefs.$A or event.object == md.$LifeSignsNpcObsRefs.$B or event.param == md.$LifeSignsNpcObsRefs.$S">
+                    <signal_cue_instantly cue="Snapshot" param="'DOCK'" />
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+
+            <!-- Generic event names indicate a possible change, not completed transfer. -->
+            <cue name="PostAdded" instantiate="true" namespace="this">
+              <conditions><event_control_entity_added /></conditions>
+              <actions>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <do_if value="event.object == md.$LifeSignsNpcObsRefs.$A or event.object == md.$LifeSignsNpcObsRefs.$B or event.object == md.$LifeSignsNpcObsRefs.$S or event.param == md.$LifeSignsNpcObsOriginalP1">
+                    <signal_cue_instantly cue="Snapshot" param="'POST_ADDED'" />
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="PostRemoved" instantiate="true" namespace="this">
+              <conditions><event_control_entity_removed /></conditions>
+              <actions>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <do_if value="event.object == md.$LifeSignsNpcObsRefs.$A or event.object == md.$LifeSignsNpcObsRefs.$B or event.object == md.$LifeSignsNpcObsRefs.$S or event.param == md.$LifeSignsNpcObsOriginalP1">
+                    <signal_cue_instantly cue="Snapshot" param="'POST_REMOVED'" />
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="AssignmentRequested" instantiate="true" namespace="this">
+              <conditions><event_player_assigned_hired_actor /></conditions>
+              <actions>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <do_if value="event.param2 == md.$LifeSignsNpcObsRefs.$A or event.param2 == md.$LifeSignsNpcObsRefs.$B or event.param2 == md.$LifeSignsNpcObsRefs.$S">
+                    <signal_cue_instantly cue="Snapshot" param="'ASSIGNMENT_REQUEST'" />
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="SelectedObjectDestroyed" instantiate="true" namespace="this">
+              <conditions><event_object_destroyed /></conditions>
+              <actions>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <do_if value="event.object == md.$LifeSignsNpcObsRefs.$A or event.object == md.$LifeSignsNpcObsRefs.$B or event.object == md.$LifeSignsNpcObsRefs.$S or event.object == md.$LifeSignsNpcObsOriginalP1">
+                    <signal_cue_instantly cue="Snapshot" param="'OBJECT_DESTROYED'" />
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+
+            <!-- Neither component nor contextual payload is attributed to P1 by seed/name. -->
+            <cue name="ConversationObserved" instantiate="true" namespace="this">
+              <conditions><event_conversation_started /></conditions>
+              <actions>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <set_value name="$Admit" exact="false" />
+                  <set_value name="$Payload" exact="'UNSUPPORTED'" />
+                  <set_value name="$ContextLabel" exact="'UNAVAILABLE'" />
+                  <set_value name="$InstanceState" exact="'UNAVAILABLE'" />
+                  <set_value name="$EqualOriginal" exact="'UNKNOWN'" />
+                  <set_value name="$TemplateEqualOriginal" exact="'UNKNOWN'" />
+                  <set_value name="$ComponentSeed" exact="'UNAVAILABLE'" />
+                  <set_value name="$EntrySeed" exact="'UNAVAILABLE'" />
+                  <do_if value="typeof event.object == datatype.component">
+                    <do_if value="event.object.exists">
+                      <do_if value="event.object.isclass.npc">
+                        <set_value name="$Actor" exact="event.object" />
+                        <do_if value="$Actor == md.$LifeSignsNpcObsOriginalP1 or $Actor.roleobject == md.$LifeSignsNpcObsRefs.$A or $Actor.roleobject == md.$LifeSignsNpcObsRefs.$B or $Actor.roleobject == md.$LifeSignsNpcObsRefs.$S or $Actor.assignedcontrolled == md.$LifeSignsNpcObsRefs.$A or $Actor.assignedcontrolled == md.$LifeSignsNpcObsRefs.$B or $Actor.assignedcontrolled == md.$LifeSignsNpcObsRefs.$S">
+                          <set_value name="$Admit" exact="true" />
+                          <set_value name="$Payload" exact="'COMPONENT'" />
+                          <set_value name="$InstanceState" exact="'PRESENT'" />
+                          <set_value name="$ComponentSeed" exact="$Actor.seed" />
+                          <do_if value="md.$LifeSignsNpcObsOriginalTemplate?">
+                            <do_if value="$Actor.npctemplate == md.$LifeSignsNpcObsOriginalTemplate"><set_value name="$TemplateEqualOriginal" exact="'YES'" /></do_if>
+                            <do_else><set_value name="$TemplateEqualOriginal" exact="'NO'" /></do_else>
+                          </do_if>
+                          <do_if value="$Actor == md.$LifeSignsNpcObsOriginalP1"><set_value name="$EqualOriginal" exact="'YES'" /></do_if>
+                          <do_else><set_value name="$EqualOriginal" exact="'NO'" /></do_else>
+                        </do_if>
+                      </do_if>
+                    </do_if>
+                  </do_if>
+                  <do_elseif value="typeof event.object == datatype.list">
+                    <do_if value="event.object.count == 2">
+                      <set_value name="$Context" exact="event.object.{1}" />
+                      <set_value name="$Template" exact="event.object.{2}" />
+                      <do_if value="typeof $Context == datatype.component and typeof $Template == datatype.npctemplate">
+                        <do_if value="$Context.exists">
+                          <do_if value="$Context == md.$LifeSignsNpcObsRefs.$A or $Context == md.$LifeSignsNpcObsRefs.$B or $Context == md.$LifeSignsNpcObsRefs.$S">
+                            <set_value name="$Admit" exact="true" />
+                            <set_value name="$Payload" exact="'CONTEXTUAL'" />
+                            <do_if value="md.$LifeSignsNpcObsOriginalTemplate?">
+                              <do_if value="$Template == md.$LifeSignsNpcObsOriginalTemplate"><set_value name="$TemplateEqualOriginal" exact="'YES'" /></do_if>
+                              <do_else><set_value name="$TemplateEqualOriginal" exact="'NO'" /></do_else>
+                            </do_if>
+                            <do_if value="$Context == md.$LifeSignsNpcObsRefs.$A"><set_value name="$ContextLabel" exact="'A'" /></do_if>
+                            <do_elseif value="$Context == md.$LifeSignsNpcObsRefs.$B"><set_value name="$ContextLabel" exact="'B'" /></do_elseif>
+                            <do_else><set_value name="$ContextLabel" exact="'S'" /></do_else>
+                            <do_if value="$Context.people.{$Template}.exists">
+                              <set_value name="$EntrySeed" exact="$Context.people.{$Template}.seed" />
+                              <set_value name="$Instance" exact="$Context.roleentity.{$Template}" />
+                              <do_if value="$Instance.exists">
+                                <do_if value="$Instance.isclass.npc">
+                                  <set_value name="$InstanceState" exact="'PRESENT'" />
+                                  <set_value name="$ComponentSeed" exact="$Instance.seed" />
+                                  <do_if value="$Instance == md.$LifeSignsNpcObsOriginalP1"><set_value name="$EqualOriginal" exact="'YES'" /></do_if>
+                                  <do_else><set_value name="$EqualOriginal" exact="'NO'" /></do_else>
+                                </do_if>
+                              </do_if>
+                            </do_if>
+                          </do_if>
+                        </do_if>
+                      </do_if>
+                    </do_if>
+                  </do_elseif>
+                  <do_if value="$Admit">
+                    <debug_text text="'LIFESIGNS_NPC_OBS_V1|selection|payload=%s|context=%s|instance=%s|equal_original=%s|template_equal_original=%s|component_seed_text=%s|entry_seed_text=%s|seed_render=UNVERIFIED|END'.[$Payload, $ContextLabel, $InstanceState, $EqualOriginal, $TemplateEqualOriginal, $ComponentSeed, $EntrySeed]" filter="general" context="false" />
+                    <signal_cue_instantly cue="Snapshot" param="'CONVERSATION'" />
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+
+            <cue name="Snapshot" instantiate="true" namespace="this">
+              <conditions><event_cue_signalled /></conditions>
+              <actions>
+                <do_if value="md.$LifeSignsNpcObsEnrolled">
+                  <set_value name="md.$LifeSignsNpcObsSeq" exact="md.$LifeSignsNpcObsSeq + 1" />
+                  <set_value name="$Session" exact="'UNAVAILABLE'" />
+                  <do_if value="md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?">
+                    <do_if value="md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''">
+                      <set_value name="$Session" exact="md.$LifeSignsProductionSessionKey" />
+                    </do_if>
+                  </do_if>
+                  <set_value name="$Trigger" exact="event.param" />
+                  <debug_text text="'LIFESIGNS_NPC_OBS_V1|batch|session=%s|seq=%s|trigger=%s|phase=begin|END'.[$Session, md.$LifeSignsNpcObsSeq, $Trigger]" filter="general" context="false" />
+
+                  <set_value name="$P1State" exact="'MISSING_REFERENCE'" />
+                  <set_value name="$P1Seed" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Role" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Post" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1RoleObject" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Assigned" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Context" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Temporary" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Transit" exact="'UNAVAILABLE'" />
+                  <set_value name="$P1Transfer" exact="'UNAVAILABLE'" />
+                  <do_if value="md.$LifeSignsNpcObsOriginalP1?">
+                    <set_value name="$P1" exact="md.$LifeSignsNpcObsOriginalP1" />
+                    <set_value name="$P1State" exact="'OUT_OF_GRAPH'" />
+                    <do_if value="$P1.exists">
+                      <do_if value="$P1.isclass.npc">
+                        <set_value name="$P1State" exact="'PRESENT'" />
+                        <set_value name="$P1Seed" exact="$P1.seed" />
+                        <set_value name="$P1Role" exact="$P1.role" />
+                        <set_value name="$P1Post" exact="$P1.controlpost" />
+                        <set_value name="$P1Temporary" exact="$P1.istemporary" />
+                        <set_value name="$P1Transit" exact="$P1.isintransit" />
+                        <set_value name="$P1Transfer" exact="$P1.istransferscheduled" />
+                        <set_value name="$Object" exact="$P1.roleobject" />
+                        <do_if value="$Object.exists"><set_value name="$P1RoleObject" exact="$Object.idcode" /></do_if>
+                        <set_value name="$Object" exact="$P1.assignedcontrolled" />
+                        <do_if value="$Object.exists"><set_value name="$P1Assigned" exact="$Object.idcode" /></do_if>
+                        <set_value name="$Object" exact="$P1.container" />
+                        <do_if value="$Object.exists"><set_value name="$P1Context" exact="$Object.idcode" /></do_if>
+                      </do_if>
+                      <do_else><set_value name="$P1State" exact="'UNEXPECTED_TYPE'" /></do_else>
+                    </do_if>
+                  </do_if>
+                  <debug_text text="'LIFESIGNS_NPC_OBS_V1|anchor|session=%s|seq=%s|ref=%s|component_seed_text=%s|role=%s|post=%s|roleobject=%s|assignedcontrolled=%s|container=%s|temporary=%s|in_transit=%s|transfer_scheduled=%s|seed_render=UNVERIFIED|END'.[$Session, md.$LifeSignsNpcObsSeq, $P1State, $P1Seed, $P1Role, $P1Post, $P1RoleObject, $P1Assigned, $P1Context, $P1Temporary, $P1Transit, $P1Transfer]" filter="general" context="false" />
+
+                  <set_value name="$Labels" exact="['A', 'B', 'S']" />
+                  <do_for_each name="$Label" in="$Labels">
+                    <set_value name="$ContextState" exact="'MISSING_REFERENCE'" />
+                    <set_value name="$TemplateState" exact="'UNAVAILABLE'" />
+                    <set_value name="$EntryState" exact="'UNAVAILABLE'" />
+                    <set_value name="$EntrySeed" exact="'UNAVAILABLE'" />
+                    <set_value name="$EntryRole" exact="'UNAVAILABLE'" />
+                    <set_value name="$InstanceState" exact="'UNAVAILABLE'" />
+                    <set_value name="$InstanceEqual" exact="'UNKNOWN'" />
+                    <do_if value="md.$LifeSignsNpcObsRefs.{'$' + $Label}?">
+                      <set_value name="$Context" exact="md.$LifeSignsNpcObsRefs.{'$' + $Label}" />
+                      <set_value name="$ContextState" exact="'OUT_OF_GRAPH'" />
+                      <do_if value="$Context.exists">
+                        <set_value name="$ContextState" exact="'PRESENT'" />
+                        <do_if value="md.$LifeSignsNpcObsOriginalTemplate?">
+                          <set_value name="$Template" exact="md.$LifeSignsNpcObsOriginalTemplate" />
+                          <do_if value="typeof $Template == datatype.npctemplate">
+                            <set_value name="$TemplateState" exact="'RAW_TEMPLATE'" />
+                            <set_value name="$EntryState" exact="'ABSENT'" />
+                            <do_if value="$Context.people.{$Template}.exists">
+                              <set_value name="$EntryState" exact="'PRESENT'" />
+                              <set_value name="$EntrySeed" exact="$Context.people.{$Template}.seed" />
+                              <set_value name="$EntryRole" exact="$Context.people.{$Template}.role" />
+                              <set_value name="$Instance" exact="$Context.roleentity.{$Template}" />
+                              <do_if value="$Instance.exists">
+                                <do_if value="$Instance.isclass.npc">
+                                  <set_value name="$InstanceState" exact="'PRESENT'" />
+                                  <do_if value="$Instance == md.$LifeSignsNpcObsOriginalP1"><set_value name="$InstanceEqual" exact="'YES'" /></do_if>
+                                  <do_else><set_value name="$InstanceEqual" exact="'NO'" /></do_else>
+                                </do_if>
+                                <do_else><set_value name="$InstanceState" exact="'UNEXPECTED_TYPE'" /></do_else>
+                              </do_if>
+                            </do_if>
+                          </do_if>
+                          <do_else><set_value name="$TemplateState" exact="'UNEXPECTED_TYPE'" /></do_else>
+                        </do_if>
+                      </do_if>
+                    </do_if>
+                    <debug_text text="'LIFESIGNS_NPC_OBS_V1|context|session=%s|seq=%s|object=%s|object_ref=%s|template=%s|entry=%s|entry_seed_text=%s|entry_role=%s|instance=%s|instance_equal_original=%s|seed_render=UNVERIFIED|END'.[$Session, md.$LifeSignsNpcObsSeq, $Label, $ContextState, $TemplateState, $EntryState, $EntrySeed, $EntryRole, $InstanceState, $InstanceEqual]" filter="general" context="false" />
+                  </do_for_each>
+
+                  <set_value name="$Posts" exact="[['A', controlpost.aipilot], ['B', controlpost.aipilot], ['S', controlpost.manager]]" />
+                  <do_for_each name="$Spec" in="$Posts">
+                    <set_value name="$Label" exact="$Spec.{1}" />
+                    <set_value name="$Post" exact="$Spec.{2}" />
+                    <set_value name="$ObjectState" exact="'MISSING_REFERENCE'" />
+                    <set_value name="$OccupantState" exact="'UNAVAILABLE'" />
+                    <set_value name="$OccupantEqual" exact="'UNKNOWN'" />
+                    <set_value name="$OccupantSeed" exact="'UNAVAILABLE'" />
+                    <set_value name="$OccupantRole" exact="'UNAVAILABLE'" />
+                    <do_if value="md.$LifeSignsNpcObsRefs.{'$' + $Label}?">
+                      <set_value name="$Context" exact="md.$LifeSignsNpcObsRefs.{'$' + $Label}" />
+                      <set_value name="$ObjectState" exact="'OUT_OF_GRAPH'" />
+                      <do_if value="$Context.exists">
+                        <set_value name="$ObjectState" exact="'PRESENT'" />
+                        <set_value name="$OccupantState" exact="'VACANT_OR_UNAVAILABLE'" />
+                        <set_value name="$Occupant" exact="$Context.assignedcontrolentity.{$Post}" />
+                        <do_if value="$Occupant.exists">
+                          <do_if value="$Occupant.isclass.npc">
+                            <set_value name="$OccupantState" exact="'PRESENT'" />
+                            <set_value name="$OccupantSeed" exact="$Occupant.seed" />
+                            <set_value name="$OccupantRole" exact="$Occupant.role" />
+                            <do_if value="$Occupant == md.$LifeSignsNpcObsOriginalP1"><set_value name="$OccupantEqual" exact="'YES'" /></do_if>
+                            <do_else><set_value name="$OccupantEqual" exact="'NO'" /></do_else>
+                          </do_if>
+                          <do_else><set_value name="$OccupantState" exact="'UNEXPECTED_TYPE'" /></do_else>
+                        </do_if>
+                      </do_if>
+                    </do_if>
+                    <debug_text text="'LIFESIGNS_NPC_OBS_V1|post|session=%s|seq=%s|object=%s|object_ref=%s|post=%s|occupant=%s|occupant_equal_original=%s|occupant_seed_text=%s|occupant_role=%s|seed_render=UNVERIFIED|END'.[$Session, md.$LifeSignsNpcObsSeq, $Label, $ObjectState, $Post, $OccupantState, $OccupantEqual, $OccupantSeed, $OccupantRole]" filter="general" context="false" />
+                  </do_for_each>
+                  <debug_text text="'LIFESIGNS_NPC_OBS_V1|batch|session=%s|seq=%s|trigger=%s|phase=end|records=7|END'.[$Session, md.$LifeSignsNpcObsSeq, $Trigger]" filter="general" context="false" />
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+  </cues>
+</mdscript>
