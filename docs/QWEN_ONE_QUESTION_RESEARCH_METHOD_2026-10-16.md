@@ -2,6 +2,24 @@
 
 Recorded 16 October 2026. This is the method used for the [X4 event and identity findings](X4_EVENT_AND_IDENTITY_RESEARCH_2026-10-16.md). It is a local development experiment, not a gameplay integration or a measured comparison of Codex/Qwen costs.
 
+## Standing owner decision
+
+On 16 October 2026 the owner adopted this operating method for future
+Life Signs/X4LifeSigns research. Qwen performs broad authorised discovery;
+Codex asks focused questions and verifies consequential cited evidence and
+narrow dependencies before authorised implementation. Codex does not need to
+reproduce Qwen's research trail. Further focused questions are part of the
+already authorised engineering objective, without per-read or per-question
+owner approval.
+
+Plain-English answers with exact sources and genuine uncertainty are sufficient;
+earlier mandatory evidence packets and fixed output grammars do not apply.
+Trial caps below are historical, not standing depth limits. Gaps are findings;
+a reached guard means incomplete research, not absence of a fact. Existing corpus,
+provenance, privacy, source-integrity and destructive-action boundaries are unchanged.
+See the [standing workflow](LOCAL_LLM_DEVELOPMENT.md#standing-owner-approved-research-workflow).
+Only the owner may change this standing method.
+
 ## The interaction
 
 The owner replaced a broad docking research request with small questions: ask Qwen for **one fact or one event**, let it search and answer in plain English, check its cited source, then ask the next question. The first three questions sought the ship ID, destination ID and completed docking event. Later questions covered debug output, NPC roles and control posts, assignment and transfer, fleet changes, docking, combat and death. Qwen was allowed to choose search terms and the lines it read. The prompts requested a document and line, but did not require an evidence-packet structure or a prescribed answer schema.
