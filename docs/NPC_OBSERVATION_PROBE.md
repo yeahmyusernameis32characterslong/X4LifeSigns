@@ -1,6 +1,6 @@
 # Disposable four-entity NPC observation probe
 
-This optional X4 9.00 diagnostic observes **Ship A, Ship B, Station S and original person anchor P1** through owner-controlled actions. It is an experiment in NPC representations and relationships, not a person-identity resolver. It writes `LIFESIGNS_NPC_OBS_V1` lines to the X4 debug log. The production Node reader ignores that prefix; no production session, database or docking format changes are involved.
+This optional X4 9.00 diagnostic observes **Ship A, Ship B, Station S and original person anchor P1** through owner-controlled actions. It is an experiment in NPC representations and relationships, not a person-identity resolver. It writes `LIFESIGNS_NPC_OBS_V1` lines to the X4 debug log. A dedicated reader saves those lines locally; the production Node reader ignores that prefix. No production session, database or docking format changes are involved.
 
 The tracked XML is a fixture-free template. The local renderer takes an ignored `local-data/npc-observation/fixture.local.json` containing a source-save SHA-256, distinct `shipA.idcode`, `shipB.idcode`, `station.idcode`, and `person.uiName`. The ship and station codes are **selection clues within this save**, not asserted permanent identity keys. The rendered XML stays in ignored local data. Do not commit or share the local worksheet, rendered XML, debug log or save.
 
@@ -32,6 +32,46 @@ To remove it after the game is stopped:
 ```
 
 If another optional diagnostic is installed, explicitly select its retain or remove switch in either command. The deployer refuses unrelated extension content and linked targets. The normal bridge remains installed on probe removal.
+
+## Dedicated probe reader (after separate live-test approval)
+
+Run these **single-line PowerShell commands from the repository root**, in a separate terminal from X4. Replace only the private debug-log placeholder locally; do not publish that path. Start the reader **before loading the disposable save and before the first observer docking**:
+
+```powershell
+$debugLog = '<X4 debug log path>'
+node .\bridge\src\read-npc-observation.js --log $debugLog
+```
+
+The reader prints its process ID and the path of its reader-run diagnostic file. Leave it running during the owner actions. To stop it cleanly, press **Ctrl+C in its terminal**. From another terminal, the following single-line PowerShell command prompts for the printed process ID and stops the reader abruptly; an open batch may then lack its stop notice:
+
+```powershell
+Stop-Process -Id ([int](Read-Host 'NPC reader PID printed at startup'))
+```
+
+To restart it, run the same single-line `node .\bridge\src\read-npc-observation.js --log $debugLog` command. From another PowerShell terminal at the repository root, locate the session logs and reader-run files with:
+
+```powershell
+Get-ChildItem -LiteralPath .\local-data\npc-observation\logs -File -Filter 's1-*.log' | Sort-Object Name | Select-Object Name,Length,LastWriteTime
+Get-ChildItem -LiteralPath .\local-data\npc-observation\logs -File -Filter 'reader-run-*.log' | Sort-Object LastWriteTime | Select-Object Name,Length,LastWriteTime
+```
+
+The output directory is fixed relative to the reader source: `local-data/npc-observation/logs/`, independent of the terminal's working directory. Each **validated canonical production session key** has one `<session-key>.log`; the reader appends to that file after a restart in the same session and uses a different file for a new key. Those files contain the **complete original marked debug lines in observed order**. Completed batch ends are flushed promptly. The separate `reader-run-*.log` contains complete enrolment lines, lines with `session=UNAVAILABLE`, rejected malformed/unsafe-session lines and reader notices. Enrolment has no session or sequence in the current MD protocol, so it cannot be proven to belong to a particular session from that line alone. Unavailable-session records likewise have limited correlation; do not infer a session from proximity.
+
+The reader starts at the current **end** of the selected debug log. It does not backfill lines already present; a late start or time while stopped can lose probe evidence. A restarted reader also starts at the then-current end, while retaining earlier captured lines in the same session file. If the debug log is truncated or replaced while running, the reader reports the discontinuity, marks any open batch incomplete, and reads the new file from byte zero. Repeated lines are possible across replacement/restart scenarios; there is no exactly-once checkpoint. A partial line waits for its newline; an existing partial line at startup is discarded. Missing or oversized lines are reported, never reconstructed. A stopped or broken batch is recorded as incomplete in the reader-run file. Writing/opening failures stop the reader with a non-zero exit and an error; only a successfully written and flushed batch is announced as logged. The reader never edits the debug log.
+
+## Owner's five-stage sequence (after separate live-test approval)
+
+Capture an observer-docking baseline first. For every stage below, record the game UI state and time, wait for asynchronous transfer/cleanup to settle, then dock the separate observer ship again. Preserve any earlier event-triggered batches as intermediate evidence. Keep the same selected A/B/S/P1 fixture and collect the session log plus reader-run diagnostic file locally.
+
+| Stage | Normal game action | Evidence to compare |
+| --- | --- | --- |
+| 1 | Transfer P1 to the selected administrative centre as manager. | Baseline versus settled station-manager post, contextual entry, retained anchor and locations. |
+| 2 | Transfer P1 to Ship A as pilot. | Settled A pilot post, prior station state and any component/template turnover. |
+| 3 | Change P1 from pilot to Service Crew on A. | Before/after role and post; possible contextual representation; a different pilot occupant is a negative control. |
+| 4 | Transfer P1 to selected Ship B as Service Crew. | Settled B service entry, A departure and fresh representation observations. |
+| 5 | Send B into an enemy-controlled sector and observe its destruction, if separately authorised. | B destruction and P1 component/crew observations only. Ship loss or `exists=false` does **not** prove P1 died. |
+
+If a normal UI action is unsupported, mark that stage inconclusive rather than forcing an assignment. Stage 5 is destructive and remains outside the non-destructive baseline until separately chosen for live testing.
 
 ## Live acceptance matrix
 
