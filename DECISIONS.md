@@ -186,10 +186,14 @@ Avoid unnecessary rewrites.
 
 Tests, logs and actual runtime behaviour take priority over assumptions that code looks correct.
 
-## 2026-10-11: bounded local development adviser
+## 2026-10-11: bounded local development adviser (historical evaluation)
 
-Use the installed local Qwen model for approved development discovery, research
-and review through an ignored manifest-limited helper. The local prototype passed
+The operating method and trial limits from this evaluation are superseded by
+the standing owner decision of 2026-10-16 below. Its access, privacy and integrity
+boundaries remain in force.
+
+The initial evaluation used the installed local Qwen model for approved
+development discovery, research and review through an ignored manifest-limited helper. The local prototype passed
 access/sync tests and repository/source smoke tests; it remains under evaluation.
 Codex verifies consequential findings and owns Git operations; Agent interprets
 evidence and makes authorised project decisions. The model receives no shell,
@@ -206,11 +210,67 @@ resource concern is the 16 GB RTX 5080 development target; no concurrent
 X4/model benchmark is claimed. Runtime model selection remains separate and
 unmade, requiring suitable latency, VRAM use and coexistence with X4 and voice.
 
-Agent designs and manages the work; Qwen researches approved sources and returns
-a compact evidence packet; Codex verifies consequential claims against exact
-applicable sources and implements only authorised work; the owner retains final
-authority. A bounded existing-source inventory and acquisition plan are approved,
-with documentation amendments. A broader corpus, new acquisitions and helper
-access expansion remain proposals requiring separate approval. The existing
-four-file source grant is unchanged. See the
+Agent designs and manages the work; Qwen researches approved sources; Codex
+verifies consequential claims and implements authorised work; the owner retains
+final authority. The operating method is superseded by the standing owner decision
+of 2026-10-16 below. At this earlier stage, the owner approved a bounded
+existing-source inventory and acquisition plan with documentation amendments.
+Broader corpus acquisitions and access expansion required separate approval.
+The four-file source grant was the scope of that historical decision; current
+authorised corpus access is determined by the applicable task manifests. See the
 [research workflow and corpus boundaries](docs/LOCAL_LLM_DEVELOPMENT.md).
+
+
+## 2026-10-16: standing Qwen development research workflow
+
+The owner adopts the successful one-question method as the default operating
+rule for future Life Signs/X4LifeSigns development. This supersedes earlier
+Qwen participation and research-packet requirements, including fixed packet
+lengths, finding/citation quotas and experimental depth limits as standing rules.
+Historical trials and their results remain evidence, not current instructions.
+
+Qwen is the **broad development researcher**. Codex is the **targeted verifier and implementer**.
+
+The normal workflow is:
+
+**Codex asks one concrete technical question → Qwen independently searches and reads the authorised X4 documentation/source corpus as deeply as it believes necessary → Qwen returns its best plain-English answer with exact supporting source references and any genuine uncertainty → Codex verifies the consequential claims against those cited sources → Codex uses the verified result to design or implement the code.**
+
+Qwen is used so Codex does not spend its paid context doing broad documentation
+discovery. Qwen chooses authorised files to search and read, follows references
+and investigates to the depth the question requires. Codex may decompose an
+already authorised engineering objective into focused questions and small
+follow-ups without owner approval for each question or individual search/read.
+
+After an answer, Codex:
+
+1. identifies claims that materially affect implementation;
+2. inspects the exact cited source locations;
+3. checks narrow dependencies necessary to interpret them correctly;
+4. distinguishes verified fact, Qwen inference and remaining uncertainty;
+5. proceeds with authorised design/implementation using verified results, or asks
+   Qwen the next focused question if a material gap or contradiction remains.
+
+Codex does not normally duplicate Qwen's broad research or reproduce its entire
+research trail. Missing facts normally become focused follow-up questions for
+Qwen, rather than Codex taking over broad discovery.
+
+Uncertainty and unresolved gaps are research findings, not failures. Reaching an
+existing operational guard means the question is incomplete; it does not show
+the sought fact is absent. The eight-turn limit used in the reported trials is
+historical trial configuration, not a standing research-depth rule.
+
+Answers are plain English with exact source references. There is no mandatory
+evidence-packet grammar, row format, answer length or citation-count quota.
+Do not add artificial depth limits, per-read approval requirements or additional
+stopping criteria as conditions of this method. Existing corpus authorisation,
+provenance, privacy, source-integrity and destructive-action boundaries remain
+in force; this decision changes the operating method, not those boundaries.
+
+This is the standing owner-approved workflow for Life Signs/X4LifeSigns unless
+the owner explicitly changes it. Agent owns design/project decisions and evidence
+interpretation; Qwen researches; Codex verifies and implements; owner is final
+authority. Qwen remains development-research-only, with runtime model selection
+a separate future decision.
+
+See [LOCAL_LLM_DEVELOPMENT.md](docs/LOCAL_LLM_DEVELOPMENT.md#standing-owner-approved-research-workflow)
+and [the demonstrated method](docs/QWEN_ONE_QUESTION_RESEARCH_METHOD_2026-10-16.md).
