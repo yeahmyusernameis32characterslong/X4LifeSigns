@@ -48,7 +48,13 @@ if ($NpcObservationDiagnostic) {
         throw 'NPC observation source must be an ignored local-data file.'
     }
     if (-not (Test-Path -LiteralPath $npcObservationSource -PathType Leaf)) { throw 'NPC observation source must be a file.' }
-    foreach ($path in @($localRoot, (Split-Path $npcObservationSource -Parent), $npcObservationSource)) { Assert-NotLinked $path }
+    $sourcePart = $npcObservationSource.Substring($localRoot.Length).TrimStart([char[]]@('\', '/'))
+    $currentSourcePath = $localRoot
+    Assert-NotLinked $currentSourcePath
+    foreach ($segment in ($sourcePart -split '[\\/]')) {
+        $currentSourcePath = Join-Path $currentSourcePath $segment
+        Assert-NotLinked $currentSourcePath
+    }
     $npcObservationText = Get-Content -LiteralPath $npcObservationSource -Raw
     if ($npcObservationText -match '@[A-Z_]+@') { throw 'NPC observation source still contains fixture placeholders.' }
     [xml]$npcObservationXml = $npcObservationText

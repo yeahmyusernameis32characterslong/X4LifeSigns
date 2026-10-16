@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync, mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync} from 'node:fs';
+import {readFileSync, mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync, symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -56,8 +56,9 @@ test('retained anchors never rebind; unavailable anchors and new post occupants 
   assert.match(snap,/\$Occupant == md\.\$LifeSignsNpcObsOriginalP1/);
   assert.doesNotMatch(snap,/person_death|is_dead|KILLED/);
   const conversation=body('ConversationObserved');
-  assert.match(conversation,/template_equal_original=/);
-  assert.match(conversation,/seed_render=UNVERIFIED/);
+  assert.match(conversation,/signal_cue_instantly cue="Snapshot" param="\['CONVERSATION'/);
+  assert.match(snap,/template_equal_original=/);
+  assert.match(snap,/seed_render=UNVERIFIED/);
 });
 
 test('probe writes only a diagnostic log prefix and reads production session key',()=>{
@@ -74,6 +75,7 @@ test('optional deployment uses rendered ignored source, preserves baseline and r
     const local=join(root,'local-data');
     mkdirSync(local,{recursive:true});
     const sourceDir=mkdtempSync(join(local,'npc-observation-test-'));
+    const outside=mkdtempSync(join(tmpdir(),'npc-observation-source-'));
     const source=join(sourceDir,'LifeSigns_NpcObservationDiagnostic.xml');
     const script=join(root,'scripts/deploy-bridge-probe.ps1');
     const run=(...args)=>spawnSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',script,'-GamePath',game,...args],{encoding:'utf8'});
@@ -94,8 +96,21 @@ test('optional deployment uses rendered ignored source, preserves baseline and r
       writeFileSync(source,template);
       assert.notEqual(run('-NpcObservationDiagnostic','-NpcObservationSourcePath',source).status,0);
       assert.equal(existsSync(target),false);
+      const nested=join(outside,'generated');
+      mkdirSync(nested);
+      writeFileSync(join(nested,'LifeSigns_NpcObservationDiagnostic.xml'),render(template,fixture));
+      const junction=join(sourceDir,'intermediate');
+      symlinkSync(outside,junction,'junction');
+      const linkedSource=join(junction,'generated/LifeSigns_NpcObservationDiagnostic.xml');
+      for(const extra of [[],['-WhatIf']]){
+        const rejected=run('-NpcObservationDiagnostic','-NpcObservationSourcePath',linkedSource,...extra);
+        assert.notEqual(rejected.status,0);
+        assert.match(rejected.stderr,/Refusing linked deployment path|ignored local-data file/);
+        assert.equal(existsSync(target),false);
+      }
     } finally {
       rmSync(game,{recursive:true,force:true});
       rmSync(sourceDir,{recursive:true,force:true});
+      rmSync(outside,{recursive:true,force:true});
     }
   });
