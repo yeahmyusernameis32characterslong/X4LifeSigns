@@ -42,6 +42,8 @@ $debugLog = '<X4 debug log path>'
 node .\bridge\src\read-npc-observation.js --log $debugLog
 ```
 
+Select the original external debug log, outside the reader output directory. Inputs within that directory are refused before any capture write, including normalised and Windows case variants. Existing symbolic links, junctions, redirected path spellings and hard-linked inputs are also refused by the shared path checks; linked replacements are refused before polling. These checks prevent capture from appending to its own input and replaying itself; they do not protect against hostile concurrent filesystem changes.
+
 The reader prints its process ID and the path of its reader-run diagnostic file. Leave it running during the owner actions. To stop it cleanly, press **Ctrl+C in its terminal**. From another terminal, the following single-line PowerShell command prompts for the printed process ID and stops the reader abruptly; an open batch may then lack its stop notice:
 
 ```powershell

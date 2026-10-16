@@ -1,6 +1,6 @@
 // Disposable reader for the NPC observation diagnostic. Production readers do not import it.
 import {openSync, closeSync, writeSync, fsyncSync, mkdirSync} from 'node:fs';
-import {join, resolve} from 'node:path';
+import {join, resolve, relative, sep, isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -161,11 +161,24 @@ export function createCapture({directory=LOG_DIRECTORY,write=appendLine,flush=fl
 }
 
 export async function createObservationReader(logPath,options={}){
+  logPath=resolve(logPath);
+  const directory=resolve(options.directory??LOG_DIRECTORY);
+  const fold=path=>process.platform==='win32'?path.toLowerCase():path;
+  const within=relative(fold(directory),fold(logPath));
+  if(within===''||(!isAbsolute(within)&&within!=='..'&&!within.startsWith('..'+sep)))
+    throw Error('NPC observation input must be outside the reader output directory');
+  // Reject existing junction/symlink/short-path redirection and hard links before
+  // any capture write. Output paths already use the same integrity checks.
+  checkPath(logPath);
   const capture=createCapture(options);
   try{
     const tail=await createTail(logPath,{parse:parseProbeLine,
       onRecord:record=>capture.accept(record),onWarning:message=>capture.warning(message)});
-    return {poll:()=>tail.poll(),close:()=>capture.close(),runPath:capture.runPath};
+    return {poll:()=>{
+      // Preserve the tail's missing-file wait, but reject a linked replacement.
+      checkPath(logPath,{missing:true});
+      return tail.poll();
+    },close:()=>capture.close(),runPath:capture.runPath};
   }catch(error){capture.close();throw error;}
 }
 

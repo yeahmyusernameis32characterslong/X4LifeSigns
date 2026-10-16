@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,appendFileSync,existsSync,rmSync,renameSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,appendFileSync,existsSync,rmSync,renameSync,readdirSync,linkSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -28,6 +28,50 @@ function fixture(t){
   return {root,log,directory,session:(session=key)=>join(directory,`${session}.log`)};
 }
 const append=(log,lines)=>appendFileSync(log,lines.map(prefix).join('\n')+'\n');
+
+test('rejects output-tree input before capture writes or self-replay, including normalised Windows spelling',async t=>{
+  const f=fixture(t),announced=[];
+  mkdirSync(f.directory,{recursive:true});
+  writeFileSync(f.session(),batch().map(prefix).join('\n')+'\n');
+  const bytes=readFileSync(f.session()),files=readdirSync(f.directory);
+  const paths=[f.session(),join(f.directory,'..','logs',`${key}.log`)];
+  if(process.platform==='win32')paths.push(f.session().toUpperCase().replaceAll('\\','/'));
+  for(const path of paths){
+    await assert.rejects(createObservationReader(path,{directory:f.directory,onBatch:x=>announced.push(x)}),/outside the reader output directory/);
+    assert.deepEqual(readFileSync(f.session()),bytes);
+    assert.deepEqual(readdirSync(f.directory),files);
+  }
+  assert.deepEqual(announced,[]);
+});
+
+test('rejects external hard-link and directory-link aliases before capture writes',async t=>{
+  const f=fixture(t),announced=[];
+  mkdirSync(f.directory,{recursive:true});
+  writeFileSync(f.session(),begin()+'\n');
+  const bytes=readFileSync(f.session()),files=readdirSync(f.directory);
+  const hard=join(f.root,'hard-input.txt');
+  linkSync(f.session(),hard);
+  await assert.rejects(createObservationReader(hard,{directory:f.directory,onBatch:x=>announced.push(x)}),/Unsafe automatic storage object/);
+  rmSync(hard);
+  const alias=join(f.root,'linked-input');
+  symlinkSync(f.directory,alias,process.platform==='win32'?'junction':'dir');
+  await assert.rejects(createObservationReader(join(alias,`${key}.log`),{directory:f.directory,onBatch:x=>announced.push(x)}),/linked\/reparse/);
+  assert.deepEqual(readFileSync(f.session()),bytes);
+  assert.deepEqual(readdirSync(f.directory),files);
+  assert.deepEqual(announced,[]);
+});
+
+test('rejects input replaced by a hard-link alias before polling it',async t=>{
+  const f=fixture(t),announced=[];
+  const reader=await createObservationReader(f.log,{directory:f.directory,onBatch:x=>announced.push(x)});
+  writeFileSync(f.session(),begin()+'\n');
+  rmSync(f.log);linkSync(f.session(),f.log);
+  const bytes=readFileSync(f.log);
+  assert.throws(()=>reader.poll(),/Unsafe automatic storage object/);
+  assert.deepEqual(readFileSync(f.log),bytes);
+  assert.deepEqual(announced,[]);
+  reader.close();
+});
 
 test('filters unrelated debug output and keeps complete original probe lines in order',async t=>{
   const f=fixture(t),reader=await createObservationReader(f.log,{directory:f.directory});
