@@ -1,7 +1,10 @@
 # Broad native recorder implementation
 
 Baseline: owner-approved PR #18 commit
-`6553cf973430ba533ba9f66b42d10d83c53981ba`. The owner authorised code,
+`6553cf973430ba533ba9f66b42d10d83c53981ba`, reconciled with the latest
+snapshot requirements at `ac3553836614f968d90ea9067baacf3c50744b3f`.
+Continuation began from PR #19 at `887a60eb089fdd2f7dd8c8a02ee2bfc7dda8fcd8`.
+The owner authorised code,
 automated/static checks and a separate draft implementation PR. Deployment,
 gameplay testing and merge require separate approval.
 
@@ -96,7 +99,9 @@ runtime M1–M4 changes do not override that setting permanently across loads.
 | `heartbeatSeconds` | 60 | Optional health interval; no frame-level rate claim. |
 | `assetsPerTick` | 8 | Assets processed per one-second snapshot tick. |
 | `crewPerAsset` | 500 | Maximum contextual-template entries **and**, separately, instanced-personnel entries visited per asset snapshot. |
-| `valueItems` / `valueDepth` | 1024 / 3 | Shared value-node budget and nested collection depth per event/asset. |
+| `snapshotValueItems` | 16384 | Fresh value-node ceiling for each asset snapshot, shared by property, contextual and instantiated-personnel values. |
+| `eventValueItems` | 1024 | Independent immediate parameter/context value-node ceiling per delivered native event. |
+| `valueDepth` | 3 | Nested collection depth bound. |
 | `snapshotQueue` | 16 | Queued full snapshots; excess requests produce a visible gap marker. |
 | `actorReferences` | 10000 | Run-local retained personnel component references. Previously observed association is not proof of current ownership. |
 | `maxRowsPerRun` | 1000000 | Raw row attempts before an explicit LIMIT marker stops capture for that run. Diagnostics have a separate equal row allowance. |
@@ -104,10 +109,15 @@ runtime M1–M4 changes do not override that setting permanently across loads.
 Owner-requested discovery configuration (2026-10-17): periodic snapshots
 are scheduled every **300 seconds of X4 game time**, and each asset can now
 examine up to **500 contextual personnel templates and 500 instantiated
-personnel entries**, separately. This is intentionally a small configuration
-experiment, **not** a guarantee of 500 fully detailed crew records: the
-unchanged `valueItems=1024` budget per asset can terminate value capture
-earlier and mark output partial. `assetsPerTick=8` and the one-million-native-
+personnel entries**, separately. Each asset invocation has a fresh **16,384**
+snapshot value-node ceiling; immediate event parameters retain their separate
+**1,024** ceiling. **16,384 is a ceiling, not a target**: only available,
+visited values are emitted, without padding or extra reads to fill it. This
+does not guarantee complete crew records: nested values and other independent
+limits can still leave a partial snapshot. The obsolete shared `valueItems`
+configuration key is rejected; snapshot validation permits 16–16,384 nodes,
+and event validation retains the earlier configurable 16–4,096 range.
+`assetsPerTick=8` and the one-million-native-
 row run cap are unchanged. To gauge scan duration after a separately approved
 gameplay test, compare each `SNAPSHOT_BEGIN` and `SNAPSHOT_END` record's
 `age` header for the same run/sequence. That measures elapsed **game time**;
@@ -145,6 +155,33 @@ Percent, delimiter, CR, LF and tab are escaped in five successive native
 `substitute_text` operations. Numeric/seed/reference string rendering is
 explicitly `ENGINE_TEXT_UNVERIFIED`, not promised lossless binary serialization.
 The parser retains sequence and value text without JavaScript numeric coercion.
+
+Every asset invocation emits two `PERSONNEL_AVAILABILITY` rows immediately
+after `ASSET_BEGIN`, before any budgeted `VALUE` rows. They carry the ordinary
+run/session/sequence headers plus trigger, asset field path, escaped native
+reference and guarded ID code, asset state, representation (`CONTEXTUAL` or
+`INSTANTIATED`), available collection length and collection state. Missing ID
+codes use `UNAVAILABLE`; the native reference/path still correlate the batch.
+Counts describe observed `people.list` and `roleentities` lengths, never
+verified distinct living people or crew capacity. Empty readable lists report
+zero. Inaccessible collections/counts report `available=UNAVAILABLE` with
+`COLLECTION_UNAVAILABLE` or `COUNT_UNAVAILABLE`; dead references and unsupported
+inputs report `UNAVAILABLE_REFERENCE` or `UNSUPPORTED_ASSET`. Unavailable
+observations mark the asset partial. Both observed lists/counts are reused
+for bounded detail traversal. `ROSTER_LIMIT` identifies `.people` and
+`.instances` separately. Value-budget exhaustion cannot hide availability,
+although the independent raw-row stop or an unobserved native write failure
+can still prevent any row from persisting.
+
+The installed `scriptproperties.xml:318,373–377,1760–1762` definitions back
+these collection getters and list lengths (SHA-256
+`1b641b638c8892284bbf5943f9ed283e0adf79f696341a2f00a2361f16485a8f`).
+These declarations do not prove getter side effects or runtime availability.
+After a separately approved test has ended and X4 has closed, Qwen may infer
+entries examined, values recorded and limit outcomes from unchanged raw rows,
+availability baselines and partial/limit/gap markers, retaining file hashes
+and offsets and labelling uncertain results. No new native examination/value
+counters, current log analysis or Qwen access permission is implied.
 
 Consequential serialization syntax was verified against installed
 `common.xsd:37586-37635` (`substitute_text`),
@@ -191,7 +228,7 @@ npm.cmd --prefix bridge test
 
 The schema check pins the inspected installed 9.00 MD/common SHA-256 values,
 validates the generated XML and verifies every listener's source attributes.
-The 14 synthetic tests execute the actual generated action libraries through
+The 20 synthetic tests execute the actual generated action libraries through
 a limited interpreter and test offline framing/readback. The interpreter
 cannot prove X4 scheduling, event-expression lifetime, native getter effects,
 same-frame atomicity, disk durability, performance or hotkey delivery.

@@ -22,6 +22,8 @@ function crew(a, contextual, instantiated) {
 test('approved split configuration rejects old/shared keys and excessive budgets', () => {
   assert.deepEqual([config.snapshotValueItems, config.eventValueItems, config.crewPerAsset, config.assetsPerTick, config.periodSeconds], [16384, 1024, 500, 8, 300]);
   assert.equal(validateConfig(config), config);
+  const guide = readFileSync(new URL('../../docs/BROAD_EVENT_RECORDER_IMPLEMENTATION.md', import.meta.url), 'utf8');
+  for (const key of ['snapshotValueItems', 'eventValueItems', 'crewPerAsset', 'assetsPerTick', 'periodSeconds']) assert.ok(guide.includes('`' + key + '` | ' + config[key] + ' |'), `Guide disagrees on ${key}`);
   for (const overrides of [{ valueItems: 1024 }, { snapshotValueItems: 16385 }, { eventValueItems: 16384 }, { snapshotValueItems: 15 }, { eventValueItems: 1.5 }]) assert.throws(() => validateConfig({ ...config, ...overrides }));
 });
 
@@ -39,7 +41,7 @@ test('each asset gets a fresh budget and early independently correlated availabi
   }
 });
 
-test('500-entry ceilings are independent per representation and per asset, without padding', () => {
+test('500-entry ceilings are independent per representation and per asset, without padding', t => {
   const h = create();
   for (const seq of [1, 2]) asset(h, crew(ship(`LARGE-${seq}`), 600, 700), seq, seq === 1 ? 'PERIODIC' : 'ON_DEMAND_HOTKEY');
   for (const seq of ['1', '2']) {
@@ -51,12 +53,24 @@ test('500-entry ceilings are independent per representation and per asset, witho
     assert.ok(r.filter(x => x.kind === 'VALUE').length < 16384);
     assert.equal(r.some(x => x.kind === 'PAYLOAD_LIMIT'), false);
     assert.equal(r.at(-1).fields.partial, 'true');
+    t.diagnostic(`Synthetic rich asset ${seq}: ${r.length} raw rows, ${r.filter(x => x.kind === 'VALUE').length} value nodes; no native performance claim.`);
   }
   asset(h, ship('EMPTY'), 3);
   const empty = rows(h).filter(x => x.seq === '3');
   assert.deepEqual(empty.filter(x => x.kind === 'PERSONNEL_AVAILABILITY').map(x => x.fields.available), ['0', '0']);
   assert.ok(empty.filter(x => x.kind === 'VALUE').length < 20);
   assert.equal(empty.at(-1).fields.partial, 'false');
+});
+
+test('the default 16384 ceiling truncates anomalously large values after reporting availability', () => {
+  const a = ship('ANOMALOUS');
+  a.assignedaipilot = Array.from({ length: 20000 }, (_, i) => i);
+  const h = create(); asset(h, a, 1);
+  const r = rows(h).filter(x => x.seq === '1');
+  assert.equal(r.filter(x => x.kind === 'VALUE').length, 16384);
+  assert.deepEqual(r.slice(1, 3).map(x => x.fields.available), ['0', '0']);
+  assert.ok(r.some(x => x.kind === 'PAYLOAD_LIMIT'));
+  assert.equal(r.at(-1).fields.partial, 'true');
 });
 
 test('unavailable collections, counts and assets retain explicit states instead of zero', () => {
