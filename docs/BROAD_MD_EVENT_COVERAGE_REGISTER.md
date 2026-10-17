@@ -46,6 +46,47 @@ condition, not a delivered event in the proposed recorder.
   inventory with exact selectors and payloads. AI-only and Lua-only signals
   must be marked separately. No absence is inferred from this slice.
 
+## Existing scoped and personnel candidates rechecked
+
+These rows reuse the [16 October source research](X4_EVENT_AND_IDENTITY_RESEARCH_2026-10-16.md)
+and Codex's targeted reread of the cited installed `common.xsd` definitions.
+They are **event-level observations**, not proof of person continuity or a
+completed crew transfer. All require an `object` or `group` source where
+`objecteventsource` is cited. Delivery, event rate, timing after game state
+changes and duplicate relation remain unverified.
+
+| Condition and schema lines | Documented payload | Selector / interpretation limit |
+| --- | --- | --- |
+| `event_control_entity_added` `:12575-12586` | `object` controllable or entity; `param` added entity | `objecteventsource`; `entity` filter. Check the post and tracked object before calling this a new pilot/manager. |
+| `event_control_entity_removed` `:12588-12600` | `object` controllable or entity; `param` removed entity; `param2` kill method | `objecteventsource`; `entity`, `method` filters. Removal does not prove death. |
+| `event_object_commander_set` `:13773-13788` | `object` subordinate; `param` new commander; `param2` previous commander, possibly null; `param3` new assignment | `objecteventsource`; commander/previous filters. Commander change is not, by itself, an NPC promotion. |
+| `event_object_subordinate_added` `:14629-14640` | `object` new commander; `param` subordinate; `param2` new assignment | `objecteventsource`; subordinate/assignment filters. Confirm assignment before calling it escort. |
+| `event_object_docking_started` `:13938-13950` | `object` docking object; `param` dock; `param2` zone; `param3` bay | `objecteventsource`; dock/zone filters. Start is not completion. |
+| `event_object_docked` `:13924-13935` | `object` docking object; `param` dock; `param2` zone; `param3` bay | `objecteventsource`; dock/zone filters. A verified narrow production bridge already uses this family, but broad group capture is not live verified. |
+| `event_object_undocked` `:14709-14720` | `object` undocking object; `param` dock; `param2` zone; `param3` bay | `objecteventsource`; dock/zone filters. Correlation with earlier dock is an offline interpretation. |
+| `event_object_abandoned` `:13134-13143` | `object` abandoned ship | `objecteventsource`. Does not supply each escaping NPC or ordinary crew-transfer departure. |
+| `event_player_assigned_hired_actor` `:16469-16480` | `param` actor entity or context/template list; `param2` target; `param3` post or role | Player assignment request; documentation explicitly says actual assignment follows the event. No general completed-transfer proof. |
+| `event_object_changed_owner` `:13213-13225` | `object` changed object; `param` new owner faction; `param2` previous owner faction | `objecteventsource`; `owner`/`previous` filters. Record before/after without equating this with a legal transfer. |
+| `event_object_changed_true_owner` `:13241-13253` | `object` changed object; `param` new true-owner faction; `param2` previous true-owner faction | Same source/filter shape. Useful for owned-property membership changes; permanence and all transfer causes are unproven. |
+
+For personnel snapshots, `scriptproperties.xml:305,315,317,373,1362,
+1377-1380,1429-1430,2045-2058` distinguishes assigned AI pilot,
+control-post occupant, contextual `people` entry, role entity, raw template,
+role and transfer flags. These values need guarded, bounded observation.
+Enumerating a contextual entry is not proof of a stable NPC component or
+of side-effect-free materialisation; an unavailable reference is not death.
+
+Qwen located the two owner-change definitions but inferred that ordinary
+`owner` means the current controlling faction and `true owner` is permanent
+legal title. The cited schema does **not** define those semantics. The
+installed `scriptproperties.xml:71,74` instead says `.owner` is a *cover
+owner if set, otherwise true owner*, while `.isplayerowned` tests true
+owner. Shipped `md/cover.xml:289-325` treats true-owner change as distinct
+from cover behaviour. The recorder should preserve both named event fields,
+the observed `.owner` and guarded player-owned state, without relabelling a
+cover-owner change as permanent acquisition. Reconstruct membership after
+reload and retain previous-owner event parameters for lost property.
+
 Before listener implementation, Agent should review a fuller register that
 adds installed base and effective DLC/extension provenance, MD versus AI
 applicability, source lifetime and expected load for each chosen event. A
