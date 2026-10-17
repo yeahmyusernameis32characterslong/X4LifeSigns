@@ -186,6 +186,92 @@ verification, and must not deliberately instantiate an NPC just to log it.
    remain ignored local-only. Existing production docking readers and SQLite
    schemas stay independent.
 
+## Owner-approved per-asset snapshot ceilings and offline assessment (2026-10-17)
+
+These are **specific requirements for the separately authorised recorder
+implementation in PR #19**, not new live-game or merge permission. Apply them
+to **both event-triggered affected-asset snapshots and full-faction
+PERIODIC/ON_DEMAND_HOTKEY asset snapshots**, without changing which native
+events are subscribed to or suppressing overlapping raw occurrences.
+
+| Setting | Required value | Exact scope |
+| --- | ---: | --- |
+| Maximum contextual NPC entries per asset | **500** | At most 500 observed `people.list` entries **for each ship or station**, not a faction-wide limit |
+| Maximum instantiated NPC entries per asset | **500** | Independently, at most 500 observed `roleentities` entries **for each ship or station**; not the same 500-entry allocation as contextual templates |
+| Snapshot value budget per asset | **16,384** | Fresh value-node budget for **each invocation of the asset snapshot routine**, shared by that asset's property fields, contextual NPC fields and instantiated NPC enrichment |
+| Event parameter value budget | **1,024** | Separate budget **per delivered native event** for its immediate typed parameters/context; do not enlarge it because asset snapshots have a larger budget |
+| Assets per processing tick | **8** | Keep the existing bounded faction-wide snapshot processing rate for this first measurement, without asserting a safe measured performance value |
+| Periodic snapshot interval | **300 game seconds** | Five minutes of **game time** between recurring PERIODIC requests; retain initial baseline snapshot at playable-universe readiness and independent EVENT/M5 triggers |
+
+**The 16,384 snapshot-value allowance is a ceiling, not a target.** The
+recorder emits only the values actually available and safely visited. It must
+not pad a record to its limit or perform additional reads just to fill the
+budget. Do not confuse **500 personnel entries per representation per asset**
+with 500 across the fleet; nor confuse a value-node budget with number of
+people, byte size or native file row count. Maintain the separate existing
+per-run raw-row/storage protections and their explicit known-loss markers.
+Implement separate snapshot/event budget configuration and validation rather
+than silently raising the event parameter budget. The earlier shared
+`valueItems=1024` setting is **superseded for asset snapshots**.
+
+**Justification:** The owner's present fully crewed player faction contains
+41 assets including two Asguards with **361 personnel each**. A Boron Shark
+example has approximately **406 crew capacity**. The 500-person ceiling
+therefore exceeds currently expected individual ship rosters while allowing
+surprising counts to be observed instead of hidden by an arbitrary 64-entry
+cutoff. Future wharfs/shipyards may exceed 500 and will require evidence-led
+reassessment. X4's contextual templates and instantiated NPC components are
+**different representations**, not proven one-to-one counts of actual
+individuals; reported crew capacity is an external comparison, not an
+assertion that `people.list.count` or `roleentities.count` must match it.
+
+A conservative planning estimate for an asset exposing **500 contextual
+entries with up to six requested values per entry** and **500 instantiated
+entries with up to thirteen requested values per entry**, plus approximately
+ten basic asset/control values, is **9,510 value nodes** before nested or
+additional enrichment. **16,384 provides exploratory headroom** for those
+unknowns and permits anomalous larger-than-expected payloads to become
+visible for investigation. It does **not** guarantee complete recording:
+nested collections, guarded getter failures, per-run limits, scheduling and
+native write behaviour remain independent constraints. Do not preemptively
+filter unusual personnel counts merely because a known ship's capacity is
+lower.
+
+**Minimum recorder-side personnel availability report:** For **each asset
+snapshot**, report the **available contextual personnel entry count** and
+**available instantiated personnel entry count**, separately, based on safe
+source-backed collection lengths. These counts must identify the same
+asset/snapshot/run/session as the associated detail rows. Emit the availability
+counts near the beginning of the asset snapshot, before value-budget
+exhaustion can hide the comparison baseline. If either collection or its
+count is not accessible, record **`UNAVAILABLE`** (not invented zero), with
+the observed scope/state. A list's available entry count is *not* a verified
+distinct-person count. Preserve ordinary raw typed rows, row provenance and
+existing truthful limit/partial/gap indicators; do **not** require the recorder
+to compute per-asset "entries examined", "values recorded" or inferred
+"hit the limit" statistics.
+
+**Qwen's job is strictly post-test/offline, after X4 closes.** After
+appropriate separately approved local-log access, Qwen uses an indexed,
+unchanged raw corpus to infer **how many contextual/instantiated entries were
+examined**, **how many values were actually recorded** and **whether a
+personnel/value/row limit was reached**, by comparing the recorder-reported
+available counts with the actual detail rows and any explicit
+`ROSTER_LIMIT`, `PAYLOAD_LIMIT`, `LIMIT`, `partial` or gap markers.
+Correlate by asset, run/session, snapshot sequence and field path, and retain
+exact file hashes/offsets for reproducibility. Counts may be unavailable,
+partial or ambiguous, particularly when the same NPC is represented in both
+forms, when a snapshot spans game time, or when writes fail. In those cases
+Qwen must label the result **uncertain/unknown**, rather than fabricating
+coverage or claiming lossless capture. Derived comparisons must never modify
+or replace the original capture.
+
+For the later separately approved X4 test, inspect observed asset
+`SNAPSHOT_BEGIN`/`SNAPSHOT_END` game-time headers, available personnel
+counts and raw log growth while preserving game responsiveness. The five-minute
+interval, eight-assets-per-tick and 16,384-node ceilings are **measurement
+starting values**, not independently profiled performance results.
+
 ## Broad discovery and raw context contract (revised owner scope)
 
 **The recorder is an evidence collector, not a pre-classified catalogue.**
