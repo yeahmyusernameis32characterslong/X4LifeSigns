@@ -38,6 +38,33 @@ The relevant reference is **the effective installed X4 9.00** `libraries/md.xsd`
 
 1. **There is no single universal MD event hook.** MD uses distinct `event_*` conditions, and each listener must be designed around the event source, payload and relevant scope. Egosoft MD guide: https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/
 2. **Native file logging is supported** via `debug_to_file`, conditional on launching X4 with `-scriptlogfiles`. This is separate from `debug_text` / `-logfile` / `-debug scripts`. Candidate output lives under X4's *personal folder* `logs/<directory>/<name>`; validate real 9.00 append, naming, path safety, rotation, flushing and cross-restart semantics before assuming them. Reference: https://chemodun.github.io/x4/modding-support/running-x4-for-modding/#one-file-per-script--scriptlogfiles and command index https://chemodun.github.io/x4/modding-support/scripting-md-libraries-map/script-commands/
+
+### Verified native file-output contract and limits (installed X4 9.00)
+
+Qwen located the installed base `libraries/common.xsd:26000-26044`; Codex checked
+those lines and the referenced `action` group at `:7199-7215`. The extract is
+listed in the local source manifest as base `08.cat`, MD5
+`de2c08eabd2f3e22d705ed473b7940ce`; its SHA-256 matched the manifest
+(`8eec878511d06dd2be88a7054eb54556b29e481bf0feba20fe2cf3c6eabd3452`).
+The schema requires `text` and `name`. `name` permits `.txt`, `.csv`, `.log`
+and `.xml`; another extension gets `.txt` appended. Optional `directory` is a
+subdirectory of the personal-folder `logs` directory. Optional `append`
+defaults to true; `output` defaults to false and, if enabled, also sends text
+to regular script debug output. File output requires X4 to have been started
+with `-scriptlogfiles`. The inherited `chance` action attribute can skip an
+action, so the recorder design must omit it or fix it to full execution.
+
+No result/status attribute, flush action, rotation action, file-size query or
+launch-flag query is specified by this `debug_to_file` schema element. This is
+a **bounded source finding**, not proof that no other engine or UI capability
+exists. In particular, an MD call can count as a *write attempt* only; neither
+the call nor a separate diagnostic call confirms bytes reached disk. A missing
+launch flag or full disk can also prevent the diagnostic stream from being
+written. An installer/readiness procedure must check the launch option and
+actual file appearance outside the MD write itself; a later owner-authorised
+live test must establish what failure is visible and whether append, flush,
+ordering, path handling and reopen behaviour match the schema description.
+Do not overwrite a prior run at startup while those semantics remain unknown.
 3. **Event-source groups exist.** The schema reference describes an `object` or `group` selector for object events and says group membership may be added/removed while the listener remains active. Candidate helpers: `create_group`, `add_to_group`, `remove_from_group`, optionally `add_to_group replace="true"`; verify exact syntax, object lifetimes and listener re-registration/reload semantics against installed sources. Reference: https://chemodun.github.io/x4/modding-support/scripting-md-libraries-map/script-commands/
 4. **Dedicated player-owned event families exist**, for example `event_player_owned_attacked`, `event_player_owned_attacked_object`, `event_player_owned_collected_resource`, `event_player_owned_destroyed`, `event_player_owned_killed_object`, player-owned money and production events. Use them alongside scoped object listeners where valid; avoid treating identical incidents from two listeners as two distinct real-world events. Source: same script-command index. Egosoft breaking changes note that `event_player_owned_destroyed` and `event_player_owned_killed_object` began preceding `event_object_destroyed` in 6.00, which can matter when capturing still-available parent/crew relationships: https://wiki.egosoft.com/X4%20Foundations%20Wiki/Modding%20Support/Breaking%20Changes/
 5. **NPC components and contextual NPC templates are distinct.** Existing PR #17 research reports `assignedaipilot`, `npctemplate`, contextual `people.{$Template}` and `roleentity.{$Template}` availability, but not permanent identity or lossless seed rendering. Some crew will not appear as instantiated NPC components. A component disappearing, a ship being destroyed or a matching displayed seed is **not** proof of a person's death or continuity. See PR #17 diagnostic notes and the private NPC research evidence index.
