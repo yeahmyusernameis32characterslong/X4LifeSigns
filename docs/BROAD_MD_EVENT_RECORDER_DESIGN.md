@@ -85,6 +85,33 @@ incident as an offline interpretation. Membership and former-owner context
 must be retained before destruction; testing only current ownership after
 the event risks dropping the relevant object.
 
+### Dynamic source-group membership
+
+Qwen located `common.xsd:1027-1045,7155-7165`; Codex checked those lines
+and the narrow action dependency at `:20768-20822`. The schema documents
+adding or removing members **after** an event has been set up; the group
+must exist but may be empty. `add_to_group` can create a missing group,
+can add an object/list/group, and `replace="true"` can repopulate it with
+less remove/re-add overhead. It also documents automatic removal when a
+destroyed object becomes a wreck (`:20798-20804`). Shipped `md/setup.xml`
+uses `add_to_group` for player-controlled and player-ship groups at
+`:577-590,641,665-666`, and `remove_from_group` for a visitor group at
+`:763-773`. These are evidence of supported dynamic membership, not proof
+that a proposed broad recorder's group is complete at every instant.
+
+**Proposed lifecycle:** create a recorder-owned group on playable-universe
+readiness, reconcile all currently relevant owned ships/stations and bounded
+subobjects, then update it on observed acquisition/loss and periodically.
+Record membership-generation and reconciliation markers. A destruction
+handler must use a pre-event ownership/membership observation or the dedicated
+player-owned event; a destroyed object can leave a group before later context
+is queried. On each load, invalidate stale recorder readiness and rebuild
+membership before claiming coverage. The inspected schema does not establish
+whether group contents survive save/reload or exactly when registration
+restarts; that must be tested. A delayed bootstrap should be marked as a
+coverage gap rather than hidden. This design reuses the production session
+key read-only and leaves its gate unchanged.
+
 ## Proposed recorder boundaries
 
 1. An optional extension initialises after the playable universe is ready,
