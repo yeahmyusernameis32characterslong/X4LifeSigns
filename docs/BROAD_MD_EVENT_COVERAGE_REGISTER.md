@@ -107,6 +107,33 @@ its relevance and volume were not established in this focused slice. Order
 queued/started/failed/cancelled transitions outside the three rows remain
 open inventory items; do not manufacture a corresponding event name.
 
+## Production and trade candidate slice
+
+Qwen located player production/trade definitions in `common.xsd`; Codex
+verified them and their object-scoped counterparts at the exact ranges
+below. Qwen also described `eventcondition` as supplying `param` selector
+attributes; `common.xsd:7190-7192` does **not** do that. `event.param*`
+are documented event values; the listed attributes are optional filters.
+All rows lack measured event rate or live delivery evidence.
+
+| Condition and schema lines | Documented payload | Source/filter and limit |
+| --- | --- | --- |
+| `event_player_production_started` `:15212-15224` | `param` owned production module; `param2` product ware; `param3` research flag | No object/group selector; optional productionmodule/ware/research filters. |
+| `event_player_production_finished` `:15226-15238` | Same fields for a completed owned production cycle | Distinct from start; no promised output quantity in this event. |
+| `event_player_production_cancelled` `:15240-15251` | `param` owned production module; `param2` research cancellation flag; `param3` list of cancelled product wares | List content and later module availability need guarded encoding. |
+| `event_object_production_finished` `:17213-17226` | `object` container or production module; `param` production module; `param2` ware; `param3` research flag | `object` or `group` plus optional productionmodule/ware/research filters; can concern non-owned objects. Validate overlap with owned event before offline deduplication. |
+| `event_player_trade_started` / `event_player_trade_cancelled` / `event_player_trade_completed` `:16075-16130` | `param` trade offer | Buyer/seller/tradeoffer/ware and inherited trade-value filters. The schema says *player trade*; what set of owned-property trades it covers is a live/source follow-up. |
+| `event_trade_completed` `:16765-16789` | `object` selected buyer/seller/space; `param` trade offer; `param2` trade order | Source precedence is documented: supplied tradeoffer owner, else seller before buyer, else space; no generic object group. Avoid a galaxy-wide assumption. |
+
+Shipped `md/rml_largesupply.xml:121-138` listens for
+`event_player_trade_completed` and checks the trade offer's seller for
+player ownership. That is a source example of an owned seller within this
+event family, not evidence that all owned trade activity is delivered.
+Trade partner, amount, ware and credit changes require guarded reads of
+the trade offer and/or separate snapshots; those fields are not all present
+as `event.param2/3` in these player-trade definitions. Production and trade
+records may overlap with other economy families; preserve raw rows first.
+
 Before listener implementation, Agent should review a fuller register that
 adds installed base and effective DLC/extension provenance, MD versus AI
 applicability, source lifetime and expected load for each chosen event. A
