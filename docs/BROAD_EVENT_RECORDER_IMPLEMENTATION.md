@@ -91,15 +91,27 @@ runtime M1–M4 changes do not override that setting permanently across loads.
 | Setting | Initial value | Meaning |
 | --- | --- | --- |
 | `diagnostics` | `DEBUG` | Development default. OFF, ERROR, WARNING, INFO and DEBUG are supported. |
-| `periodSeconds` | 120 | Game-time interval between periodic requests. Pauses can defer processing. |
+| `periodSeconds` | 300 | Game-time interval (5 minutes) between periodic requests. Pauses can defer processing. |
 | `reconcileSeconds` | 30 | Game-time interval for full owned-property membership reconciliation. |
 | `heartbeatSeconds` | 60 | Optional health interval; no frame-level rate claim. |
 | `assetsPerTick` | 8 | Assets processed per one-second snapshot tick. |
-| `crewPerAsset` | 64 | Maximum template entries and instanced entries visited per asset snapshot. |
+| `crewPerAsset` | 500 | Maximum contextual-template entries **and**, separately, instanced-personnel entries visited per asset snapshot. |
 | `valueItems` / `valueDepth` | 1024 / 3 | Shared value-node budget and nested collection depth per event/asset. |
 | `snapshotQueue` | 16 | Queued full snapshots; excess requests produce a visible gap marker. |
 | `actorReferences` | 10000 | Run-local retained personnel component references. Previously observed association is not proof of current ownership. |
 | `maxRowsPerRun` | 1000000 | Raw row attempts before an explicit LIMIT marker stops capture for that run. Diagnostics have a separate equal row allowance. |
+
+Owner-requested discovery configuration (2026-10-17): periodic snapshots
+are scheduled every **300 seconds of X4 game time**, and each asset can now
+examine up to **500 contextual personnel templates and 500 instantiated
+personnel entries**, separately. This is intentionally a small configuration
+experiment, **not** a guarantee of 500 fully detailed crew records: the
+unchanged `valueItems=1024` budget per asset can terminate value capture
+earlier and mark output partial. `assetsPerTick=8` and the one-million-native-
+row run cap are unchanged. To gauge scan duration after a separately approved
+gameplay test, compare each `SNAPSHOT_BEGIN` and `SNAPSHOT_END` record's
+`age` header for the same run/sequence. That measures elapsed **game time**;
+it is not a profiler measurement or necessarily real-world wall-clock time.
 
 These are tunable engineering defaults, **not performance results**. Payload,
 roster and membership limits produce explicit partial/omitted markers; they
