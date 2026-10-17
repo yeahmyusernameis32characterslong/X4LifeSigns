@@ -97,10 +97,10 @@ export function generateRecorder(config) {
     set('md.$LSERAssetList', '$Ships.clone') + each('$Station', '$Stations', tag('append_to_list', { name: 'md.$LSERAssetList', exact: '$Station' })) +
     tag('add_to_group', { groupname: 'md.$LSERAssets', list: 'md.$LSERAssetList', replace: 'true' }) + set('md.$LSERNextReconcile', `player.age + ${c.reconcileSeconds}s`));
 
-  const queue = lib('QueueSnapshot', { Trigger: null, Requested: null },
+  const queue = lib('QueueSnapshot', { Trigger: null, Requested: null, Cause: '0L' },
     iff('md.$LSERStopped', add('md.$LSERDroppedSnapshots') + ret('false')) +
     iff(`md.$LSERRequests.count ge ${c.snapshotQueue}`, add('md.$LSERDroppedSnapshots') + write("'SNAPSHOT_GAP|reason=QUEUE_FULL|trigger=%s|requested=%s'.[$Trigger, $Requested]", 'md.$LSERSeq') + run('Write', { Seq: 'md.$LSERSeq', Diagnostic: 'true', Level: '2', Body: "'WARNING|reason=SNAPSHOT_QUEUE_FULL'" }) + ret('false')) +
-    tag('append_to_list', { name: 'md.$LSERRequests', exact: '[$Trigger, $Requested]' }) + ret('true'));
+    tag('append_to_list', { name: 'md.$LSERRequests', exact: '[$Trigger, $Requested, $Cause]' }) + ret('true'));
 
   const captureLib = lib('Capture', { Name: null, Values: null, Available: null, Age: null, Scope: null },
     iff('not md.$LSERReady', ret('false')) + add('md.$LSERReceived') +
@@ -123,7 +123,7 @@ export function generateRecorder(config) {
     iff('not md.$LSERSnapshotActive and md.$LSERRequests.count gt 0',
       set('$Request', 'md.$LSERRequests.{1}') + tag('remove_value', { name: 'md.$LSERRequests.{1}' }) +
       run('Reconcile') + set('md.$LSERSnapshotAssets', 'md.$LSERAssetList.clone') + set('md.$LSERSnapshotIndex', '1') + set('md.$LSERSnapshotTrigger', '$Request.{1}') + set('md.$LSERSnapshotPartial', 'false') + add('md.$LSERSeq') + set('md.$LSERSnapshotSeq', 'md.$LSERSeq') + set('md.$LSERSnapshotActive', 'true') +
-      write("'SNAPSHOT_BEGIN|trigger=%s|requested=%s|actual=%s|assets=%s|atomic=false'.[$Request.{1}, $Request.{2}, player.age, md.$LSERSnapshotAssets.count]", 'md.$LSERSnapshotSeq')) +
+      write("'SNAPSHOT_BEGIN|trigger=%s|requested=%s|actual=%s|assets=%s|atomic=false|cause_seq=%s'.[$Request.{1}, $Request.{2}, player.age, md.$LSERSnapshotAssets.count, $Request.{3}]", 'md.$LSERSnapshotSeq')) +
     iff('md.$LSERSnapshotActive', tag('do_all', { exact: String(c.assetsPerTick) },
       iff('md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', tag('break')) +
       run('Asset', { Asset: 'md.$LSERSnapshotAssets.{md.$LSERSnapshotIndex}', Seq: 'md.$LSERSnapshotSeq', Trigger: 'md.$LSERSnapshotTrigger', Path: "'assets.' + md.$LSERSnapshotIndex" }, '$Partial') + iff('$Partial', set('md.$LSERSnapshotPartial', 'true')) + add('md.$LSERSnapshotIndex', '1')) +
@@ -134,7 +134,8 @@ export function generateRecorder(config) {
 
   const controls = ['DIAGNOSTICS_ERROR', 'DIAGNOSTICS_WARNING', 'DIAGNOSTICS_INFO', 'DIAGNOSTICS_DEBUG', 'SNAPSHOT_REQUESTED'].map((command, i) => tag('cue', { name: `Input${i + 1}`, instantiate: 'true', namespace: 'this' },
     tag('conditions', {}, tag('event_ui_triggered', { screen: "'LifeSigns.Hotkeys'", control: `'${command}'` })) + tag('actions', {},
-      i < 4 ? set('md.$LSERLevel', String(i + 1)) + write(`'CONFIG_CHANGED|diagnostics=${levels[i + 1]}'`, 'md.$LSERSeq') : run('QueueSnapshot', { Trigger: "'ON_DEMAND_HOTKEY'", Requested: 'player.age' })))).join('');
+      add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + write(`'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=${command}'`) +
+      (i < 4 ? set('md.$LSERLevel', String(i + 1)) + write(`'CONFIG_CHANGED|diagnostics=${levels[i + 1]}'`) : run('QueueSnapshot', { Trigger: "'ON_DEMAND_HOTKEY'", Requested: 'player.age', Cause: '$Seq' }))))).join('');
   const reset = ['event_game_loaded', 'event_universe_generated'].map((event, i) => tag('cue', { name: `Invalidate${i}`, instantiate: 'true', namespace: 'this' }, tag('conditions', {}, tag(event)) + tag('actions', {}, set('md.$LSERReady', 'false') + tag('reset_cue', { cue: 'Runtime' })))).join('');
   const ready = tag('cue', { name: 'ListenersReady', checkinterval: '1s' }, tag('conditions', {}, tag('check_value', { value: 'md.$LSERReady? and md.$LSERReady and md.$LSERAssets? and md.$LSERActors?' })) + tag('cues', {}, capture + controls + tag('cue', { name: 'ProcessingTick', instantiate: 'true', namespace: 'this', checkinterval: '1s' }, tag('conditions', {}, tag('check_value', { value: 'md.$LSERReady' })) + tag('actions', {}, run('Tick')))));
   const runtime = tag('cue', { name: 'Runtime', checkinterval: '1s', namespace: 'this' }, tag('conditions', {}, tag('check_value', { value: 'player.entity.exists and player.galaxy' })) + tag('actions', {}, initial) + tag('cues', {}, ready));

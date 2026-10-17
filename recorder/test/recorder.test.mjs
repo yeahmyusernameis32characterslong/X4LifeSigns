@@ -81,6 +81,8 @@ test('OFF suppresses all diagnostics while events, periodic and requested snapsh
   assert.ok(r.some(x => x.kind === 'EVENT_BEGIN'));
   assert.ok(r.some(x => x.kind === 'SNAPSHOT_BEGIN' && x.fields.trigger === 'PERIODIC'));
   assert.ok(r.some(x => x.kind === 'SNAPSHOT_BEGIN' && x.fields.trigger === 'ON_DEMAND_HOTKEY'));
+  const request = r.find(x => x.kind === 'INPUT_REQUEST' && x.fields.control === 'SNAPSHOT_REQUESTED');
+  assert.equal(r.find(x => x.kind === 'SNAPSHOT_BEGIN' && x.fields.trigger === 'ON_DEMAND_HOTKEY').fields.cause_seq, request.seq);
 });
 
 test('snapshot cursor spans processing ticks while event sequence remains independent', () => {

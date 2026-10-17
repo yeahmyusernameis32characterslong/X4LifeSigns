@@ -1320,10 +1320,16 @@
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_ERROR'" />
 </conditions>
 <actions>
+<set_value name="md.$LSERSeq" exact="1L" operation="add" />
+<set_value name="$Seq" exact="md.$LSERSeq" />
+<run_actions ref="Write">
+<param name="Body" value="'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=DIAGNOSTICS_ERROR'" />
+<param name="Seq" value="$Seq" />
+</run_actions>
 <set_value name="md.$LSERLevel" exact="1" />
 <run_actions ref="Write">
 <param name="Body" value="'CONFIG_CHANGED|diagnostics=ERROR'" />
-<param name="Seq" value="md.$LSERSeq" />
+<param name="Seq" value="$Seq" />
 </run_actions>
 </actions>
 </cue>
@@ -1332,10 +1338,16 @@
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_WARNING'" />
 </conditions>
 <actions>
+<set_value name="md.$LSERSeq" exact="1L" operation="add" />
+<set_value name="$Seq" exact="md.$LSERSeq" />
+<run_actions ref="Write">
+<param name="Body" value="'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=DIAGNOSTICS_WARNING'" />
+<param name="Seq" value="$Seq" />
+</run_actions>
 <set_value name="md.$LSERLevel" exact="2" />
 <run_actions ref="Write">
 <param name="Body" value="'CONFIG_CHANGED|diagnostics=WARNING'" />
-<param name="Seq" value="md.$LSERSeq" />
+<param name="Seq" value="$Seq" />
 </run_actions>
 </actions>
 </cue>
@@ -1344,10 +1356,16 @@
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_INFO'" />
 </conditions>
 <actions>
+<set_value name="md.$LSERSeq" exact="1L" operation="add" />
+<set_value name="$Seq" exact="md.$LSERSeq" />
+<run_actions ref="Write">
+<param name="Body" value="'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=DIAGNOSTICS_INFO'" />
+<param name="Seq" value="$Seq" />
+</run_actions>
 <set_value name="md.$LSERLevel" exact="3" />
 <run_actions ref="Write">
 <param name="Body" value="'CONFIG_CHANGED|diagnostics=INFO'" />
-<param name="Seq" value="md.$LSERSeq" />
+<param name="Seq" value="$Seq" />
 </run_actions>
 </actions>
 </cue>
@@ -1356,10 +1374,16 @@
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_DEBUG'" />
 </conditions>
 <actions>
+<set_value name="md.$LSERSeq" exact="1L" operation="add" />
+<set_value name="$Seq" exact="md.$LSERSeq" />
+<run_actions ref="Write">
+<param name="Body" value="'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=DIAGNOSTICS_DEBUG'" />
+<param name="Seq" value="$Seq" />
+</run_actions>
 <set_value name="md.$LSERLevel" exact="4" />
 <run_actions ref="Write">
 <param name="Body" value="'CONFIG_CHANGED|diagnostics=DEBUG'" />
-<param name="Seq" value="md.$LSERSeq" />
+<param name="Seq" value="$Seq" />
 </run_actions>
 </actions>
 </cue>
@@ -1368,9 +1392,16 @@
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'SNAPSHOT_REQUESTED'" />
 </conditions>
 <actions>
+<set_value name="md.$LSERSeq" exact="1L" operation="add" />
+<set_value name="$Seq" exact="md.$LSERSeq" />
+<run_actions ref="Write">
+<param name="Body" value="'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=SNAPSHOT_REQUESTED'" />
+<param name="Seq" value="$Seq" />
+</run_actions>
 <run_actions ref="QueueSnapshot">
 <param name="Trigger" value="'ON_DEMAND_HOTKEY'" />
 <param name="Requested" value="player.age" />
+<param name="Cause" value="$Seq" />
 </run_actions>
 </actions>
 </cue>
@@ -1884,6 +1915,7 @@
 <params>
 <param name="Trigger" />
 <param name="Requested" />
+<param name="Cause" default="0L" />
 </params>
 <actions>
 <do_if value="md.$LSERStopped">
@@ -1904,7 +1936,7 @@
 </run_actions>
 <return value="false" />
 </do_if>
-<append_to_list name="md.$LSERRequests" exact="[$Trigger, $Requested]" />
+<append_to_list name="md.$LSERRequests" exact="[$Trigger, $Requested, $Cause]" />
 <return value="true" />
 </actions>
 </library>
@@ -2035,7 +2067,7 @@
 <set_value name="md.$LSERSnapshotSeq" exact="md.$LSERSeq" />
 <set_value name="md.$LSERSnapshotActive" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_BEGIN|trigger=%s|requested=%s|actual=%s|assets=%s|atomic=false'.[$Request.{1}, $Request.{2}, player.age, md.$LSERSnapshotAssets.count]" />
+<param name="Body" value="'SNAPSHOT_BEGIN|trigger=%s|requested=%s|actual=%s|assets=%s|atomic=false|cause_seq=%s'.[$Request.{1}, $Request.{2}, player.age, md.$LSERSnapshotAssets.count, $Request.{3}]" />
 <param name="Seq" value="md.$LSERSnapshotSeq" />
 </run_actions>
 </do_if>
