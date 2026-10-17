@@ -1819,13 +1819,26 @@
 </do_if>
 <set_value name="$Actors" exact="@$Asset.roleentities" />
 <do_if value="typeof $Actors == datatype.list">
-<do_for_each name="$Actor" in="$Actors">
+<set_value name="$ActorCount" exact="[$Actors.count, 64].min" />
+<do_all exact="$ActorCount" counter="$ActorIndex">
+<set_value name="$Actor" exact="$Actors.{$ActorIndex}" />
+<run_actions ref="Value">
+<param name="Path" value="$Path + '.instances.' + $ActorIndex" />
+<param name="Value" value="$Actor" />
+<param name="Available" value="true" />
+<param name="Seq" value="$Seq" />
+<param name="Budget" value="$Budget" />
+<param name="Depth" value="0" />
+<param name="Enrich" value="true" />
+</run_actions>
+<do_if value="typeof $Actor == datatype.component">
 <do_if value="$Actor.exists and md.$LSERActorsSeen.indexof.{$Actor} == 0">
 <do_if value="md.$LSERActorsSeen.count lt 10000">
 <append_to_list name="md.$LSERActorsSeen" exact="$Actor" />
 <add_to_group groupname="md.$LSERActors" object="$Actor" />
 </do_if>
 <do_else>
+<set_value name="$Budget.$reported" exact="true" />
 <set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
 <run_actions ref="Write">
 <param name="Body" value="'MEMBERSHIP_LIMIT|kind=personnel'" />
@@ -1833,7 +1846,16 @@
 </run_actions>
 </do_else>
 </do_if>
-</do_for_each>
+</do_if>
+</do_all>
+<do_if value="$Actors.count gt $ActorCount">
+<set_value name="$Budget.$reported" exact="true" />
+<set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $Actors.count - $ActorCount]" />
+<param name="Seq" value="$Seq" />
+</run_actions>
+</do_if>
 </do_if>
 </do_if>
 </do_if>
@@ -1841,6 +1863,7 @@
 <param name="Body" value="'ASSET_END|trigger=%s|field=%s|partial=%s'.[$Trigger, $Path, $Budget.$reported]" />
 <param name="Seq" value="$Seq" />
 </run_actions>
+<return value="$Budget.$reported" />
 </actions>
 </library>
 <library name="Reconcile" purpose="run_actions">
@@ -1898,6 +1921,9 @@
 <return value="false" />
 </do_if>
 <set_value name="md.$LSERReceived" exact="1L" operation="add" />
+<do_if value="['event_object_changed_owner', 'event_object_changed_true_owner', 'event_player_owned_claimed_object', 'event_object_built_ship', 'event_object_built_station'].indexof.{$Name} gt 0">
+<set_value name="md.$LSERNextReconcile" exact="player.age" />
+</do_if>
 <set_value name="$Key" exact="'$' + $Name" />
 <do_if value="not md.$LSERFamilies.{$Key}?">
 <set_value name="md.$LSERFamilies.{$Key}" exact="0L" />
@@ -1929,12 +1955,15 @@
 <do_if value="typeof $Object == datatype.component">
 <do_if value="$Object.exists and ($Object.isclass.ship or $Object.isclass.station)">
 <do_if value="$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0">
-<run_actions ref="Asset">
+<run_actions ref="Asset" result="$Partial">
 <param name="Asset" value="$Object" />
 <param name="Seq" value="$Seq" />
 <param name="Trigger" value="'EVENT'" />
 <param name="Path" value="'affected.' + $Index" />
 </run_actions>
+<do_if value="$Partial">
+<set_value name="$Budget.$reported" exact="true" />
+</do_if>
 </do_if>
 </do_if>
 </do_if>
@@ -2001,6 +2030,7 @@
 <set_value name="md.$LSERSnapshotAssets" exact="md.$LSERAssetList.clone" />
 <set_value name="md.$LSERSnapshotIndex" exact="1" />
 <set_value name="md.$LSERSnapshotTrigger" exact="$Request.{1}" />
+<set_value name="md.$LSERSnapshotPartial" exact="false" />
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
 <set_value name="md.$LSERSnapshotSeq" exact="md.$LSERSeq" />
 <set_value name="md.$LSERSnapshotActive" exact="true" />
@@ -2014,17 +2044,20 @@
 <do_if value="md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count">
 <break />
 </do_if>
-<run_actions ref="Asset">
+<run_actions ref="Asset" result="$Partial">
 <param name="Asset" value="md.$LSERSnapshotAssets.{md.$LSERSnapshotIndex}" />
 <param name="Seq" value="md.$LSERSnapshotSeq" />
 <param name="Trigger" value="md.$LSERSnapshotTrigger" />
 <param name="Path" value="'assets.' + md.$LSERSnapshotIndex" />
 </run_actions>
+<do_if value="$Partial">
+<set_value name="md.$LSERSnapshotPartial" exact="true" />
+</do_if>
 <set_value name="md.$LSERSnapshotIndex" exact="1" operation="add" />
 </do_all>
 <do_if value="md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count">
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_END|trigger=%s|assets=%s|atomic=false'.[md.$LSERSnapshotTrigger, md.$LSERSnapshotAssets.count]" />
+<param name="Body" value="'SNAPSHOT_END|trigger=%s|assets=%s|atomic=false|partial=%s'.[md.$LSERSnapshotTrigger, md.$LSERSnapshotAssets.count, md.$LSERSnapshotPartial]" />
 <param name="Seq" value="md.$LSERSnapshotSeq" />
 </run_actions>
 <set_value name="md.$LSERSnapshotActive" exact="false" />

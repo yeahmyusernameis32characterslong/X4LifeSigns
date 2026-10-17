@@ -135,6 +135,26 @@ test('diagnostic thresholds and production key gate are honoured', () => {
   assert.ok(rows(h).some(x => x.name === 'diagnostics.log' && x.kind === 'HEALTH'));
 });
 
+test('ownership events request reconciliation and bounded instances remain distinct from templates', () => {
+  const asset = ship(), actor = { ...ship('ACTOR'), class: 'entity', role: 'service', controlpost: null, roleobject: asset, assignedcontrolled: null, npctemplate: null };
+  asset.roleentities = [actor, { ...actor, ref: '{ACTOR-2}' }];
+  const h = create({ crewPerAsset: 1 }, { ships: [asset] });
+  h.call('Capture', { Name: 'event_object_changed_true_owner', Scope: 'assets', Values: [asset, 'player', 'other', null], Available: [true, true, true, false], Age: h.player.age });
+  assert.equal(h.md.$LSERNextReconcile, h.player.age);
+  assert.deepEqual(h.md.$LSERActors, [actor]);
+  assert.ok(rows(h).some(x => x.fields.field === 'affected.1.instances.1.role' && x.fields.value === 'service'));
+  assert.equal(rows(h).filter(x => x.kind === 'EVENT_END').at(-1).fields.partial, 'true');
+});
+
+test('ERROR reports an observed capture stop and INFO health continues after capture stops', () => {
+  const h = create({ diagnostics: 'ERROR', maxRowsPerRun: 1000 });
+  h.md.$LSERWrites = 1000; capture(h);
+  assert.ok(rows(h).some(x => x.name === 'diagnostics.log' && x.kind === 'FAULT'));
+  assert.equal(h.md.$LSERFailures, 1);
+  h.cue('Input3'); h.player.age = 200; h.call('Tick');
+  assert.ok(rows(h).some(x => x.kind === 'HEALTH' && x.fields.observable_failures === '1'));
+});
+
 test('configuration and text parser reject invalid input without numeric precision conversion', () => {
   assert.throws(() => validateConfig({ ...config, diagnostics: 'TRACE' }));
   assert.throws(() => validateConfig({ ...config, assetsPerTick: 0 }));

@@ -67,6 +67,14 @@ export function generateRecorder(config) {
         tag('do_else', {}, run('Value', { Path: "$Path + '.' + $Index", Value: '$Item', Seq: '$Seq', Budget: '$Budget', Depth: '$Depth + 1', Enrich: '$Enrich' })))) +
     iff('$Available and $Enrich and typeof $Value == datatype.component', iff('$Value.exists and ($Value.isclass.ship or $Value.isclass.station or $Value.isclass.entity)', context)) + ret('true'));
 
+  const actorSnapshot = set('$Actors', '@$Asset.roleentities') + iff('typeof $Actors == datatype.list',
+    set('$ActorCount', `[$Actors.count, ${c.crewPerAsset}].min`) +
+    tag('do_all', { exact: '$ActorCount', counter: '$ActorIndex' }, set('$Actor', '$Actors.{$ActorIndex}') +
+      value("$Path + '.instances.' + $ActorIndex", '$Actor', 'true', 'true') +
+      iff('typeof $Actor == datatype.component', iff('$Actor.exists and md.$LSERActorsSeen.indexof.{$Actor} == 0',
+        iff(`md.$LSERActorsSeen.count lt ${c.actorReferences}`, tag('append_to_list', { name: 'md.$LSERActorsSeen', exact: '$Actor' }) + tag('add_to_group', { groupname: 'md.$LSERActors', object: '$Actor' })) +
+        tag('do_else', {}, set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'MEMBERSHIP_LIMIT|kind=personnel'"))))) +
+    iff('$Actors.count gt $ActorCount', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $Actors.count - $ActorCount]")));
   const snapshot = lib('Asset', { Asset: null, Seq: null, Trigger: null, Path: "'asset'" },
     set('$Budget', `table[$remaining=${c.valueItems}, $reported=false]`) + write("'ASSET_BEGIN|trigger=%s|field=%s|atomic=false'.[$Trigger, $Path]") +
     value('$Path', '$Asset', 'true', 'true') +
@@ -80,11 +88,8 @@ export function generateRecorder(config) {
           iff('$Entry.exists', ['seed', 'role', 'isintransit', 'istransferscheduled', 'istemporary'].map(field => value(`$Path + '.people.' + $Index + '.${field}'`, `@$Entry.${field}`, `$Entry.${field}?`)).join('')) +
           tag('do_else', {}, value("$Path + '.people.' + $Index + '.entry'", 'null', 'false'))) +
         iff('$People.count gt $Count', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s|omitted=%s'.[$Path, $People.count - $Count]"))) +
-      set('$Actors', '@$Asset.roleentities') + iff('typeof $Actors == datatype.list', each('$Actor', '$Actors',
-        iff('$Actor.exists and md.$LSERActorsSeen.indexof.{$Actor} == 0',
-          iff(`md.$LSERActorsSeen.count lt ${c.actorReferences}`, tag('append_to_list', { name: 'md.$LSERActorsSeen', exact: '$Actor' }) + tag('add_to_group', { groupname: 'md.$LSERActors', object: '$Actor' })) +
-          tag('do_else', {}, add('md.$LSERIncomplete') + write("'MEMBERSHIP_LIMIT|kind=personnel'"))))))) +
-    write("'ASSET_END|trigger=%s|field=%s|partial=%s'.[$Trigger, $Path, $Budget.$reported]"));
+      actorSnapshot)) +
+    write("'ASSET_END|trigger=%s|field=%s|partial=%s'.[$Trigger, $Path, $Budget.$reported]") + ret('$Budget.$reported'));
 
   const reconcile = lib('Reconcile', {},
     tag('find_ship', { name: '$Ships', space: 'player.galaxy', trueowner: 'faction.player', multiple: 'true', recursive: 'true', checkoperational: 'false' }) +
@@ -99,11 +104,12 @@ export function generateRecorder(config) {
 
   const captureLib = lib('Capture', { Name: null, Values: null, Available: null, Age: null, Scope: null },
     iff('not md.$LSERReady', ret('false')) + add('md.$LSERReceived') +
+    iff("['event_object_changed_owner', 'event_object_changed_true_owner', 'event_player_owned_claimed_object', 'event_object_built_ship', 'event_object_built_station'].indexof.{$Name} gt 0", set('md.$LSERNextReconcile', 'player.age')) +
     set('$Key', "'$' + $Name") + iff('not md.$LSERFamilies.{$Key}?', set('md.$LSERFamilies.{$Key}', '0L')) + add('md.$LSERFamilies.{$Key}') +
     iff('md.$LSERStopped', add('md.$LSERDroppedEvents') + ret('false')) + add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + set('$Budget', `table[$remaining=${c.valueItems}, $reported=false]`) +
     write("'EVENT_BEGIN|event=%s|scope=%s|observed_age=%s'.[$Name, $Scope, $Age]") +
     tag('do_all', { exact: '4', counter: '$Index' }, run('Value', { Path: "['object', 'param', 'param2', 'param3'].{$Index}", Value: '$Values.{$Index}', Available: '$Available.{$Index}', Seq: '$Seq', Budget: '$Budget', Enrich: 'true' })) +
-    tag('do_all', { exact: '4', counter: '$Index' }, set('$Object', '$Values.{$Index}') + iff('typeof $Object == datatype.component', iff('$Object.exists and ($Object.isclass.ship or $Object.isclass.station)', iff('$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0', run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: "'affected.' + $Index" }))))) +
+    tag('do_all', { exact: '4', counter: '$Index' }, set('$Object', '$Values.{$Index}') + iff('typeof $Object == datatype.component', iff('$Object.exists and ($Object.isclass.ship or $Object.isclass.station)', iff('$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0', run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: "'affected.' + $Index" }, '$Partial') + iff('$Partial', set('$Budget.$reported', 'true')))))) +
     write("'EVENT_END|event=%s|partial=%s'.[$Name, $Budget.$reported]") + ret('true'));
 
   const healthActions = iff('player.age ge md.$LSERNextHeartbeat', set('md.$LSERNextHeartbeat', `player.age + ${c.heartbeatSeconds}s`) +
@@ -116,12 +122,12 @@ export function generateRecorder(config) {
     iff('player.age ge md.$LSERNextPeriodic', set('md.$LSERNextPeriodic', `player.age + ${c.periodSeconds}s`) + run('QueueSnapshot', { Trigger: "'PERIODIC'", Requested: 'player.age' })) +
     iff('not md.$LSERSnapshotActive and md.$LSERRequests.count gt 0',
       set('$Request', 'md.$LSERRequests.{1}') + tag('remove_value', { name: 'md.$LSERRequests.{1}' }) +
-      run('Reconcile') + set('md.$LSERSnapshotAssets', 'md.$LSERAssetList.clone') + set('md.$LSERSnapshotIndex', '1') + set('md.$LSERSnapshotTrigger', '$Request.{1}') + add('md.$LSERSeq') + set('md.$LSERSnapshotSeq', 'md.$LSERSeq') + set('md.$LSERSnapshotActive', 'true') +
+      run('Reconcile') + set('md.$LSERSnapshotAssets', 'md.$LSERAssetList.clone') + set('md.$LSERSnapshotIndex', '1') + set('md.$LSERSnapshotTrigger', '$Request.{1}') + set('md.$LSERSnapshotPartial', 'false') + add('md.$LSERSeq') + set('md.$LSERSnapshotSeq', 'md.$LSERSeq') + set('md.$LSERSnapshotActive', 'true') +
       write("'SNAPSHOT_BEGIN|trigger=%s|requested=%s|actual=%s|assets=%s|atomic=false'.[$Request.{1}, $Request.{2}, player.age, md.$LSERSnapshotAssets.count]", 'md.$LSERSnapshotSeq')) +
     iff('md.$LSERSnapshotActive', tag('do_all', { exact: String(c.assetsPerTick) },
       iff('md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', tag('break')) +
-      run('Asset', { Asset: 'md.$LSERSnapshotAssets.{md.$LSERSnapshotIndex}', Seq: 'md.$LSERSnapshotSeq', Trigger: 'md.$LSERSnapshotTrigger', Path: "'assets.' + md.$LSERSnapshotIndex" }) + add('md.$LSERSnapshotIndex', '1')) +
-      iff('md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', write("'SNAPSHOT_END|trigger=%s|assets=%s|atomic=false'.[md.$LSERSnapshotTrigger, md.$LSERSnapshotAssets.count]", 'md.$LSERSnapshotSeq') + set('md.$LSERSnapshotActive', 'false') + set('md.$LSERSnapshotAssets', '[]'))) +
+      run('Asset', { Asset: 'md.$LSERSnapshotAssets.{md.$LSERSnapshotIndex}', Seq: 'md.$LSERSnapshotSeq', Trigger: 'md.$LSERSnapshotTrigger', Path: "'assets.' + md.$LSERSnapshotIndex" }, '$Partial') + iff('$Partial', set('md.$LSERSnapshotPartial', 'true')) + add('md.$LSERSnapshotIndex', '1')) +
+      iff('md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', write("'SNAPSHOT_END|trigger=%s|assets=%s|atomic=false|partial=%s'.[md.$LSERSnapshotTrigger, md.$LSERSnapshotAssets.count, md.$LSERSnapshotPartial]", 'md.$LSERSnapshotSeq') + set('md.$LSERSnapshotActive', 'false') + set('md.$LSERSnapshotAssets', '[]'))) +
     run('Health') + ret('true'));
 
   const initial = [set('md.$LSERReady', 'false'), set('$Nonce', '0'), tag('set_value', { name: '$Nonce', min: '0', max: '2147483647' }), set('md.$LSERRun', "'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]"), set('md.$LSERLevel', String(levels.indexOf(c.diagnostics))), ...['Seq', 'Received', 'Prepared', 'Writes', 'DiagnosticWrites', 'DroppedEvents', 'DroppedSnapshots', 'RowsSuppressed', 'Incomplete', 'Failures'].map(k => set(`md.$LSER${k}`, '0L')), set('md.$LSERStopped', 'false'), set('md.$LSERSnapshotActive', 'false'), set('md.$LSERRequests', '[]'), set('md.$LSERActorsSeen', '[]'), set('md.$LSERFamilies', 'table[]'), tag('create_group', { groupname: 'md.$LSERActors' }), tag('add_to_group', { groupname: 'md.$LSERActors', list: '[]', replace: 'true' }), run('Reconcile'), set('md.$LSERNextPeriodic', `player.age + ${c.periodSeconds}s`), set('md.$LSERNextHeartbeat', `player.age + ${c.heartbeatSeconds}s`), set('md.$LSERReady', 'true'), write(`'RUN_BEGIN|protocol=1|listeners=${catalog.length}|baseline=6553cf9|write_confirmation=UNAVAILABLE|rebuild=true|diagnostics=${c.diagnostics}|max_rows=${c.maxRowsPerRun}'`, '0'), run('QueueSnapshot', { Trigger: "'PERIODIC'", Requested: 'player.age' })].join('');
