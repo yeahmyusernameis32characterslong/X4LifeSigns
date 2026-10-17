@@ -87,6 +87,26 @@ the observed `.owner` and guarded player-owned state, without relabelling a
 cover-owner change as permanent acquisition. Reconstruct membership after
 reload and retain previous-owner event parameters for lost property.
 
+## Order lifecycle candidate slice
+
+Qwen located `common.xsd:14498-14545`; Codex checked the event descriptions
+and the inherited `objecteventsource` at `:7155-7165`. The `order`
+attribute is an optional filter; the documented event payload is
+`event.param`. These are AI-order events exposed as script conditions,
+not a complete player command/history API. Order contents, object lifetime
+and rate have not been checked live.
+
+| Condition | Documented payload and timing | Selector and caution |
+| --- | --- | --- |
+| `event_object_order_ready` `:14498-14510` | `object` receiving order; `param` order. Fires when a queued/default order becomes enabled **or** an order should start, even if it was already enabled. | `object` or `group`; optional `order` filter. Do not count each row as a distinct newly created order. |
+| `event_object_order_cancelled` `:14512-14532` | `object` order owner; `param` order; `param2` true if noncritical/immediately cancelled. When true, the order may already be reset or gone. | `object` or `group`; `order` and `immediate` filters. Snapshot the available primitive fields promptly; no guaranteed later dereference. |
+| `event_object_order_finished` `:14534-14546` | `object` order owner; `param` order; the order may no longer exist. | `object` or `group`; `order` filter. Completion is a cue occurrence, not proof of a successful outcome without state/context checks. |
+
+`event_object_order_param_edited` is also defined at `:14548` onward, but
+its relevance and volume were not established in this focused slice. Order
+queued/started/failed/cancelled transitions outside the three rows remain
+open inventory items; do not manufacture a corresponding event name.
+
 Before listener implementation, Agent should review a fuller register that
 adds installed base and effective DLC/extension provenance, MD versus AI
 applicability, source lifetime and expected load for each chosen event. A
