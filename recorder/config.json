@@ -1,0 +1,13 @@
+{
+  "diagnostics": "DEBUG",
+  "periodSeconds": 120,
+  "reconcileSeconds": 30,
+  "heartbeatSeconds": 60,
+  "assetsPerTick": 8,
+  "crewPerAsset": 64,
+  "valueItems": 1024,
+  "valueDepth": 3,
+  "snapshotQueue": 16,
+  "actorReferences": 10000,
+  "maxRowsPerRun": 1000000
+}
