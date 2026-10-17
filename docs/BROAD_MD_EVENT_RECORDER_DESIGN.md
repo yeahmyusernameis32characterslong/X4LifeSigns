@@ -5,6 +5,8 @@ verified.** Read [the workstream findings](BROAD_MD_EVENT_CAPTURE_FINDINGS.md)
 for the owner requirements and historical PR #17 boundary. Agent owns the
 architecture and later acceptance plan. This document records verified source
 constraints, a reviewable recorder shape and remaining decisions.
+The [initial event coverage register](BROAD_MD_EVENT_COVERAGE_REGISTER.md)
+records one verified schema family and explicitly lists the remaining inventory.
 
 ## Source and confidence boundary
 
