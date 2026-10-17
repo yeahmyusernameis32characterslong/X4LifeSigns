@@ -1,6 +1,12 @@
 # Broad native MD event capture: research findings and Agent planning input
 
-Research recorded: 2026-10-17. **Status: findings and owner direction, not implemented or live verified.** This is a research input for Agent, Qwen and Codex; it is not an Agent implementation brief, acceptance approval, deployment instruction or permission to merge.
+Research recorded: 2026-10-17. **Status: In Progress, source investigation and design; capture implementation and live verification pending.** This is a research input for Agent, Qwen and Codex; it is not an Agent implementation brief, acceptance approval, deployment instruction or permission to merge.
+
+## Role in Persistent entity identity
+
+Owner instruction, 2026-10-17: formally begin this workstream as supporting work for **Persistent entity identity — In Progress**. Broad capture should expose observed changes in ships, stations and NPC representations during normal play, including gaps that the narrow PR #17 probe could not explain. Events and snapshots provide evidence for later identity decisions; collecting them does not itself establish permanent identity, person continuity or save ancestry.
+
+The first active phase is installed-source research and recorder design, using Qwen for broad authorised discovery and Codex for targeted verification. Subsequent phases are optional recorder implementation, owner-run capture verification and offline evidence analysis. All three snapshot modes below remain requirements. PR #17's selected-fixture test sequence is superseded as next work; preserve its code and evidence without merging or deleting it. No deployment, gameplay or merge permission is introduced here.
 
 ## Mandatory lifecycle and snapshot triggers (owner clarification 2026-10-17)
 
@@ -26,7 +32,7 @@ For tests replace any docking prerequisite with: normal launch with logging enab
 - Agent owns architecture, scope, phases, evidence interpretation, safety gates and the eventual Codex brief. Codex independently verifies current Git state, consults Qwen per the standing workflow, verifies consequential source claims and implements **only within a subsequent authorised plan**.
 - Qwen is preferred for **high-volume LOCAL, OFFLINE log exploration**, so raw giant captures are not loaded wholesale into paid Codex/Agent context. Its existing development-research-only restrictions remain: this does not select Qwen as a gameplay model or approve simultaneous X4/Qwen GPU use.
 
-## Confirmed MD mechanisms / sources
+## Documented mechanisms and candidates requiring installed-source verification
 
 The relevant reference is **the effective installed X4 9.00** `libraries/md.xsd`, `libraries/common.xsd`, `libraries/scriptproperties.xml` and shipped MD/AI scripts, including relevant DLC/extension overrides. External references below are discovery aids; local installed sources and runtime results decide compatibility.
 
@@ -59,7 +65,7 @@ A category is **an investigation request**, not evidence that X4 exposes an even
 - Record **raw event provenance** as soon as safely available: schema/protocol version, X4 version/mod version, probe run ID, practical production session key with `UNAVAILABLE` explicitly allowed, sequence, game time where supported, capture/host time, exact event name, source and target object/ref/idcode/owner/class/sector where available, event parameters with **safe typed serialization**, result/availability states, and bounded relevant NPC/crew context. Preserve observed ordering; distinct events can still have uncertain causal order.
 - Log **every selected occurrence by default**, rather than sampling away the evidence sought. Treat "as many as possible" as **wide useful observability**, not a guarantee of all engine internals. Do not create unbounded per-event whole-galaxy/whole-crew scans, a listener for every global NPC, or synchronous work that degrades gameplay. Prioritise broad event coverage and carefully measured overhead.
 - Separate **raw append-only capture** from later parsing, enrichment, summarising and SQLite. Prefer native `debug_to_file` over dependency on a running general-debug-log reader, while keeping a fallback for missing `-scriptlogfiles`, file errors or incompatible command behaviour if Agent considers it useful. Do not change or reuse the existing production docking protocol/readers/SQLite schemas just to accommodate this experimental probe.
-- Plan log **run/session segmentation**, start/stop/heartbeat markers, current watched-property counts, per-listener registration/coverage status, file-growth/capture diagnostics, limits/rotation/archive and disk exhaustion behaviour. Any intentional throttling, dropped records, error or discontinuity must be **visible and countable**; never silently claim complete capture. Analyse duplicate events without losing their original raw rows.
+- Plan log **run/session segmentation**, start/stop/heartbeat markers, current watched-property counts, per-listener registration/coverage status, file-growth/capture diagnostics, limits/rotation/archive and disk exhaustion behaviour. Recorder-controlled throttling and known drops must be visible and countable; report detectable errors and discontinuities. Engine events never delivered to a listener cannot be assumed detectable or countable. Native write-error reporting, launch-flag detection, flushing and disk-exhaustion observability require source investigation and live evidence; do not claim successful durable capture from a logging call alone. Analyse duplicate events without losing their original raw rows.
 - Store raw logs and any local analysis extracts under ignored `local-data` or private game-profile paths; **never commit/publish raw logs, saves, names/fixtures, extracted vendor files or private paths**. Share only sanitised findings and precise LOCAL-ONLY evidence pointers. Consider secure retention and predictable clean-up.
 - Keep this as an **optional, non-invasive diagnostic** using existing opt-in deployment/rollback safeguards. No automatic pilot moves, destructive gameplay, external telemetry, new permanent NPC IDs or production-save modifications to support collection.
 
