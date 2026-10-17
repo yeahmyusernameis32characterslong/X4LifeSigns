@@ -2,6 +2,9 @@
 
 Research recorded: 2026-10-17. **Status: In Progress, source investigation and design; capture implementation and live verification pending.** This is a research input for Agent, Qwen and Codex; it is not an Agent implementation brief, acceptance approval, deployment instruction or permission to merge.
 
+The [source-checked recorder design proposal](BROAD_MD_EVENT_RECORDER_DESIGN.md)
+tracks the current diagnostic, counting and unresolved implementation choices.
+
 ## Role in Persistent entity identity
 
 Owner instruction, 2026-10-17: formally begin this workstream as supporting work for **Persistent entity identity — In Progress**. Broad capture should expose observed changes in ships, stations and NPC representations during normal play, including gaps that the narrow PR #17 probe could not explain. Events and snapshots provide evidence for later identity decisions; collecting them does not itself establish permanent identity, person continuity or save ancestry.
