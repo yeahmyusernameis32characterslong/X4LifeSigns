@@ -37,10 +37,34 @@ These are **firm requirements for Agent to design and Codex to implement when se
 
 1. **Automatic probe lifecycle:** once the optional Life Signs extension is installed and enabled, X4 itself starts/initialises the MD listeners and native file recorder when a playable universe becomes ready; it reinitialises correctly on load/reload, maintains relevant membership, and listeners end when the game exits. Game start/menu before any loaded universe is *not* a valid player-property snapshot. Do not require the player to start a Node reader, run a PowerShell command each session, dock, or press a special hotkey to activate capture. The one-time X4 launch option `-scriptlogfiles` is an installation/setup prerequisite to verify and document; a missing flag must be surfaced clearly, not mistaken for successful logging. A forced crash/kill cannot be promised a final snapshot.
 2. **Event-triggered snapshots:** when meaningful native MD events occur, log the event itself promptly, then capture a relevant guarded point-in-time snapshot/diff of affected property and associated NPC personnel (or mark unavailable), without waiting for a player docking. Do not equate the event with settled completion of an asynchronous transfer. Avoid heavy per-event galaxy-wide scans.
-3. **Periodic snapshots:** take configurable low-overhead snapshots/reconciliations even when no tracked event fires, mainly to discover missing event families, owner/crew changes and missed state transitions. Agent chooses an appropriate adaptive/default interval and performance budget, informed by X4 profiling; no fixed arbitrary cadence is prescribed here. Clearly log trigger `PERIODIC` and detect gaps/overruns.
+3. **Periodic snapshots:** take configurable low-overhead snapshots/reconciliations even when no tracked event fires, mainly to discover missing event families, owner/crew changes and missed state transitions. The **owner-approved initial interval is 300 game seconds (five minutes)** between recurring requests, with a baseline snapshot at playable-universe readiness and bounded **eight assets per processing tick**. These settings are experimental and require later gameplay measurements; do not present them as X4 profiling results. Clearly log trigger `PERIODIC` and detect gaps/overruns.
 4. **On-demand hotkey snapshot:** a player press of the planned **M5** binding on a Razer BlackWidow V4 X requests an `ON_DEMAND_HOTKEY` snapshot through a separately enabled optional **Life Signs Hotkeys** extension. The shortcut sends a distinct custom MD/UI→MD signal; the **main recorder**, not the hotkey extension, performs a safely scheduled player-faction-wide checkpoint and records actual capture time/deferral. The game-menu opening requirement `GAME_MENU_OPENED` is **explicitly superseded**. X4 does not necessarily see macro keys as distinct native M1–M6 codes; the keyboard/Synapse mapping and mod-side input bridge need installed-source/live verification. Native/event/periodic recording works without the hotkey extension.
 5. **Recorder lifecycle and independently optional hotkey input:** all native listener operation, gameplay event output, EVENT and PERIODIC snapshots, and **execution** of an ON_DEMAND_HOTKEY snapshot run inside the X4-native Life Signs recorder extension. When separately installed and enabled, the independent Life Signs Hotkeys extension **only detects the M5 shortcut and emits a custom MD signal**; the recorder receives that request and performs the actual on-demand snapshot. Without Hotkeys, the recorder still auto-starts and performs broad capture plus EVENT/PERIODIC snapshots, while M5 input is unavailable. No external Node/PowerShell/keyboard-listener process is required to capture data. Node, SQLite readers, Qwen and indexes are optional **offline postprocessors** after gameplay. Any separately running collector requires a distinct architecture approval.
 6. **Logging and save/load safeguards:** time-stamp/correlate all snapshots, including M5 requests, with the active *practical* production session and run (not a permanent universe/person identifier). Document append/flush and capture-order uncertainties so a keypress is not falsely called a durable checkpoint or settled asynchronous state. Keep save/load and simulation responsiveness intact; on load/reload reinitialise listeners and mark log discontinuities rather than silently combining histories.
+
+**Owner-approved recorder snapshot budget and personnel-availability requirement (2026-10-17):**
+The [recorder design's per-asset snapshot ceilings and offline assessment
+contract](BROAD_MD_EVENT_RECORDER_DESIGN.md#owner-approved-per-asset-snapshot-ceilings-and-offline-assessment-2026-10-17)
+is now authoritative for implementation on separate draft PR #19:
+**500 contextual NPC entries per asset; independently 500 instantiated NPC
+entries per asset; 16,384 snapshot value nodes per asset; 1,024 event-parameter
+value nodes per event; 8 assets per processing tick; recurring PERIODIC
+snapshots every 300 game seconds**. **16,384 is a ceiling, not a target**:
+record only values actually available. The 500-entry bounds are independent
+for every ship/station and each NPC representation, not faction-wide quotas.
+The owner has ships with 361 crew and expects possible larger future rosters;
+generous discovery ceilings expose anomalies that smaller limits might conceal.
+Do not assume native contextual or instantiated counts equal in-game crew
+capacity. For **every asset snapshot**, emit the safely observed **available
+contextual entry count** and **available instantiated entry count** (or
+`UNAVAILABLE` if not readable) before the value budget can conceal them,
+correlated to the asset/run/session/snapshot. **The recorder is not required to
+compute counts examined, values recorded or whether each limit was reached.**
+After a separately authorised test is complete and X4 has exited, **Qwen**
+will infer those from the untouched raw detail rows, explicit limit/partial
+markers and the per-asset reported availability counts, preserving evidence
+offsets/hashes and marking uncertain results. No new raw-log access, live game
+test, deployment or merge permission follows from this documentation.
 
 **Historic menu-trigger research retained, but no longer an active prerequisite:** X4 UI Lua's `AddUITriggeredEvent` and MD `event_ui_triggered` support UI→MD signalling (reference: https://wiki.egosoft.com/X4%20Foundations%20Wiki/Modding%20Support/UI%20Modding%20support/Talking%20with%20MD%20and%20AI%20scripts/ ). Codex found menu refresh/re-entry ambiguity, prompting the owner's approved switch to M5. Do not continue investigating exact Save/Load/Exit menu openings as a gate for PR #18. Instead verify a *minimal, original, optionally installed hotkey extension* that emits namespaced custom MD signals without a compulsory third-party mod, persistent Node service or unlicensed reuse of other authors' code. This is still a technical feasibility question, not an already-proven hotkey mechanism.
 
