@@ -18,6 +18,49 @@ duplicate relation, event rate, loss behaviour and source lifetime are
 **unverified in X4** for every row. The schema is evidence of an available
 condition, not a delivered event in the proposed recorder.
 
+## Broad-first listener selection and discovery contract (owner-approved)
+
+**This is an initial *research slice*, not a whitelist, implementation ceiling or
+requirement to prove an event useful before collecting it.** The intended
+recorder spans all qualifying player-faction ships, stations, subobjects and
+NPC personnel and includes non-owned objects when directly participating
+in player-faction incidents. Extend this register systematically toward
+**every supported, safe relevant native event family** in effective installed
+X4 9.00. The first separately approved recorder build may include the widest
+safe source-checked candidate set then available **without waiting for the
+full event inventory or individual gameplay usefulness tests**.
+
+For each proposed listener, verify event name/source version and override,
+MD versus AI/UI availability, correct source selector versus optional
+filter, original typed `object`/`param*` payload, source/target lifetime,
+any critical safe getter constraints and expected volume only if evidence
+exists. Mark **SOURCE_VERIFIED** where syntax and scope are supported,
+**UNVERIFIED_CANDIDATE** where incomplete, **SNAPSHOT_FALLBACK** where no
+suitable event is demonstrated, **AI/UI_ONLY** where appropriate, and
+**UNKNOWN** for unfinished searches. **NOT_SUPPORTED** requires positive
+source evidence; a failed/bounded Qwen search does not establish absence.
+No universal unscoped MD hook is assumed.
+
+**Include repetitive and overlapping families** rather than sampling,
+deduplicating or pre-classifying them away. Each selected occurrence should
+preserve original typed values with safe context: object relationships;
+ship/station `idcode` where available; owner, class, location and names;
+NPC template/component/role/post distinctions; run/session, sequence,
+timestamps and explicit `UNAVAILABLE`. An event often lacks an ID code
+directly, and no permanent NPC identity follows from seed/name/reference
+alone. Avoid expensive or side-effecting per-event enrichment. Defer
+behaviour classification and incident matching to **offline local Qwen
+analysis**, writing a separate derived dataset with precise raw-record
+file hashes/offsets, and targeted Codex verification.
+
+**Priority coverage still to inventory:** ship and station life cycles,
+ownership, combat/damage/repair, movement/order/docking, fleet relations,
+crew/role/post/transfer, trade/cargo/mining/production/storage,
+conversations/interactions and relevant third-party participants. Broad
+event capture should begin after appropriate separate authorisation as soon
+as a safe supported base is available; keep broadening from observed logs.
+No return to selected PR #17 entities or docking-gated events.
+
 | Condition and schema lines | Documented event payload | Optional filters in definition | Coverage role and unresolved point |
 | --- | --- | --- | --- |
 | `event_player_owned_attacked` `:15376-15387` | `object` attacked owned object; `param` attacker; `param2` kill method; `param3` attacked component | `attacker`, `method` | Incoming combat; may be frequent. Relationship to object-scoped attack events and actual volume need live observation. |
