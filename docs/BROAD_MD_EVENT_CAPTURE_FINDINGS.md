@@ -75,6 +75,31 @@ This expands the existing recorder integrity/heartbeat/error-reporting requireme
 
 ### Listener instances and event parameter isolation
 
+**Installed-source check (X4 9.00, 17 October):** `libraries/md.xsd:4583-4589`
+defines `namespace` and `instantiate`; `:1052-1078` says `this` uses the
+current cue as namespace even for instances, while `static` shares the static
+cue and the default inherits the parent namespace. The [Egosoft MD guide](https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/)
+explains that an instantiated activation copies the cue and sub-cues, leaves
+the static cue waiting, and removes a completed instance after its child
+instances finish. These sources support a recurring, instance-local variable
+design. They do **not** establish that every engine event is delivered, that
+actions run in parallel, or that a copied variable remains a deep, immutable
+copy of a mutable object. Qwen's focused answer inferred parallel execution
+and every-event delivery beyond its cited schema lines; those inferences are
+not adopted. The exact same-frame dispatch, event-expression lifetime and
+shared-variable behaviour need a later isolated live check.
+
+**Proposed pattern:** use an event-conditioned `instantiate="true"` listener
+with `namespace="this"`; copy required event parameters and static-condition
+results into instance-local values at the start of its actions, before any
+delay or asynchronous work. Keep instance actions short and avoid permanent
+waiting child cues. Put only deliberate aggregate counters in separately
+named shared state. Audit every helper/library reference for inherited or
+static namespace use. A copied component reference can later become
+unavailable, so encode its available primitive observations promptly and
+retain explicit unavailable states. This is a design proposal, not a tested
+losslessness guarantee.
+
 Community lead: UniTrader on Egosoft's `#x4_modding` Discord, 2026-10-17, recommends instantiated cues with independent namespaces for potentially high same-frame event counts. Treat as valuable *community advice*, not independent proof of lossless engine dispatch. The official Egosoft Mission Director Guide describes `instantiate="true"` and `namespace="this"` and warns about static-cue/condition-result variable pitfalls: https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/ . Installed X4 9.00 behaviour still needs targeted verification.
 
 - **Proposed baseline:** use `instantiate="true"` for repeatable event listeners and `namespace="this"` for per-instance variables, where the installed sources support the pattern. The parent/static listener must remain able to accept subsequent matching events.
