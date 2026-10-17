@@ -62,6 +62,11 @@
 </run_actions>
 </actions>
 <cues>
+<cue name="ListenersReady" checkinterval="1s">
+<conditions>
+<check_value value="md.$LSERReady? and md.$LSERReady and md.$LSERAssets? and md.$LSERActors?" />
+</conditions>
+<cues>
 <cue name="Listen1" instantiate="true" namespace="this">
 <conditions>
 <event_object_attacked group="md.$LSERAssets" />
@@ -1380,6 +1385,8 @@
 </cue>
 </cues>
 </cue>
+</cues>
+</cue>
 <library name="Escape" purpose="run_actions">
 <params>
 <param name="Value" />
@@ -1950,7 +1957,7 @@
 <param name="Seq" value="md.$LSERSeq" />
 <param name="Diagnostic" value="true" />
 <param name="Level" value="3" />
-<param name="Body" value="'HEALTH|received=%s|prepared=%s|writes_attempted=%s|writes_confirmed=UNAVAILABLE|observable_failures=%s|dropped_events=%s|dropped_snapshots=%s|incomplete=%s|window=GAME_TIME|per_frame=UNAVAILABLE|status=NO_DETECTED_ERRORS_IS_NOT_LOSSLESS'.[md.$LSERReceived, md.$LSERPrepared, md.$LSERWrites, md.$LSERFailures, md.$LSERDroppedEvents, md.$LSERDroppedSnapshots, md.$LSERIncomplete]" />
+<param name="Body" value="'HEALTH|received=%s|prepared=%s|writes_attempted=%s|writes_confirmed=UNAVAILABLE|observable_failures=%s|dropped_events=%s|dropped_snapshots=%s|incomplete=%s|window=GAME_TIME|per_frame=UNAVAILABLE|status=OBSERVED_COUNTERS_ONLY'.[md.$LSERReceived, md.$LSERPrepared, md.$LSERWrites, md.$LSERFailures, md.$LSERDroppedEvents, md.$LSERDroppedSnapshots, md.$LSERIncomplete]" />
 </run_actions>
 </do_if>
 <do_if value="md.$LSERLevel ge 4">

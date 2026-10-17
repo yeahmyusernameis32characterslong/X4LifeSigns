@@ -18,6 +18,10 @@ test('generated artifact is deterministic and includes broad isolated subscripti
   const h = create(), nodes = [];
   function walk(n) { if (/^Listen\d+$/.test(n.attrs.name || '')) nodes.push(n); n.children.forEach(walk); } walk(h.tree);
   assert.equal(nodes.length, catalog.length);
+  const runtime = h.tree.children[0].children[0].children.find(x => x.attrs.name === 'Runtime');
+  const gate = runtime.children.find(x => x.tag === 'cues').children[0];
+  assert.equal(gate.attrs.name, 'ListenersReady');
+  assert.match(gate.children.find(x => x.tag === 'conditions').children[0].attrs.value, /md\.\$LSERAssets\? and md\.\$LSERActors\?/);
   for (const node of nodes) {
     assert.equal(node.attrs.instantiate, 'true'); assert.equal(node.attrs.namespace, 'this');
     const actions = node.children.find(x => x.tag === 'actions').children;

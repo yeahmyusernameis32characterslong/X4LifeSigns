@@ -28,7 +28,7 @@ try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 $ns = New-Object System.Xml.XmlNamespaceManager($source.NameTable)
 $ns.AddNamespace('xs', 'http://www.w3.org/2001/XMLSchema')
 [xml]$generated = Get-Content -LiteralPath $file
-$listeners = @($generated.SelectNodes('//cue[starts-with(@name,"Listen")]/conditions/*'))
+$listeners = @($generated.SelectNodes('//cue[starts-with(@name,"Listen")]/conditions/*[starts-with(name(),"event_")]'))
 foreach ($event in $listeners) {
     $definition = $source.SelectSingleNode("//xs:element[@name='$($event.Name)']", $ns)
     if (-not $definition) { throw "Unknown event: $($event.Name)" }
