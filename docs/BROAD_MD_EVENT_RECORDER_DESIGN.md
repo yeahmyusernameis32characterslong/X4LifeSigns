@@ -265,25 +265,25 @@ these future behaviours; subsequent owner permission is required.
 ## Diagnostics and counting contract
 
 The mode controls **optional** diagnostic detail; it never changes event
-listener registration, raw-event selection or the three snapshot triggers.
+listener registration, raw-event selection, EVENT/PERIODIC snapshot operation
+or the recorder's ability to execute an M5 snapshot request from the optional
+Hotkeys extension. **During development**, support OFF/ERROR/WARNING/INFO/DEBUG;
+M1–M4 request the four active levels, while OFF may be set via configuration.
+**For eventual release**, the minimum selectable level (**OFF or ERROR**) is
+**not yet decided by the owner**; do not hardcode a release-facing minimum.
 The design needs a verified X4-side configuration and persistence mechanism
 before implementation. Do not assume an MD variable survives every launch or
 that UI settings can be read from MD.
 
 | Mode | Proposed optional diagnostic output |
 | --- | --- |
-| `OFF` | No optional diagnostic records or optional per-event trace work. A mandatory error/health stream is an explicit exception if Agent retains permanent error reporting; document that exception in the user setting. Ordinary capture continues. |
+| `OFF` | **No optional diagnostic output of any severity**, including ERROR records, health/heartbeat reports, DEBUG traces and optional diagnostic processing. The ordinary gameplay event/snapshot stream and its essential event provenance still operate. |
 | `ERROR` | Observable recorder faults and incomplete/invalid processing. |
 | `WARNING` | `ERROR` plus observed discontinuities, suspicious duplication or workload warnings. |
 | `INFO` | `WARNING` plus compact startup/readiness and configurable heartbeat summaries. |
 | `DEBUG` | `INFO` plus bounded detailed counters and processing context for development. |
 
-The proposed permanent error/health channel and `OFF` wording need Agent
-review: if health markers remain enabled under `OFF`, the setting must say so
-plainly. A missing `-scriptlogfiles` flag or disk failure may prevent **both**
-streams. An external setup/readiness check and later owner-run observation are
-needed; MD must not report file success solely because it dispatched an
-action. No diagnostic mode silently samples raw events.
+The **diagnostic/error/health channel remains a permanent *capability* of the recorder**, not a mandatory active output at every setting. When `OFF` is selected, there are **no optional ERROR, health/heartbeat or other diagnostic records, even if an observable recorder failure occurs**. Essential gameplay event/snapshot metadata and run/session/sequence fields remain part of the ordinary stream, not diagnostic bypasses. An external installation/readiness check must cover cases such as a missing `-scriptlogfiles` flag or disk failure, which may prevent **both** streams from being written. MD must not report file success solely because it dispatched an action. No diagnostic mode silently samples raw events.
 
 Count at the earliest safe listener action by **family** and run:
 `listener_received`, `records_prepared`, `writes_attempted`,
@@ -326,9 +326,13 @@ is prescribed.
   keyboard process. Do not assume X4 sees the M keys as native keys; determine
   supported action slots, bindings and cross-extension signal delivery.
   No unlicensed third-party source reuse.
-- Build a source-backed event coverage register and separate component,
-  contextual-template and roster observations before choosing final listeners.
-  The PR #17 missing destruction row remains unexplained by schema alone.
+- Review the **initial source-valid, safe broad listener set** and separate
+  component, contextual-template and roster observations before implementing
+  those specific listeners. Expand the event coverage register and supported
+  listener set **progressively** after that first selection. Do not demand a
+  fully inventoried universe of events or prior proof of their gameplay
+  usefulness before an owner-approved broad recorder begins. The PR #17
+  missing destruction row remains unexplained by schema alone.
 
 ## Proposed phases and acceptance evidence
 
