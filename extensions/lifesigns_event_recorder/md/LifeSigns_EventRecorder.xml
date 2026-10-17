@@ -49,7 +49,7 @@
 <add_to_group groupname="md.$LSERActors" list="[]" replace="true" />
 <run_actions ref="Reconcile">
 </run_actions>
-<set_value name="md.$LSERNextPeriodic" exact="player.age + 120s" />
+<set_value name="md.$LSERNextPeriodic" exact="player.age + 300s" />
 <set_value name="md.$LSERNextHeartbeat" exact="player.age + 60s" />
 <set_value name="md.$LSERReady" exact="true" />
 <run_actions ref="Write">
@@ -1767,7 +1767,7 @@
 </run_actions>
 <set_value name="$People" exact="@$Asset.people.list" />
 <do_if value="typeof $People == datatype.list">
-<set_value name="$Count" exact="[$People.count, 64].min" />
+<set_value name="$Count" exact="[$People.count, 500].min" />
 <do_all exact="$Count" counter="$Index">
 <set_value name="$Template" exact="$People.{$Index}" />
 <set_value name="$Entry" exact="$Asset.people.{$Template}" />
@@ -1850,7 +1850,7 @@
 </do_if>
 <set_value name="$Actors" exact="@$Asset.roleentities" />
 <do_if value="typeof $Actors == datatype.list">
-<set_value name="$ActorCount" exact="[$Actors.count, 64].min" />
+<set_value name="$ActorCount" exact="[$Actors.count, 500].min" />
 <do_all exact="$ActorCount" counter="$ActorIndex">
 <set_value name="$Actor" exact="$Actors.{$ActorIndex}" />
 <run_actions ref="Value">
@@ -2048,7 +2048,7 @@
 </run_actions>
 </do_if>
 <do_if value="player.age ge md.$LSERNextPeriodic">
-<set_value name="md.$LSERNextPeriodic" exact="player.age + 120s" />
+<set_value name="md.$LSERNextPeriodic" exact="player.age + 300s" />
 <run_actions ref="QueueSnapshot">
 <param name="Trigger" value="'PERIODIC'" />
 <param name="Requested" value="player.age" />
