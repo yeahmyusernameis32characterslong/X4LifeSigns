@@ -114,6 +114,36 @@ restarts; that must be tested. A delayed bootstrap should be marked as a
 coverage gap rather than hidden. This design reuses the production session
 key read-only and leaves its gate unchanged.
 
+### Personnel observation boundary
+
+Qwen located `libraries/scriptproperties.xml:301-318,373-379,2042-2060`
+and shipped `md/rml_deliver_crew.xml:315-323`; Codex checked those lines.
+`people.list` enumerates raw NPC templates, `people.count` explicitly counts
+templates **rather than actual NPCs**, and `people.{$Template}` supplies a
+contextual `npctemplateentry` on an object. That entry exposes role,
+in-transit and transfer-scheduled flags, but does not alone prove completed
+placement. `roleentities` is a list of already instanced entities;
+`roleentity.{$Template}` denotes an instanced entity representing that
+entry. Assigned control entities and assigned AI pilot are separate
+properties; an assigned pilot may not currently be piloting.
+
+**Proposed snapshot shape:** for each bounded relevant property object,
+record template roster entries and their contextual fields separately from
+actual component references and control-post occupants. Preserve role,
+post, assignment, transfer flag and current container as distinct observed
+fields; never merge two entries on seed alone. Guard unavailable/destroyed
+references and encode an `UNAVAILABLE` state rather than interpreting it as
+death. Sample only the affected object's roster on event triggers; use
+scheduled bounded reconciliation for wider membership/crew changes.
+
+The inspected source does **not** guarantee that every getter is free of
+materialisation or other side effects. Qwen described template reads as
+side-effect-free without a cited guarantee; that stronger claim is rejected.
+The shipped delivery script checks a `roleentity` lookup before acting on it,
+but that is not a proof of passive lookup semantics. Agent should choose
+which getters may be used in the recorder only after focused source/runtime
+verification, and must not deliberately instantiate an NPC just to log it.
+
 ## Proposed recorder boundaries
 
 1. An optional extension initialises after the playable universe is ready,
