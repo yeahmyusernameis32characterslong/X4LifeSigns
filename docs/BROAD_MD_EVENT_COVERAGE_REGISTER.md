@@ -177,8 +177,13 @@ the trade offer and/or separate snapshots; those fields are not all present
 as `event.param2/3` in these player-trade definitions. Production and trade
 records may overlap with other economy families; preserve raw rows first.
 
-Before listener implementation, Agent should review a fuller register that
-adds installed base and effective DLC/extension provenance, MD versus AI
-applicability, source lifetime and expected load for each chosen event. A
-separately authorised owner-run smoke test should compare delivered rows and
-snapshots in ordinary gameplay; no static source can certify lossless capture.
+Before a **particular listener** is implemented, Agent/Codex should verify
+that listener’s exact installed-version event name, source selector, typed
+payload and safe context access, with provenance from relevant base and
+DLC/extension overrides. Review the **initial broad source-valid selection**
+without waiting for a complete catalogue of all possible events or for
+live demonstrations of each event’s usefulness. Expand this register and
+implement additional safe event families incrementally as research and
+recorded data expose gaps. A separately authorised owner-run smoke test
+should compare delivered rows and snapshots in ordinary gameplay; no
+static source can certify lossless capture.
