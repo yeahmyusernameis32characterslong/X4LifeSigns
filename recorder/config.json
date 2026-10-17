@@ -1,10 +1,10 @@
 {
   "diagnostics": "DEBUG",
-  "periodSeconds": 120,
+  "periodSeconds": 300,
   "reconcileSeconds": 30,
   "heartbeatSeconds": 60,
   "assetsPerTick": 8,
-  "crewPerAsset": 64,
+  "crewPerAsset": 500,
   "valueItems": 1024,
   "valueDepth": 3,
   "snapshotQueue": 16,
