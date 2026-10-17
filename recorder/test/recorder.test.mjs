@@ -61,7 +61,7 @@ test('repeated delivered events retain distinct values, typed nulls and missing 
 });
 
 test('nested/cyclic payloads end with explicit limits and bounded work', () => {
-  const h = create({ valueItems: 16, valueDepth: 2 });
+  const h = create({ eventValueItems: 16, valueDepth: 2 });
   const cycle = new Map(); cycle.set('$cycle', cycle);
   capture(h, [cycle, Array.from({ length: 100 }, (_, i) => i), null, null]);
   const r = rows(h);

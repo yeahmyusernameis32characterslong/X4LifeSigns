@@ -1731,11 +1731,75 @@
 <param name="Path" default="'asset'" />
 </params>
 <actions>
-<set_value name="$Budget" exact="table[$remaining=1024, $reported=false]" />
+<set_value name="$Budget" exact="table[$remaining=16384, $reported=false]" />
 <run_actions ref="Write">
 <param name="Body" value="'ASSET_BEGIN|trigger=%s|field=%s|atomic=false'.[$Trigger, $Path]" />
 <param name="Seq" value="$Seq" />
 </run_actions>
+<set_value name="$People" exact="null" />
+<set_value name="$Actors" exact="null" />
+<set_value name="$AssetState" exact="'UNSUPPORTED_ASSET'" />
+<set_value name="$AssetId" exact="'UNAVAILABLE'" />
+<do_if value="typeof $Asset == datatype.component">
+<set_value name="$AssetState" exact="'UNAVAILABLE_REFERENCE'" />
+<do_if value="$Asset.exists and ($Asset.isclass.ship or $Asset.isclass.station)">
+<set_value name="$AssetState" exact="'AVAILABLE'" />
+<do_if value="$Asset.idcode?">
+<set_value name="$AssetId" exact="$Asset.idcode" />
+</do_if>
+<set_value name="$People" exact="@$Asset.people.list" />
+<set_value name="$Actors" exact="@$Asset.roleentities" />
+</do_if>
+</do_if>
+<run_actions ref="Escape" result="$AssetRef">
+<param name="Value" value="$Asset" />
+</run_actions>
+<run_actions ref="Escape" result="$AssetId">
+<param name="Value" value="$AssetId" />
+</run_actions>
+<run_actions ref="Escape" result="$AssetField">
+<param name="Value" value="$Path" />
+</run_actions>
+<set_value name="$PeopleCount" exact="'UNAVAILABLE'" />
+<set_value name="$PeopleState" exact="$AssetState" />
+<do_if value="$AssetState == 'AVAILABLE'">
+<set_value name="$PeopleState" exact="'COLLECTION_UNAVAILABLE'" />
+<do_if value="typeof $People == datatype.list">
+<set_value name="$PeopleState" exact="'COUNT_UNAVAILABLE'" />
+<do_if value="$People.count?">
+<set_value name="$PeopleCount" exact="$People.count" />
+<set_value name="$PeopleState" exact="'AVAILABLE'" />
+</do_if>
+</do_if>
+</do_if>
+<run_actions ref="Write">
+<param name="Body" value="'PERSONNEL_AVAILABILITY|trigger=%s|field=%s|asset_ref=%s|asset_id=%s|asset_state=%s|representation=CONTEXTUAL|available=%s|state=%s'.[$Trigger, $AssetField, $AssetRef, $AssetId, $AssetState, $PeopleCount, $PeopleState]" />
+<param name="Seq" value="$Seq" />
+</run_actions>
+<do_if value="$PeopleState != 'AVAILABLE'">
+<set_value name="$Budget.$reported" exact="true" />
+<set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
+</do_if>
+<set_value name="$ActorsCount" exact="'UNAVAILABLE'" />
+<set_value name="$ActorsState" exact="$AssetState" />
+<do_if value="$AssetState == 'AVAILABLE'">
+<set_value name="$ActorsState" exact="'COLLECTION_UNAVAILABLE'" />
+<do_if value="typeof $Actors == datatype.list">
+<set_value name="$ActorsState" exact="'COUNT_UNAVAILABLE'" />
+<do_if value="$Actors.count?">
+<set_value name="$ActorsCount" exact="$Actors.count" />
+<set_value name="$ActorsState" exact="'AVAILABLE'" />
+</do_if>
+</do_if>
+</do_if>
+<run_actions ref="Write">
+<param name="Body" value="'PERSONNEL_AVAILABILITY|trigger=%s|field=%s|asset_ref=%s|asset_id=%s|asset_state=%s|representation=INSTANTIATED|available=%s|state=%s'.[$Trigger, $AssetField, $AssetRef, $AssetId, $AssetState, $ActorsCount, $ActorsState]" />
+<param name="Seq" value="$Seq" />
+</run_actions>
+<do_if value="$ActorsState != 'AVAILABLE'">
+<set_value name="$Budget.$reported" exact="true" />
+<set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
+</do_if>
 <run_actions ref="Value">
 <param name="Path" value="$Path" />
 <param name="Value" value="$Asset" />
@@ -1765,9 +1829,8 @@
 <param name="Depth" value="0" />
 <param name="Enrich" value="true" />
 </run_actions>
-<set_value name="$People" exact="@$Asset.people.list" />
-<do_if value="typeof $People == datatype.list">
-<set_value name="$Count" exact="[$People.count, 500].min" />
+<do_if value="$PeopleState == 'AVAILABLE'">
+<set_value name="$Count" exact="[$PeopleCount, 500].min" />
 <do_all exact="$Count" counter="$Index">
 <set_value name="$Template" exact="$People.{$Index}" />
 <set_value name="$Entry" exact="$Asset.people.{$Template}" />
@@ -1839,18 +1902,17 @@
 </run_actions>
 </do_else>
 </do_all>
-<do_if value="$People.count gt $Count">
+<do_if value="$PeopleCount gt $Count">
 <set_value name="$Budget.$reported" exact="true" />
 <set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
 <run_actions ref="Write">
-<param name="Body" value="'ROSTER_LIMIT|field=%s|omitted=%s'.[$Path, $People.count - $Count]" />
+<param name="Body" value="'ROSTER_LIMIT|field=%s.people|omitted=%s'.[$Path, $PeopleCount - $Count]" />
 <param name="Seq" value="$Seq" />
 </run_actions>
 </do_if>
 </do_if>
-<set_value name="$Actors" exact="@$Asset.roleentities" />
-<do_if value="typeof $Actors == datatype.list">
-<set_value name="$ActorCount" exact="[$Actors.count, 500].min" />
+<do_if value="$ActorsState == 'AVAILABLE'">
+<set_value name="$ActorCount" exact="[$ActorsCount, 500].min" />
 <do_all exact="$ActorCount" counter="$ActorIndex">
 <set_value name="$Actor" exact="$Actors.{$ActorIndex}" />
 <run_actions ref="Value">
@@ -1879,11 +1941,11 @@
 </do_if>
 </do_if>
 </do_all>
-<do_if value="$Actors.count gt $ActorCount">
+<do_if value="$ActorsCount gt $ActorCount">
 <set_value name="$Budget.$reported" exact="true" />
 <set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
 <run_actions ref="Write">
-<param name="Body" value="'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $Actors.count - $ActorCount]" />
+<param name="Body" value="'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $ActorsCount - $ActorCount]" />
 <param name="Seq" value="$Seq" />
 </run_actions>
 </do_if>

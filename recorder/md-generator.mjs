@@ -13,10 +13,10 @@ const write = (body, seq = '$Seq') => run('Write', { Body: body, Seq: seq });
 const value = (path, expression, available = 'true', enrich = 'false') => run('Value', { Path: path, Value: expression, Available: available, Seq: '$Seq', Budget: '$Budget', Depth: '0', Enrich: enrich });
 
 export function validateConfig(c) {
-  const expected = ['diagnostics', 'periodSeconds', 'reconcileSeconds', 'heartbeatSeconds', 'assetsPerTick', 'crewPerAsset', 'valueItems', 'valueDepth', 'snapshotQueue', 'actorReferences', 'maxRowsPerRun'];
+  const expected = ['diagnostics', 'periodSeconds', 'reconcileSeconds', 'heartbeatSeconds', 'assetsPerTick', 'crewPerAsset', 'snapshotValueItems', 'eventValueItems', 'valueDepth', 'snapshotQueue', 'actorReferences', 'maxRowsPerRun'];
   if (!c || Object.keys(c).sort().join() !== expected.sort().join()) throw new Error('Unexpected recorder configuration keys');
   if (!levels.includes(c.diagnostics)) throw new Error('Invalid diagnostics level');
-  const bounds = { periodSeconds: [10, 86400], reconcileSeconds: [5, 3600], heartbeatSeconds: [10, 3600], assetsPerTick: [1, 64], crewPerAsset: [1, 1024], valueItems: [16, 4096], valueDepth: [1, 8], snapshotQueue: [1, 64], actorReferences: [1, 100000], maxRowsPerRun: [1000, 10000000] };
+  const bounds = { periodSeconds: [10, 86400], reconcileSeconds: [5, 3600], heartbeatSeconds: [10, 3600], assetsPerTick: [1, 64], crewPerAsset: [1, 1024], snapshotValueItems: [16, 16384], eventValueItems: [16, 4096], valueDepth: [1, 8], snapshotQueue: [1, 64], actorReferences: [1, 100000], maxRowsPerRun: [1000, 10000000] };
   for (const [key, [min, max]] of Object.entries(bounds)) if (!Number.isSafeInteger(c[key]) || c[key] < min || c[key] > max) throw new Error(`Invalid ${key}`);
   return c;
 }
@@ -67,27 +67,45 @@ export function generateRecorder(config) {
         tag('do_else', {}, run('Value', { Path: "$Path + '.' + $Index", Value: '$Item', Seq: '$Seq', Budget: '$Budget', Depth: '$Depth + 1', Enrich: '$Enrich' })))) +
     iff('$Available and $Enrich and typeof $Value == datatype.component', iff('$Value.exists and ($Value.isclass.ship or $Value.isclass.station or $Value.isclass.entity)', context)) + ret('true'));
 
-  const actorSnapshot = set('$Actors', '@$Asset.roleentities') + iff('typeof $Actors == datatype.list',
-    set('$ActorCount', `[$Actors.count, ${c.crewPerAsset}].min`) +
+  // Availability is outside the value budget, before any enrichment. Reuse the
+  // observed collections for details; neither representation materialises NPCs.
+  const availability = set('$People', 'null') + set('$Actors', 'null') +
+    set('$AssetState', "'UNSUPPORTED_ASSET'") + set('$AssetId', "'UNAVAILABLE'") +
+    iff('typeof $Asset == datatype.component', set('$AssetState', "'UNAVAILABLE_REFERENCE'") +
+      iff('$Asset.exists and ($Asset.isclass.ship or $Asset.isclass.station)', set('$AssetState', "'AVAILABLE'") +
+        iff('$Asset.idcode?', set('$AssetId', '$Asset.idcode')) +
+        set('$People', '@$Asset.people.list') + set('$Actors', '@$Asset.roleentities'))) +
+    run('Escape', { Value: '$Asset' }, '$AssetRef') + run('Escape', { Value: '$AssetId' }, '$AssetId') +
+    run('Escape', { Value: '$Path' }, '$AssetField') +
+    [['People', 'CONTEXTUAL'], ['Actors', 'INSTANTIATED']].map(([name, representation]) =>
+      set(`$${name}Count`, "'UNAVAILABLE'") + set(`$${name}State`, '$AssetState') +
+      iff("$AssetState == 'AVAILABLE'", set(`$${name}State`, "'COLLECTION_UNAVAILABLE'") +
+        iff(`typeof $${name} == datatype.list`, set(`$${name}State`, "'COUNT_UNAVAILABLE'") +
+          iff(`$${name}.count?`, set(`$${name}Count`, `$${name}.count`) + set(`$${name}State`, "'AVAILABLE'")))) +
+      write(`'PERSONNEL_AVAILABILITY|trigger=%s|field=%s|asset_ref=%s|asset_id=%s|asset_state=%s|representation=${representation}|available=%s|state=%s'.[$Trigger, $AssetField, $AssetRef, $AssetId, $AssetState, $${name}Count, $${name}State]`) +
+      iff(`$${name}State != 'AVAILABLE'`, set('$Budget.$reported', 'true') + add('md.$LSERIncomplete'))
+    ).join('');
+  const actorSnapshot = iff("$ActorsState == 'AVAILABLE'",
+    set('$ActorCount', `[$ActorsCount, ${c.crewPerAsset}].min`) +
     tag('do_all', { exact: '$ActorCount', counter: '$ActorIndex' }, set('$Actor', '$Actors.{$ActorIndex}') +
       value("$Path + '.instances.' + $ActorIndex", '$Actor', 'true', 'true') +
       iff('typeof $Actor == datatype.component', iff('$Actor.exists and md.$LSERActorsSeen.indexof.{$Actor} == 0',
         iff(`md.$LSERActorsSeen.count lt ${c.actorReferences}`, tag('append_to_list', { name: 'md.$LSERActorsSeen', exact: '$Actor' }) + tag('add_to_group', { groupname: 'md.$LSERActors', object: '$Actor' })) +
         tag('do_else', {}, set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'MEMBERSHIP_LIMIT|kind=personnel'"))))) +
-    iff('$Actors.count gt $ActorCount', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $Actors.count - $ActorCount]")));
+    iff('$ActorsCount gt $ActorCount', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $ActorsCount - $ActorCount]")));
   const snapshot = lib('Asset', { Asset: null, Seq: null, Trigger: null, Path: "'asset'" },
-    set('$Budget', `table[$remaining=${c.valueItems}, $reported=false]`) + write("'ASSET_BEGIN|trigger=%s|field=%s|atomic=false'.[$Trigger, $Path]") +
+    set('$Budget', `table[$remaining=${c.snapshotValueItems}, $reported=false]`) + write("'ASSET_BEGIN|trigger=%s|field=%s|atomic=false'.[$Trigger, $Path]") + availability +
     value('$Path', '$Asset', 'true', 'true') +
     iff('typeof $Asset == datatype.component', iff('$Asset.exists and ($Asset.isclass.ship or $Asset.isclass.station)',
       value("$Path + '.assignedaipilot'", '@$Asset.assignedaipilot', '$Asset.assignedaipilot?', 'true') +
       value("$Path + '.assignedcontrolentity'", '@$Asset.assignedcontrolentity.default', '$Asset.assignedcontrolentity.default?', 'true') +
-      set('$People', '@$Asset.people.list') + iff('typeof $People == datatype.list',
-        set('$Count', `[$People.count, ${c.crewPerAsset}].min`) +
+      iff("$PeopleState == 'AVAILABLE'",
+        set('$Count', `[$PeopleCount, ${c.crewPerAsset}].min`) +
         tag('do_all', { exact: '$Count', counter: '$Index' }, set('$Template', '$People.{$Index}') + set('$Entry', '$Asset.people.{$Template}') +
           value("$Path + '.people.' + $Index + '.template'", '$Template') +
           iff('$Entry.exists', ['seed', 'role', 'isintransit', 'istransferscheduled', 'istemporary'].map(field => value(`$Path + '.people.' + $Index + '.${field}'`, `@$Entry.${field}`, `$Entry.${field}?`)).join('')) +
           tag('do_else', {}, value("$Path + '.people.' + $Index + '.entry'", 'null', 'false'))) +
-        iff('$People.count gt $Count', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s|omitted=%s'.[$Path, $People.count - $Count]"))) +
+        iff('$PeopleCount gt $Count', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s.people|omitted=%s'.[$Path, $PeopleCount - $Count]"))) +
       actorSnapshot)) +
     write("'ASSET_END|trigger=%s|field=%s|partial=%s'.[$Trigger, $Path, $Budget.$reported]") + ret('$Budget.$reported'));
 
@@ -106,7 +124,7 @@ export function generateRecorder(config) {
     iff('not md.$LSERReady', ret('false')) + add('md.$LSERReceived') +
     iff("['event_object_changed_owner', 'event_object_changed_true_owner', 'event_player_owned_claimed_object', 'event_object_built_ship', 'event_object_built_station'].indexof.{$Name} gt 0", set('md.$LSERNextReconcile', 'player.age')) +
     set('$Key', "'$' + $Name") + iff('not md.$LSERFamilies.{$Key}?', set('md.$LSERFamilies.{$Key}', '0L')) + add('md.$LSERFamilies.{$Key}') +
-    iff('md.$LSERStopped', add('md.$LSERDroppedEvents') + ret('false')) + add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + set('$Budget', `table[$remaining=${c.valueItems}, $reported=false]`) +
+    iff('md.$LSERStopped', add('md.$LSERDroppedEvents') + ret('false')) + add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + set('$Budget', `table[$remaining=${c.eventValueItems}, $reported=false]`) +
     write("'EVENT_BEGIN|event=%s|scope=%s|observed_age=%s'.[$Name, $Scope, $Age]") +
     tag('do_all', { exact: '4', counter: '$Index' }, run('Value', { Path: "['object', 'param', 'param2', 'param3'].{$Index}", Value: '$Values.{$Index}', Available: '$Available.{$Index}', Seq: '$Seq', Budget: '$Budget', Enrich: 'true' })) +
     tag('do_all', { exact: '4', counter: '$Index' }, set('$Object', '$Values.{$Index}') + iff('typeof $Object == datatype.component', iff('$Object.exists and ($Object.isclass.ship or $Object.isclass.station)', iff('$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0', run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: "'affected.' + $Index" }, '$Partial') + iff('$Partial', set('$Budget.$reported', 'true')))))) +
