@@ -13,7 +13,7 @@ const rows = h => h.output.map(x => ({ name: x.name, ...parseRecord(x.line) }));
 const capture = (h, values = [null, null, null, null], available = [true, true, true, true]) => h.call('Capture', { Name: 'event_object_attacked', Scope: 'assets', Values: values, Available: available, Age: h.player.age });
 
 test('generated artifact is deterministic and includes broad isolated subscriptions', () => {
-  assert.equal(generateRecorder(config), readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8'));
+  assert.equal(generateRecorder(config), readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
   assert.equal(catalog.length, 52);
   const h = create(), nodes = [];
   function walk(n) { if (/^Listen\d+$/.test(n.attrs.name || '')) nodes.push(n); n.children.forEach(walk); } walk(h.tree);
