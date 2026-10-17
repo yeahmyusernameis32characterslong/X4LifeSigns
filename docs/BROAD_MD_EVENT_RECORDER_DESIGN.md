@@ -240,5 +240,51 @@ is prescribed.
   contextual-template and roster observations before choosing final listeners.
   The PR #17 missing destruction row remains unexplained by schema alone.
 
+## Proposed phases and acceptance evidence
+
+1. **Finish source gates:** complete the event-family inventory against the
+   effective installed files and relevant overrides; settle the native
+   gameplay-menu signal; establish a supported diagnostic configuration
+   mechanism, file naming and bounded retention policy. If any required
+   capability lacks a source-backed path, keep that requirement open for
+   Agent's architecture decision rather than silently dropping it.
+2. **Later authorised isolated build:** implement a small optional extension
+   recorder with instance-local event fields, selected event rows, the three
+   snapshot triggers and two streams. Reuse production `s1` read-only; keep
+   production MD, Node readers and SQLite untouched. Static checks should
+   validate new XML against effective installed 9.00 schemas, review the
+   changed-file set and prove no private data or raw game source entered Git.
+   Schema validation does not establish cue timing or output durability.
+3. **Later separately approved owner-run X4 check:** launch normally with
+   `-scriptlogfiles`, confirm recorder startup without Node or docking,
+   exercise representative natural player-property/crew events, wait for a
+   periodic snapshot, and open/close/reopen the in-session Save/Load/Exit
+   menu. Require exactly one `GAME_MENU_OPENED` snapshot per distinct opening,
+   excluding title menu and redraws. Save/load and confirm a new run marker,
+   rebuilt membership and honest session state. Repeat with the launch flag
+   absent and with diagnostics `OFF` while ordinary event/snapshot capture
+   stays enabled. Record X4 version, enabled extensions, elapsed time,
+   observed events, log growth and game responsiveness. These are future
+   acceptance criteria, **not tests performed for PR #18**.
+4. **Offline review:** after X4 exits, archive/hash local captures and
+   stream/index by run, family, sequence and source offset. Let Qwen examine
+   bounded authorised slices, then have Codex verify consequential claims
+   against originals. Compare duplicate candidate incidents without deleting
+   raw rows; report missing coverage, gaps and uncertain person continuity.
+
+`debug_to_file` offers append/overwrite but no documented rotation or
+file-size query in its element. A safe provisional approach is distinct,
+fixed event and diagnostic filenames with run markers, followed by offline
+archiving/retention after X4 exits. It does **not** bound growth during one
+long game run. A recorder-controlled per-run cap could make a gap explicit,
+but it would intentionally stop capture and might fail to write its own stop
+marker. Agent must set and test a measurable policy before any live release.
+The source also does not expose an MD query for `-scriptlogfiles` or a write
+acknowledgement, so the owner's missing-flag visibility requirement remains
+an architecture gap. A one-time setup or external readiness check can observe
+file appearance, but no unverified in-game success indicator should be
+promised. The requirement remains open until Agent chooses and verifies a
+usable mechanism.
+
 No implementation, deployment, X4 run, owner live test or merge is authorised
 by this proposal.
