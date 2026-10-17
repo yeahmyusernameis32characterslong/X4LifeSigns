@@ -8,7 +8,7 @@ export function unescapeValue(value) {
   return value.replace(/%(25|7C|0A|0D|09)/gi, code => String.fromCharCode(Number.parseInt(code.slice(1), 16)));
 }
 export function parseRecord(line) {
-  const cells = line.replace(/\r?\n$/, '').split('|');
+  const cells = line.replace(/\r?\n$|\r$/, '').split('|');
   if (cells.shift() !== 'LSEV1' || cells.pop() !== 'END' || cells.length < 5) throw new Error('Invalid record framing');
   const header = Object.create(null);
   for (const key of ['run', 'session', 'seq', 'age']) {
