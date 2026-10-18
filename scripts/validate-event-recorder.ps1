@@ -25,6 +25,9 @@ $reader = [System.Xml.XmlReader]::Create($file, $settings)
 try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 
 [xml]$generated = Get-Content -LiteralPath $file
+foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
+    if ($parameter.GetAttribute('value') -match "^@\s*(null\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
+}
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
 if ($listeners.Count -ne 1 -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[0].ParentNode.ParentNode.LocalName -ne 'cue' -or $listeners[0].ParentNode.ParentNode.GetAttribute('name') -ne 'RunBoundary') { throw 'Snapshot collector permits only its single universe lifecycle boundary; no gameplay/UI listeners.' }
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }

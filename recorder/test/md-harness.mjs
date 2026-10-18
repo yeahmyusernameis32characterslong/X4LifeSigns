@@ -32,7 +32,13 @@ const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a
 export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1 } = {}) {
   const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   let randomCounter = 0;
-  function walk(node, parentCue) { if (node.tag === 'library') libraries.set(node.attrs.name, node); if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; } node.children.forEach(child => walk(child, parentCue)); }
+  function walk(node, parentCue) {
+    // Native load-time syntax errors cannot be hidden by optional evaluation.
+    if (Object.values(node.attrs).some(v => /^@\s*(?:null\b|')/.test(v))) throw Error('Optional lookup operator requires a property lookup, not a literal');
+    if (node.tag === 'library') libraries.set(node.attrs.name, node);
+    if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; }
+    node.children.forEach(child => walk(child, parentCue));
+  }
   walk(tree);
   const player = { age, entity: { __type: 'component', exists: true }, galaxy: true, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
   function get(value, key) {

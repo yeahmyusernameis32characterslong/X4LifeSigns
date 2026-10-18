@@ -1,5 +1,17 @@
 # Snapshot-only object profile collector
 
+## Literal-expression correction, 2026-10-18
+
+The larger-save native debug log exposed 44 generated expression errors:
+36 `@null` placeholders and eight `@`-prefixed quoted relationship/location
+labels. The generator now emits these literals directly, retaining optional
+property-lookup handling for observed values. The synthetic harness rejects the
+reported invalid literal syntax at load time, and the installed-schema validator
+adds an explicit expression check because XSD alone did not catch it.
+This focused source correction does not resolve the independently observed
+datatype-cache assignment errors or establish why the earlier capture ended.
+Native validation after an approved deployment remains required.
+
 ## Owner-directed larger-save preparation, 2026-10-18
 
 First increment removes standalone NPC `idcode` reads/placeholders and the ship

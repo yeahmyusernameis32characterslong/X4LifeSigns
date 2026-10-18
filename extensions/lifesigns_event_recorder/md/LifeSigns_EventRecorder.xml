@@ -337,7 +337,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'manager_seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ASSIGNED_MANAGER'" />
 </run_actions>
@@ -358,7 +358,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'reference'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE_REFERENCE'" />
 </run_actions>
@@ -572,7 +572,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'captain_seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ASSIGNED_CAPTAIN'" />
 </run_actions>
@@ -612,7 +612,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'pilot_seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ASSIGNED_PILOT'" />
 </run_actions>
@@ -724,7 +724,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'commander_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_COMMANDER'" />
 </run_actions>
@@ -742,7 +742,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'commander_class'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_COMMANDER'" />
 </run_actions>
@@ -799,7 +799,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'reference'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE_REFERENCE'" />
 </run_actions>
@@ -1231,7 +1231,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'role_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'ASSIGNED_OBJECT_NOT_SHIP'" />
 </run_actions>
@@ -1252,7 +1252,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'role_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ROLE_ASSIGNMENT'" />
 </run_actions>
@@ -1293,7 +1293,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'controlled_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'ASSIGNED_OBJECT_NOT_SHIP'" />
 </run_actions>
@@ -1314,7 +1314,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'controlled_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_CONTROL_ASSIGNMENT'" />
 </run_actions>
@@ -1353,7 +1353,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assigned_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AMBIGUOUS_ASSIGNMENT'" />
 </run_actions>
@@ -1371,7 +1371,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assignment_basis'" />
-<param name="Value" value="@'CONFLICTING_ACTOR_RELATIONSHIPS'" />
+<param name="Value" value="'CONFLICTING_ACTOR_RELATIONSHIPS'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1410,7 +1410,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assignment_basis'" />
-<param name="Value" value="@'ACTOR_ROLE_OR_CONTROL_RELATIONSHIP'" />
+<param name="Value" value="'ACTOR_ROLE_OR_CONTROL_RELATIONSHIP'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1430,7 +1430,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assigned_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_SHIP_ASSIGNMENT'" />
 </run_actions>
@@ -1448,7 +1448,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assignment_basis'" />
-<param name="Value" value="@'NO_ACTOR_SHIP_ASSIGNMENT'" />
+<param name="Value" value="'NO_ACTOR_SHIP_ASSIGNMENT'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1500,7 +1500,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1548,7 +1548,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1596,7 +1596,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'race'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1644,7 +1644,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'macro'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1701,7 +1701,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -1719,7 +1719,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -1737,7 +1737,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'race'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -1755,7 +1755,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'macro'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -1773,7 +1773,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'role'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -1791,7 +1791,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'role_name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -1810,7 +1810,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'debugname'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ACTOR_OBSERVED'" />
 </run_actions>
@@ -1828,7 +1828,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'controlpost'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ACTOR_OBSERVED'" />
 </run_actions>
@@ -1846,7 +1846,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'controlpost_name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_ACTOR_OBSERVED'" />
 </run_actions>
@@ -1891,7 +1891,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'location_basis'" />
-<param name="Value" value="@'HOST_CURRENT_PERSONNEL_ENTRY'" />
+<param name="Value" value="'HOST_CURRENT_PERSONNEL_ENTRY'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1911,7 +1911,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'sector_name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNVERIFIED'" />
 </run_actions>
@@ -1929,7 +1929,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'location_basis'" />
-<param name="Value" value="@'HOST_LOCATION_NOT_ASSERTED'" />
+<param name="Value" value="'HOST_LOCATION_NOT_ASSERTED'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1968,7 +1968,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assignment_basis'" />
-<param name="Value" value="@'CONTEXT_HOST_ROSTER_ASSOCIATION'" />
+<param name="Value" value="'CONTEXT_HOST_ROSTER_ASSOCIATION'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -1988,7 +1988,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assigned_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'HOST_NOT_SHIP'" />
 </run_actions>
@@ -2006,7 +2006,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assignment_basis'" />
-<param name="Value" value="@'CONTEXT_HOST_NOT_SHIP'" />
+<param name="Value" value="'CONTEXT_HOST_NOT_SHIP'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -2027,7 +2027,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assigned_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'UNAVAILABLE'" />
 </run_actions>
@@ -2045,7 +2045,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'assignment_basis'" />
-<param name="Value" value="@'NO_CONTEXT_ENTRY'" />
+<param name="Value" value="'NO_CONTEXT_ENTRY'" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -2095,7 +2095,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'contextual_seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -2143,7 +2143,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'contextual_name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -2191,7 +2191,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'contextual_race'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -2239,7 +2239,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'contextual_macro'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
 </run_actions>
@@ -2351,7 +2351,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'roster_ship_idcode'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'HOST_NOT_SHIP'" />
 </run_actions>
@@ -2372,7 +2372,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'contextual_seed'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_CONTEXT_ENTRY'" />
 </run_actions>
@@ -2390,7 +2390,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'contextual_name'" />
-<param name="Value" value="@null" />
+<param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'NO_CONTEXT_ENTRY'" />
 </run_actions>

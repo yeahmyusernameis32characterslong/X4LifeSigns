@@ -100,6 +100,24 @@ test('Personnel List discovery includes owned spacesuits and never scans foreign
   assert.equal(rows(h).find(x => x.kind === 'DISCOVERY_END').fields.complete, 'UNVERIFIED');
 });
 
+test('literal values compile without optional lookup syntax and property reads remain guarded', () => {
+  const xml=generateRecorder(config);
+  assert.doesNotMatch(xml, /value="@(?:null\b|')/);
+  assert.match(xml, /name="Value" value="@\$Actor.seed"/);
+  assert.match(xml, /name="Value" value="'CONTEXT_HOST_ROSTER_ASSOCIATION'"/);
+  assert.throws(()=>harness(xml.replace('value="null"','value="@null"')), /requires a property lookup/);
+  assert.throws(()=>harness(xml.replace('value="\'CONTEXT_HOST_ROSTER_ASSOCIATION\'"','value="@\'CONTEXT_HOST_ROSTER_ASSOCIATION\'"')), /requires a property lookup/);
+  const ship=host('ship','SHIP'),station=host('station','STATION'); crew(ship);
+  const h=setup({ships:[ship],stations:[station]}); finish(h);
+  const p=profiles(h);
+  assert.equal(p.find(p=>p.kind==='STATION').fields.manager_seed.state,'NO_ASSIGNED_MANAGER');
+  assert.equal(p.find(p=>p.kind==='SHIP').fields.captain_seed.state,'NO_ASSIGNED_CAPTAIN');
+  const npc=p.find(p=>p.kind==='NPC');
+  assert.equal(npc.fields.assignment_basis.value,'CONTEXT_HOST_ROSTER_ASSOCIATION');
+  assert.equal(npc.fields.assignment_basis.type,'datatype.string');
+  assert.equal(npc.fields.location_basis.value,'HOST_CURRENT_PERSONNEL_ENTRY');
+});
+
 test('Personnel List scalar getters supply pilot, manager and ship trader without component searches', () => {
   const ship = host('ship', 'SHIP'), station = host('station', 'STATION');
   ship.assignedaipilot = actor('pilot', ship); ship.assignedaipilot.controlpost = { name: 'Captain' };

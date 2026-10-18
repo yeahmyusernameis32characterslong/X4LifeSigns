@@ -13,7 +13,9 @@ const write = body => run('Write', {Body:body});
 const notify = text => tag('show_notification', {text:`'Life Signs: ${text}'`,timeout:'5s',priority:'1'});
 const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => {
   if (!/^[a-z0-9_]+$/.test(field)) throw Error('Generated field name must be framing-safe');
-  return iff('not md.$LSPStopped', iff('md.$LSPRemaining gt 0', run('Value',{Field:`'${field}'`,Value:`@${expression}`,Available:available,State:state})) + otherwise(run('Value',{Field:`'${field}'`,Value:'null',Available:'false',State:state})));
+  // @ suppresses unavailable property lookups; it is invalid before literals.
+  const observed = expression === 'null' || expression.startsWith("'") ? expression : `@${expression}`;
+  return iff('not md.$LSPStopped', iff('md.$LSPRemaining gt 0', run('Value',{Field:`'${field}'`,Value:observed,Available:available,State:state})) + otherwise(run('Value',{Field:`'${field}'`,Value:'null',Available:'false',State:state})));
 };
 const missing = (field, state) => value(field,'null','false',`'${state}'`);
 const valid = ref => `typeof ${ref} == datatype.component and ${ref}.exists`;
