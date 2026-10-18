@@ -8,10 +8,13 @@ template counts remain. Derive an NPC code offline from its parenthesised
 debugname value when available; absence leaves it unknown. These fields and
 their reference tables supersede the historical initial plan below.
 
-The same owner request also requires one initial snapshot, no aggregate row cap
-and separate session/load-time log files. That scheduling/output increment is
-pending in this first commit; earlier periodic/cap descriptions remain current
-until the next increment. No deployment or new gameplay is included.
+The collector now takes one initial snapshot per initialized run and never
+reschedules after completion. There is no aggregate raw or diagnostic row cap;
+`periodSeconds` and `maxRowsPerRun` are removed from configuration. Per-profile,
+roster, candidate, host and per-tick limits remain unchanged. Separate
+session/load-time files and reliable load initialization are the next increment.
+No deployment or new gameplay is included. Historical periodic/cap descriptions
+below record earlier versions and are superseded by this section.
 
 ## Authorised implementation task, 2026-10-18
 
@@ -247,7 +250,6 @@ and [NPC](OBJECT_PROFILE_NPCS.md) tables define required reads.
 
 | Configuration | Default | Meaning |
 | --- | ---: | --- |
-| `periodSeconds` | 300 | Wait after a completed collection before the next; no queue or overlap. |
 | `profilesPerTick` | 8 | Maximum station/ship profile/phase work slots per one-second asset tick. |
 | `npcProfilesPerTick` | 2 | Maximum NPC profile/phase work slots per NPC tick. |
 | `npcTickSeconds` | 0.1 | Requested NPC polling interval; asset work retains a one-second gate. |
@@ -256,13 +258,12 @@ and [NPC](OBJECT_PROFILE_NPCS.md) tables define required reads.
 | `profileValueItems` | 16384 | Ceiling per independent profile, not a target; no padding. |
 | `maxCandidates` | 10000 | NPC candidates per collection. |
 | `maxDiscoveryHosts` | 10000 | NPC discovery hosts visited per collection. |
-| `maxRowsPerRun` | 2000000 | Ordinary raw profile-log rows, plus one final MAX_ROWS stop marker. |
 | `heartbeatSeconds` | 60 | Optional observed-counter diagnostic interval. |
 | `diagnostics` | DEBUG | OFF disables optional diagnostics; INFO/DEBUG emit health counters. |
 
 ERROR/WARNING levels currently have no optional messages; discovery failures
-and limits are always raw evidence markers. Separate diagnostic write attempts
-are capped by maxRowsPerRun. Disk writes and native getter errors are not
+and limits are always raw evidence markers. There is no aggregate raw or
+diagnostic row ceiling. Disk writes and native getter errors are not
 confirmed by these counters. The value guard stops terminal value evaluation
 when its budget is exhausted; each new profile starts with a fresh budget.
 
@@ -286,7 +287,8 @@ reader is needed during collection.
 
 Raw records include RUN_BEGIN, SNAPSHOT_BEGIN/END, PASS_BEGIN/END,
 DISCOVERY_BEGIN/END, PROFILE_BEGIN/END, VALUE, explicit discovery/value limits,
-and the final row-cap stop marker. Profile numbers are snapshot-local record
+and explicit interruption markers. No total-row stop marker is generated.
+Profile numbers are snapshot-local record
 identifiers, not permanent object IDs. The offline checker tracks profile IDs,
 pass kinds, unclosed/interrupted batches and explicit partial/limit counts:
 

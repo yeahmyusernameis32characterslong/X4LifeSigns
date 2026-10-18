@@ -189,7 +189,7 @@ test('stale references and missing contextual fields are explicit without pseudo
   const ship = host('ship', 'SHIP'), t = crew(ship); delete ship.people.get(t).name;
   const h = setup({ ships: [ship] }); finish(h);
   assert.equal(profiles(h).find(x => x.kind === 'NPC').fields.name.state, 'UNAVAILABLE');
-  h.call('BeginSnapshot'); ship.exists = false; finish(h);
+  h.call('Initialize'); ship.exists = false; finish(h);
   assert.equal(profiles(h).at(-1).fields.reference.state, 'UNAVAILABLE_REFERENCE');
 });
 
@@ -214,14 +214,15 @@ test('profile budget is fresh per profile and stops getters after exhaustion', (
   assert.equal(p.find(x => x.kind === 'NPC').fields.seed.value, a.seed.toString());
 });
 
-test('readiness polling, bounded progress and completion-based cadence do not overlap snapshots', () => {
+test('readiness polling takes one initial snapshot and never schedules another', () => {
   const h = setup({ stations: [host('station','A')], ships: [host('ship','B')] }, { profilesPerTick: 1, discoveryPerTick: 1 });
   h.call('Tick'); assert.equal(profiles(h).length, 1);
   h.player.age += 1000; finish(h);
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
   h.call('Tick'); assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
-  h.player.age += config.periodSeconds; finish(h);
-  assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_END').length, 2);
+  h.player.age += 86400; finish(h); h.call('BeginSnapshot');
+  assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_END').length, 1);
+  assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
   const waiting = harness(generateRecorder(config)); waiting.player.galaxy = null; waiting.start();
   assert.equal(waiting.output.length, 0);
 });
@@ -302,16 +303,16 @@ test('ownership loss during a resumable host scan closes it without reading more
   assert.ok(profiles(h).filter(p => p.kind === 'NPC').every(p => p.fields.name.state === 'UNAVAILABLE'));
 });
 
-test('row stop at host begin or roster-limit marker prevents subsequent native getters', () => {
-  const ship = host('ship', 'SHIP'); const h = setup({ ships: [ship] }, { maxRowsPerRun: 1000 }); h.call('Tick');
-  h.md.$LSPRows = 1000;
-  Object.defineProperty(ship, 'people', { get() { throw Error('No roster reads after row stop'); } });
-  h.call('Tick'); assert.equal(h.md.$LSPStopped, true);
-  const other = host('ship', 'OTHER'); crew(other, 'a'); crew(other, 'b');
-  const k = setup({ ships: [other] }, { maxRowsPerRun: 1000, personnelPerHost: 1 }); k.call('Tick'); k.md.$LSPRows = 999;
-  Object.defineProperty(other, 'roleentities', { get() { throw Error('No actor reads after row stop'); } });
-  k.call('Tick'); assert.equal(k.md.$LSPStopped, true);
-  assert.equal(k.notifications.some(n => n.text.includes('completed')), false);
+test('raw and diagnostic counters beyond the former ceiling do not stop collection', () => {
+  const ship = host('ship', 'SHIP'); crew(ship);
+  const h = setup({ ships: [ship] });
+  h.md.$LSPRows = 2000000; h.md.$LSPDiagnosticRows = 2000000;
+  h.call('Write', {Body:'TEST', Diagnostic:true});
+  finish(h);
+  assert.equal(h.md.$LSPStopped, false);
+  assert.ok(h.md.$LSPRows > 2000000); assert.equal(h.md.$LSPDiagnosticRows, 2000001);
+  assert.equal(profiles(h).filter(p => p.kind === 'NPC').length, 1);
+  assert.equal(rows(h).some(r => r.kind === 'LIMIT'), false);
 });
 
 test('old persisted discovery state is interrupted before new progress fields are read', () => {
@@ -327,7 +328,7 @@ test('old persisted discovery state is interrupted before new progress fields ar
   assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);
 });
 
-test('ticker notifications bracket the whole snapshot once, including each scheduled snapshot', () => {
+test('ticker notifications bracket the initial snapshot once without periodic repetition', () => {
   const h = setup({}, { profilesPerTick: 1, discoveryPerTick: 1 });
   h.call('Tick');
   assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
@@ -338,8 +339,8 @@ test('ticker notifications bracket the whole snapshot once, including each sched
   assert.equal(rows(h)[h.notifications[1].afterRows - 1].kind, 'SNAPSHOT_END');
   assert.equal(rows(h).filter(r => r.kind === 'PASS_END').length, 3);
   h.call('Tick'); assert.equal(h.notifications.length, 2);
-  h.player.age += config.periodSeconds; finish(h);
-  assert.equal(h.notifications.length, 4);
+  h.player.age += 86400; finish(h);
+  assert.equal(h.notifications.length, 2);
 });
 
 test('finished partial snapshots say partial data and interrupted snapshots never say completed', () => {
@@ -352,16 +353,11 @@ test('finished partial snapshots say partial data and interrupted snapshots neve
   assert.deepEqual(interrupted.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
 });
 
-test('row ceiling at snapshot boundaries suppresses unrecorded start or completion notifications', () => {
-  const start = setup({}, { maxRowsPerRun: 1000 }); start.md.$LSPRows = 1000;
-  start.call('BeginSnapshot');
-  assert.equal(start.md.$LSPStopped, true); assert.deepEqual(start.notifications, []);
-  const end = setup({}, { maxRowsPerRun: 1000 }); end.call('BeginSnapshot');
-  end.md.$LSPPass = 'NPCS'; end.md.$LSPRows = 999; end.call('Advance');
-  assert.equal(end.md.$LSPStopped, true);
-  assert.equal(rows(end).at(-1).kind, 'LIMIT');
-  assert.equal(rows(end).some(r => r.kind === 'SNAPSHOT_END'), false);
-  assert.deepEqual(end.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+test('removed schedule and row-cap configuration are rejected rather than silently used', () => {
+  assert.throws(() => validateConfig({...config, periodSeconds:300}));
+  assert.throws(() => validateConfig({...config, maxRowsPerRun:2000000}));
+  const xml = generateRecorder(config);
+  assert.doesNotMatch(xml, /MAX_ROWS|LSPNextSnapshot/);
 });
 
 test('production session correlation is read-only and optional', () => {
@@ -372,14 +368,14 @@ test('production session correlation is read-only and optional', () => {
   assert.equal(rows(setup())[0].session, 'UNAVAILABLE');
 });
 
-test('raw row cap writes one final stop marker and OFF suppresses diagnostics', () => {
-  const h = setup({ ships: Array.from({ length: 100 }, (_,i) => host('ship',`SHIP-${i}`)) }, { maxRowsPerRun: 1000, diagnostics: 'OFF' });
+test('uncapped collection completes beyond old test thresholds and OFF suppresses diagnostics', () => {
+  const h = setup({ ships: Array.from({ length: 100 }, (_,i) => host('ship',`SHIP-${i}`)) }, { diagnostics: 'OFF' });
   finish(h); h.call('Tick'); h.player.age += 1000; h.call('Tick');
-  const raw = rows(h).filter(x => x.file === 'profiles.log'); assert.equal(raw.length, 1001);
-  assert.equal(raw.at(-1).kind, 'LIMIT'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 1);
+  const raw = rows(h).filter(x => x.file === 'profiles.log'); assert.ok(raw.length > 1000);
+  assert.equal(raw.at(-1).kind, 'SNAPSHOT_END'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 0);
   assert.equal(rows(h).filter(x => x.file === 'profile-diagnostics.log').length, 0);
-  assert.equal(h.md.$LSPStopped, true);
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+  assert.equal(h.md.$LSPStopped, false);
+  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed (partial data).']);
 });
 
 test('text framing preserves reserved characters and rejects malformed rows', () => {

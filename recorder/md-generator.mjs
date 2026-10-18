@@ -19,7 +19,7 @@ const missing = (field, state) => value(field,'null','false',`'${state}'`);
 const valid = ref => `typeof ${ref} == datatype.component and ${ref}.exists`;
 const levels = ['OFF','ERROR','WARNING','INFO','DEBUG'];
 export function validateConfig(c) {
-  const bounds = {periodSeconds:[10,86400],heartbeatSeconds:[10,3600],profilesPerTick:[1,64],npcProfilesPerTick:[1,64],discoveryPerTick:[1,64],personnelPerHost:[1,1024],profileValueItems:[16,16384],maxCandidates:[1,100000],maxDiscoveryHosts:[1,100000],maxRowsPerRun:[1000,10000000]};
+  const bounds = {heartbeatSeconds:[10,3600],profilesPerTick:[1,64],npcProfilesPerTick:[1,64],discoveryPerTick:[1,64],personnelPerHost:[1,1024],profileValueItems:[16,16384],maxCandidates:[1,100000],maxDiscoveryHosts:[1,100000]};
   if (!c || Object.keys(c).sort().join() !== ['diagnostics','npcTickSeconds',...Object.keys(bounds)].sort().join()) throw Error('Unexpected profile configuration keys');
   if (!Number.isFinite(c.npcTickSeconds) || c.npcTickSeconds < 0.05 || c.npcTickSeconds > 1) throw Error('Invalid NPC tick interval');
   if (!levels.includes(c.diagnostics)) throw Error('Invalid diagnostics level');
@@ -34,9 +34,6 @@ export function generateRecorder(config) {
     iff('md.$LSPStopped',ret('false'))+
     set('$Session',"'UNAVAILABLE'")+
     iff('md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?',iff("md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''",set('$Session','md.$LifeSignsProductionSessionKey')))+
-    iff(`not $Diagnostic and md.$LSPRows ge ${c.maxRowsPerRun}L`,
-      set('md.$LSPStopped','true')+tag('debug_to_file',{name:"'profiles.log'",directory:"'lifesigns-event-recorder'",append:'true',text:"'LSEV1|run=%s|session=%s|seq=%s|age=%s|LIMIT|reason=MAX_ROWS|capture_stopped=true|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age]"})+ret('false'))+
-    iff(`$Diagnostic and md.$LSPDiagnosticRows ge ${c.maxRowsPerRun}L`,ret('false'))+
     set('$Line',"'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]")+
     iff('$Diagnostic',add('md.$LSPDiagnosticRows')+tag('debug_to_file',{name:"'profile-diagnostics.log'",directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+
     otherwise(add('md.$LSPRows')+tag('debug_to_file',{name:"'profiles.log'",directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+ret('true'));
@@ -178,7 +175,7 @@ export function generateRecorder(config) {
       otherwise(set('md.$LSPDiscoveryStage',"'ASSIGNED_PILOT'"))+ret('true'))+
     run('AddActor',{Host:'md.$LSPHost',Actor:'@md.$LSPHost.assignedpilot',Origin:"'PILOT_ASSIGNMENT'"})+run('FinishDiscoveryHost')+ret('true'));
   const find=(kind,name,owned)=>tag(`find_${kind}`,{name,space:'player.galaxy',...(owned?{trueowner:'faction.player'}:{}),multiple:'true',...(kind === 'ship' ? {recursive:'true'} : {}),checkoperational:'false'});
-  const begin=lib('BeginSnapshot',{},add('md.$LSPSeq')+set('md.$LSPProfile','0L')+set('md.$LSPSnapshotPartial','false')+set('md.$LSPActive','true')+set('md.$LSPPass',"'STATIONS'")+set('md.$LSPIndex','1')+
+  const begin=lib('BeginSnapshot',{},iff('md.$LSPSnapshotStarted',ret('false'))+set('md.$LSPSnapshotStarted','true')+add('md.$LSPSeq')+set('md.$LSPProfile','0L')+set('md.$LSPSnapshotPartial','false')+set('md.$LSPActive','true')+set('md.$LSPPass',"'STATIONS'")+set('md.$LSPIndex','1')+
     find('station','md.$LSPStations',true)+find('ship','md.$LSPShips',true)+
     write("'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'")+
     iff('not md.$LSPStopped',notify('Snapshot begun.'))+
@@ -195,18 +192,18 @@ export function generateRecorder(config) {
     iff("md.$LSPPass == 'SHIPS'",write("'PASS_END|kind=SHIPS'")+write("'PASS_BEGIN|kind=NPCS'")+startNpc+ret('true'))+
     iff("md.$LSPPass == 'NPCS'",write("'PASS_END|kind=NPCS'")+write("'SNAPSHOT_END|mode=OBJECT_PROFILES|profiles=%s|partial=%s|atomic=false|discovery_complete=UNVERIFIED'.[md.$LSPProfile, md.$LSPSnapshotPartial]")+
       iff('not md.$LSPStopped',iff('md.$LSPSnapshotPartial',notify('Snapshot completed (partial data).'))+otherwise(notify('Snapshot completed.')))+
-      set('md.$LSPActive','false')+set('md.$LSPNextSnapshot',`player.age + ${c.periodSeconds}s`)+
+      set('md.$LSPActive','false')+
       ['Stations','Ships','Hosts','Candidates'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+set('md.$LSPActors','table[]')+set('md.$LSPContexts','table[]')+ret('true'))+ret('false'));
   const initialize=lib('Initialize',{Reason:"'CLOCK_REGRESSION'"},
     iff('md.$LSPReady? and md.$LSPReady',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=%s'.[$Reason]")))+
     set('md.$LSPReady','false')+set('$Nonce','0')+tag('set_value',{name:'$Nonce',min:'0',max:'2147483647'})+
     set('md.$LSPRun',"'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]")+
     ['Seq','Rows','DiagnosticRows','Profile'].map(k=>set(`md.$LSP${k}`,'0L')).join('')+set('md.$LSPStopped','false')+set('md.$LSPActive','false')+set('md.$LSPLevel',String(levels.indexOf(c.diagnostics)))+
-    set('md.$LSPLastAge','player.age')+set('md.$LSPNextSnapshot','player.age')+set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+set('md.$LSPReady','true')+
+    set('md.$LSPLastAge','player.age')+set('md.$LSPSnapshotStarted','false')+set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+set('md.$LSPReady','true')+
     set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
     set('md.$LSPPersonnelVersion','2')+set('md.$LSPNextAssetTick','player.age')+
     set('md.$LSPDiscoveryStage',"'HOST'")+set('md.$LSPEntry','1')+set('md.$LSPTypeEscapes','table[]')+
-    write(`'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=${c.maxRowsPerRun}|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'`)+ret('true'));
+    write("'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'")+ret('true'));
   const tick=lib('Tick',{},
     iff('not md.$LSPReady',ret('false'))+
     iff('not md.$LSPPersonnelVersion?',run('Initialize',{Reason:"'PERSONNEL_COLLECTOR_UPDATE'"})+ret('true'))+
@@ -215,7 +212,8 @@ export function generateRecorder(config) {
     iff('md.$LSPStopped',ret('false'))+
     iff("(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick",ret('false'))+
     iff("not md.$LSPActive or md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
-    iff('not md.$LSPActive and player.age ge md.$LSPNextSnapshot',run('BeginSnapshot'))+
+    iff('not md.$LSPSnapshotStarted',run('BeginSnapshot'))+
+    iff('not md.$LSPActive',ret('true'))+
     iff("md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone",
       tag('do_all',{exact:String(c.discoveryPerTick)},iff('md.$LSPStopped or md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit',tag('break'))+
         run('DiscoveryStep'))+

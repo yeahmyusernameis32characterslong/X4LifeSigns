@@ -64,14 +64,6 @@
 <set_value name="$Session" exact="md.$LifeSignsProductionSessionKey" />
 </do_if>
 </do_if>
-<do_if value="not $Diagnostic and md.$LSPRows ge 2000000L">
-<set_value name="md.$LSPStopped" exact="true" />
-<debug_to_file name="'profiles.log'" directory="'lifesigns-event-recorder'" append="true" text="'LSEV1|run=%s|session=%s|seq=%s|age=%s|LIMIT|reason=MAX_ROWS|capture_stopped=true|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age]" />
-<return value="false" />
-</do_if>
-<do_if value="$Diagnostic and md.$LSPDiagnosticRows ge 2000000L">
-<return value="false" />
-</do_if>
 <set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]" />
 <do_if value="$Diagnostic">
 <set_value name="md.$LSPDiagnosticRows" exact="1L" operation="add" />
@@ -2726,6 +2718,10 @@
 <params>
 </params>
 <actions>
+<do_if value="md.$LSPSnapshotStarted">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPSnapshotStarted" exact="true" />
 <set_value name="md.$LSPSeq" exact="1L" operation="add" />
 <set_value name="md.$LSPProfile" exact="0L" />
 <set_value name="md.$LSPSnapshotPartial" exact="false" />
@@ -2815,7 +2811,6 @@
 </do_else>
 </do_if>
 <set_value name="md.$LSPActive" exact="false" />
-<set_value name="md.$LSPNextSnapshot" exact="player.age + 300s" />
 <set_value name="md.$LSPStations" exact="[]" />
 <set_value name="md.$LSPShips" exact="[]" />
 <set_value name="md.$LSPHosts" exact="[]" />
@@ -2851,7 +2846,7 @@
 <set_value name="md.$LSPActive" exact="false" />
 <set_value name="md.$LSPLevel" exact="4" />
 <set_value name="md.$LSPLastAge" exact="player.age" />
-<set_value name="md.$LSPNextSnapshot" exact="player.age" />
+<set_value name="md.$LSPSnapshotStarted" exact="false" />
 <set_value name="md.$LSPNextHeartbeat" exact="player.age + 60s" />
 <set_value name="md.$LSPReady" exact="true" />
 <set_value name="md.$LSPPass" exact="'IDLE'" />
@@ -2866,7 +2861,7 @@
 <set_value name="md.$LSPEntry" exact="1" />
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=2000000|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'" />
 </run_actions>
 <return value="true" />
 </actions>
@@ -2905,9 +2900,12 @@
 <do_if value="not md.$LSPActive or md.$LSPPass != 'NPCS'">
 <set_value name="md.$LSPNextAssetTick" exact="player.age + 1s" />
 </do_if>
-<do_if value="not md.$LSPActive and player.age ge md.$LSPNextSnapshot">
+<do_if value="not md.$LSPSnapshotStarted">
 <run_actions ref="BeginSnapshot">
 </run_actions>
+</do_if>
+<do_if value="not md.$LSPActive">
+<return value="true" />
 </do_if>
 <do_if value="md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone">
 <do_all exact="8">
