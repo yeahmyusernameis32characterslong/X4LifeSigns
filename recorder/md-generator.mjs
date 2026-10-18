@@ -213,8 +213,8 @@ export function generateRecorder(config) {
     iff('md.$LSPPersonnelVersion != 2',run('Initialize',{Reason:"'PERSONNEL_COLLECTOR_UPDATE'"})+ret('true'))+
     iff('player.age lt md.$LSPLastAge',run('Initialize')+ret('false'))+set('md.$LSPLastAge','player.age')+
     iff('md.$LSPStopped',ret('false'))+
-    iff("md.$LSPPass != 'NPCS' and player.age lt md.$LSPNextAssetTick",ret('false'))+
-    iff("md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
+    iff("(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick",ret('false'))+
+    iff("not md.$LSPActive or md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
     iff('not md.$LSPActive and player.age ge md.$LSPNextSnapshot',run('BeginSnapshot'))+
     iff("md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone",
       tag('do_all',{exact:String(c.discoveryPerTick)},iff('md.$LSPStopped or md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit',tag('break'))+

@@ -282,6 +282,10 @@ test('asset cadence stays one second while NPC polling requests the finer interv
   h.player.age += 1; h.call('Tick'); assert.ok(profiles(h).length > count);
   const cue = h.tree.children[0].children.find(n => n.tag === 'cues').children.find(n => n.attrs.name === 'Bootstrap').children.find(n => n.tag === 'cues').children[0];
   assert.equal(cue.attrs.checkinterval, `${config.npcTickSeconds}s`);
+  finish(h); h.call('Tick');
+  const idleGate = h.md.$LSPNextAssetTick;
+  assert.ok(idleGate >= h.player.age + 0.99);
+  h.player.age += config.npcTickSeconds; h.call('Tick'); assert.equal(h.md.$LSPNextAssetTick, idleGate);
   assert.throws(() => validateConfig({ ...config, npcTickSeconds: 0 }));
   assert.throws(() => validateConfig({ ...config, npcProfilesPerTick: 0 }));
 });

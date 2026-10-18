@@ -2953,10 +2953,10 @@
 <do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
-<do_if value="md.$LSPPass != 'NPCS' and player.age lt md.$LSPNextAssetTick">
+<do_if value="(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick">
 <return value="false" />
 </do_if>
-<do_if value="md.$LSPPass != 'NPCS'">
+<do_if value="not md.$LSPActive or md.$LSPPass != 'NPCS'">
 <set_value name="md.$LSPNextAssetTick" exact="player.age + 1s" />
 </do_if>
 <do_if value="not md.$LSPActive and player.age ge md.$LSPNextSnapshot">
