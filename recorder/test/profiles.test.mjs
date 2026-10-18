@@ -75,11 +75,14 @@ test('station then ship then independent NPC profiles collect identities without
   assert.equal(captainProfile.fields.idcode.state, 'UNAVAILABLE');
   assert.equal(captainProfile.fields.debugname.value, captain.debugname);
   assert.equal(captainProfile.fields.contextual_seed.state, 'NO_CONTEXT_ENTRY');
+  assert.equal(captainProfile.fields.assigned_ship_idcode.value, 'SHIP-1');
   const cp = p.find(x => x.fields.discovery_origin?.value === 'OWNED_HOST_PERSONNEL');
   assert.equal(cp.fields.name.value, 'Synthetic crew'); assert.equal(cp.fields.race.value, 'Synthetic race');
   assert.equal(cp.fields.contextual_macro.state, 'PRESENT'); assert.equal(cp.fields.role_name.value, 'Crewman');
   assert.equal(cp.fields.sector_name.value, 'Synthetic sector');
   assert.equal(cp.fields.location_basis.value, 'HOST_CURRENT_PERSONNEL_ENTRY');
+  assert.equal(cp.fields.assigned_ship_idcode.value, 'SHIP-1');
+  assert.equal(cp.fields.assignment_basis.value, 'CONTEXT_HOST_ROSTER_ASSOCIATION');
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_END').length, 1);
 });
 
@@ -109,6 +112,17 @@ test('same template text in distinct hosts does not collapse context identities'
   b.people.set(t, a.people.get(t)); b.people.list.push(t); b.availablepeople.set(t, a.people.get(t));
   const h = setup({ ships: [a,b] }); finish(h);
   assert.equal(profiles(h).filter(x => x.kind === 'NPC').length, 2);
+});
+
+test('conflicting actor assignment evidence is preserved instead of choosing a ship', () => {
+  const home = host('ship', 'HOME'), other = host('ship', 'OTHER');
+  const a = actor('conflicted-actor', home, { name: 'Crewman' }); a.assignedcontrolled = other; home.componentNpcs = [a];
+  const h = setup({ ships: [home, other] }); finish(h);
+  const p = profiles(h).find(x => x.kind === 'NPC');
+  assert.equal(p.fields.role_ship_idcode.value, 'HOME'); assert.equal(p.fields.controlled_ship_idcode.value, 'OTHER');
+  assert.equal(p.fields.assigned_ship_idcode.state, 'AMBIGUOUS_ASSIGNMENT');
+  assert.equal(p.fields.assignment_basis.value, 'CONFLICTING_ACTOR_RELATIONSHIPS');
+  assert.equal(p.end.fields.partial, 'true');
 });
 
 test('context transit does not assert host sector as actual NPC location', () => {
@@ -165,6 +179,14 @@ test('clock regression explicitly interrupts active snapshot and starts a new ru
   h.player.age = 0; h.call('Tick');
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_INTERRUPTED').length, 1);
   assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN').length, 2);
+});
+
+test('production session correlation is read-only and optional', () => {
+  const h = setup(); h.md.$LifeSignsProductionSessionKey = 'synthetic-session'; h.md.$LifeSignsProductionSessionReady = true;
+  finish(h);
+  assert.equal(rows(h).find(x => x.kind === 'SNAPSHOT_BEGIN').session, 'synthetic-session');
+  assert.equal(h.md.$LifeSignsProductionSessionKey, 'synthetic-session');
+  assert.equal(rows(setup())[0].session, 'UNAVAILABLE');
 });
 
 test('raw row cap writes one final stop marker and OFF suppresses diagnostics', () => {

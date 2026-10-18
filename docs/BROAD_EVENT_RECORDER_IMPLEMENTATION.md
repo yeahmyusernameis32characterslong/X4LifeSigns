@@ -1,5 +1,12 @@
 # Broad native recorder implementation
 
+> **Historical implementation below.** The owner's 2026-10-18 instruction
+> replaces this draft branch's experimental collector with a snapshot-only
+> [independent object profile collector](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md).
+> That implementation has zero event listeners, including lifecycle/UI
+> listeners. Earlier event settings, tests and deployment statements below
+> describe previous revisions; they do not describe the current source.
+
 Baseline: owner-approved PR #18 commit
 `6553cf973430ba533ba9f66b42d10d83c53981ba`, reconciled with the latest
 snapshot requirements at `ac3553836614f968d90ea9067baacf3c50744b3f`.

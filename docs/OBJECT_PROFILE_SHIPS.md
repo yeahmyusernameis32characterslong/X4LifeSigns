@@ -1,10 +1,11 @@
 # Ship object profile reference
 
-Updated: 2026-10-18. **Planned collection design; documented reads checked
-against X4 9.00, native results not yet verified for the proposed tool.**
+Updated: 2026-10-18. **Implemented in the snapshot-only collector with
+automated/static checks; native results and coverage remain unverified.**
 Recorder baseline inspected: `63de14d5631e61d4ec691c0e13f59ac1c1fa7178`.
 This living reference defines requested fields and current collection candidates.
-It is not a database schema or a claim that the existing recorder collects them.
+It is not a database schema. See the [collector implementation](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md)
+for the output fields, current checks and remaining native gates.
 
 ## Collection model
 
@@ -79,6 +80,6 @@ the actual definitions. Vendor files and raw model/log evidence remain local.
 - X4 9.00 `libraries/common.xsd` SHA256:
   `8eec878511d06dd2be88a7054eb54556b29e481bf0feba20fe2cf3c6eabd3452`.
 
-The [current recorder](BROAD_EVENT_RECORDER_IMPLEMENTATION.md) is unchanged.
-These are reference requirements for a newer tool, not implementation or native
-acceptance, and do not alter existing database contracts.
+The [profile collector](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md) implements
+these reads with explicit uncertainty for inclusive personnel count. Native
+acceptance and existing database contracts are unaffected by the source checks.

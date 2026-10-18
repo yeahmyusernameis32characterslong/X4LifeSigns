@@ -37,7 +37,167 @@ Scope is the experimental optional collector only. No production bridge,
 database, deployment scripts, installed extensions or logs change. No deployment,
 X4 launch, gameplay test or merge is authorised by this implementation request.
 
-## Status
+## Status and delivery
 
-In progress. Source-supported discovery and lifecycle limitations are being
-verified with Qwen before their implementation. This plan is not runtime proof.
+**Implemented, native behaviour unverified.** Plan commit `846d9ae`; first
+implementation/checkpoint `cebb4cb`, followed by the documentation and final
+relationship/session checks. PR19 remains draft and unmerged. This replaces
+the experimental event recorder in the source tree. The previously deployed
+recorder is unchanged; this version has not been deployed or tested in X4.
+
+The generated MD contains **zero event conditions**: no gameplay, lifecycle,
+UI, hotkey or NPC-creation listener. The former event catalogue and its obsolete
+event-specific tests were removed; Git history preserves that implementation.
+The existing package/build/optional-extension paths are retained for tooling
+continuity. The extension display name is now Life Signs Object Profile Collector.
+
+## Collection sequence
+
+Polling bootstrap waits for `player.entity.exists` and `player.galaxy`. It
+initialises a recorder-local run and schedules an initial collection. Polling
+ticks then perform ordered work:
+
+1. Enumerate player-true-owned stations and emit station profiles.
+2. Enumerate player-true-owned ships and emit ship profiles.
+3. Independently discover NPC candidates, then emit NPC profiles. No station or
+   ship profile contains nested personnel profiles.
+
+NPC discovery uses all enumerated ship/station hosts, including non-player
+hosts, as search contexts. `find_object_component` searches for player-true-owned
+NPC components; returned actors are also checked for actual component existence,
+NPC class and player ownership. Assigned control entities/pilots supplement
+the search. Spacesuit is a documented ship subtype, so it is a discovery-host
+candidate; actual search coverage must still be checked in X4.
+
+For player-owned hosts, contextual personnel lists supply candidates with
+host/template provenance. This is explicitly an **owned-host proxy**, not proof
+that every contextual entry has independently verified NPC ownership. Actor
+aliases are merged by actual component equality. A contextual entry and actor
+merge only by exact host/template association. Equal seeds or names do not
+merge profiles. Template lookup never stores a pseudo-entry or forces an actor.
+
+Discovery has bounded host/candidate/detail traversal and explicit limit/gap
+markers. The engine searches themselves can return large lists before traversal
+limits apply; this is not a native performance or memory bound. There is no
+verified global NPC registry, and NPCs outside the enumerated host graph may be
+missed. Every collection records `discovery_complete=UNVERIFIED`, even without
+limit markers. The collector does not claim comprehensive NPC enumeration.
+
+## Profile fields and evidence states
+
+The living [station](OBJECT_PROFILE_STATIONS.md), [ship](OBJECT_PROFILE_SHIPS.md)
+and [NPC](OBJECT_PROFILE_NPCS.md) tables define required reads.
+
+- Station profiles include seed/idcode/name, purpose/model labels, sector name
+  and manager seed/reference. No manager-idcode field is generated.
+- Ship profiles include seed/idcode/name/model/sector, captain/pilot seeds and
+  references, commander idcode/class and fleet assignment value/name. No captain
+  or pilot idcode field is generated.
+- Inclusive `personnel_onboard` is explicitly UNVERIFIED. Separate currently
+  onboard and assigned template counts are collected without asserting that
+  adding actors/captain would produce a correct total.
+- NPC profiles read actor seed/name/race/sector, role/post, assignment references,
+  attempted idcode and raw debugname. Contextual entries read seed/name/race/macro,
+  role and transfer/temporary flags. When both representations match, additional
+  `contextual_*` fields retain their distinct values.
+- `assigned_ship_idcode` uses actor role/control relationships, with the source
+  recorded in `assignment_basis`. Conflicting ship relationships produce
+  AMBIGUOUS_ASSIGNMENT and preserve both underlying ship codes. Contextual-only
+  profiles label their candidate relationship CONTEXT_HOST_ROSTER_ASSOCIATION.
+  Manager/station assignment is not silently converted into ship assignment.
+- Contextual location is host-derived only with a current onboard entry and no
+  observed transit. Otherwise sector is UNVERIFIED. Current container is not
+  substituted for assigned ship.
+- States distinguish PRESENT, NULL, UNAVAILABLE, UNAVAILABLE_REFERENCE,
+  UNVERIFIED, missing assignments and representation-specific absence. Missing
+  requested reads and uncertainty mark profiles partial. No captured actor is
+  not proof X4 lacks an actor or generated information.
+- IDs/seeds are engine-rendered text, with type and ENGINE_TEXT_UNVERIFIED
+  provenance. No JavaScript numeric conversion is used for native values. Actual
+  native rendering and identity lifetime still need verification.
+
+## Scheduling, limits and persistence
+
+| Configuration | Default | Meaning |
+| --- | ---: | --- |
+| `periodSeconds` | 300 | Wait after a completed collection before the next; no queue or overlap. |
+| `profilesPerTick` | 8 | Maximum profile/phase work slots per polling tick. |
+| `discoveryPerTick` | 8 | Maximum NPC discovery hosts per tick. |
+| `personnelPerHost` | 500 | Separate contextual, actor-result and control-post traversal ceilings. |
+| `profileValueItems` | 16384 | Ceiling per independent profile, not a target; no padding. |
+| `maxCandidates` | 10000 | NPC candidates per collection. |
+| `maxDiscoveryHosts` | 10000 | NPC discovery hosts visited per collection. |
+| `maxRowsPerRun` | 2000000 | Ordinary raw profile-log rows, plus one final MAX_ROWS stop marker. |
+| `heartbeatSeconds` | 60 | Optional observed-counter diagnostic interval. |
+| `diagnostics` | DEBUG | OFF disables optional diagnostics; INFO/DEBUG emit health counters. |
+
+ERROR/WARNING levels currently have no optional messages; discovery failures
+and limits are always raw evidence markers. Separate diagnostic write attempts
+are capped by maxRowsPerRun. Disk writes and native getter errors are not
+confirmed by these counters. The value guard stops terminal value evaluation
+when its budget is exhausted; each new profile starts with a fresh budget.
+
+With no lifecycle events, this version cannot guarantee a new run or an initial
+snapshot on every save load. Saved polling state, progress, counters and schedule
+may resume; replay/duplicate history is possible. Observed game-clock regression
+interrupts the active snapshot and reinitialises the run, but is not a complete
+load detector. Old recorder cue restoration/migration and removal of saved
+event subscriptions have not been tested. A later approved deployment/native
+test must establish these behaviours; source listener count is not proof about
+restored engine state. No permanent identity or save compatibility is claimed.
+
+## Output and offline inspection
+
+Native output requires the owner's `-scriptlogfiles` prerequisite. New files in
+the native `lifesigns-event-recorder` output directory are `profiles.log` and
+`profile-diagnostics.log`; old event/diagnostic files are not rewritten.
+LSEV1 framing is retained, with run, optional read-only production-session
+correlation (otherwise UNAVAILABLE), snapshot sequence and game age. No Node
+reader is needed during collection.
+
+Raw records include RUN_BEGIN, SNAPSHOT_BEGIN/END, PASS_BEGIN/END,
+DISCOVERY_BEGIN/END, PROFILE_BEGIN/END, VALUE, explicit discovery/value limits,
+and the final row-cap stop marker. Profile numbers are snapshot-local record
+identifiers, not permanent object IDs. The offline checker tracks profile IDs,
+pass kinds, unclosed/interrupted batches and explicit partial/limit counts:
+
+```powershell
+node recorder/check-log.mjs --profiles <preserved-profiles.log>
+```
+
+The historical `--events` input alias and legacy batch parsing remain available
+for preserved old captures; they do not enable native event listeners.
+
+## Source support and verification
+
+Installed X4 9.00 references: `common.xsd:27987-28017` documents component
+search and its host context; `28349` and `28405` define ship/station searches;
+`scriptproperties.xml:841` defines spacesuit as a ship; `315,358,377` define
+assigned control entities, control posts and contextual personnel. Field/type
+citations and pinned hashes remain in the profile references.
+
+Qwen researched discovery; Codex verified the relevant schema definitions and
+dependencies. Rejected draft claims that trueowner on component search filters
+the host, that future periodic scans cannot see newly added NPCs, and that
+spacesuit inheritance was unsupported. The first tool conversation ended
+without a conclusion; a focused follow-up reused its evidence. No new grant.
+
+Checks on Windows / Node.js v24.21.0:
+
+```powershell
+node scripts/build-event-recorder.mjs
+node --test recorder/test/*.test.mjs
+npm test --prefix bridge
+powershell -NoProfile -File scripts/validate-event-recorder.ps1 -SchemaDirectory <X4-9.00-libraries>
+git diff --check
+```
+
+Generated-action/offline tests, 112 bridge regressions and pinned installed
+schema validation passed. Schema validation explicitly rejects every event
+condition and NPC creation action. Tests cover ordered independent profiles,
+missing fields, exact large text seeds, aliases, foreign-host/spacesuit candidates,
+assignment ambiguity, transit location, stale references, budgets, limits,
+cadence, clock regression, framing and optional session correlation.
+These are synthetic/static results, not native getter, scheduling, completeness,
+save/load, performance or crash-resolution proof. Both installed optional
+recorder files still match the prior deployment receipt. Nothing was deployed.

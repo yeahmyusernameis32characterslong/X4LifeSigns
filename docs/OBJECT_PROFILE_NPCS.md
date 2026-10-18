@@ -1,10 +1,11 @@
 # NPC object profile reference
 
-Updated: 2026-10-18. **Planned collection design; documented reads checked
-against X4 9.00, native results not yet verified for the proposed tool.**
+Updated: 2026-10-18. **Implemented in the snapshot-only collector with
+automated/static checks; native results and coverage remain unverified.**
 Recorder baseline inspected: `63de14d5631e61d4ec691c0e13f59ac1c1fa7178`.
 This living reference defines requested fields and current collection candidates.
-It is not a database schema or a claim that the existing recorder collects them.
+It is not a database schema. See the [collector implementation](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md)
+for the output fields, current checks and remaining native gates.
 
 ## Collection model
 
@@ -16,7 +17,7 @@ and how to build its profile. Complete independent NPC discovery remains open,
 including NPCs outside ships/stations and those associated with spacesuits.
 
 Do not infer engine non-instantiation, missing generated identity information or
-role-based exclusion from an incomplete recorder. The existing recorder omits
+role-based exclusion from an incomplete recorder. The former recorder omitted
 documented contextual name/macro/race fields and direct actor seed. A missing
 field can mean unrequested, unavailable, unsupported, NULL or a failed read;
 these must remain distinct observations.
@@ -101,5 +102,6 @@ local and are not published here.
   `1b641b638c8892284bbf5943f9ed283e0adf79f696341a2f00a2361f16485a8f`.
 
 Add/correct fields, evidence and verification status here as research proceeds.
-The [current recorder](BROAD_EVENT_RECORDER_IMPLEMENTATION.md) is unchanged;
-this document guides a newer tool and does not authorise deployment or a test.
+The [snapshot-only collector](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md) now
+requests these fields. This source implementation does not establish native
+getter success or authorise deployment or a test.

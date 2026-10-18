@@ -58,15 +58,21 @@
 <do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
+<set_value name="$Session" exact="'UNAVAILABLE'" />
+<do_if value="md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?">
+<do_if value="md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''">
+<set_value name="$Session" exact="md.$LifeSignsProductionSessionKey" />
+</do_if>
+</do_if>
 <do_if value="not $Diagnostic and md.$LSPRows ge 2000000L">
 <set_value name="md.$LSPStopped" exact="true" />
-<debug_to_file name="'profiles.log'" directory="'lifesigns-event-recorder'" append="true" text="'LSEV1|run=%s|session=UNAVAILABLE|seq=%s|age=%s|LIMIT|reason=MAX_ROWS|capture_stopped=true|END'.[md.$LSPRun, md.$LSPSeq, player.age]" />
+<debug_to_file name="'profiles.log'" directory="'lifesigns-event-recorder'" append="true" text="'LSEV1|run=%s|session=%s|seq=%s|age=%s|LIMIT|reason=MAX_ROWS|capture_stopped=true|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age]" />
 <return value="false" />
 </do_if>
 <do_if value="$Diagnostic and md.$LSPDiagnosticRows ge 2000000L">
 <return value="false" />
 </do_if>
-<set_value name="$Line" exact="'LSEV1|run=%s|session=UNAVAILABLE|seq=%s|age=%s|%s|END'.[md.$LSPRun, md.$LSPSeq, player.age, $Body]" />
+<set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]" />
 <do_if value="$Diagnostic">
 <set_value name="md.$LSPDiagnosticRows" exact="1L" operation="add" />
 <debug_to_file name="'profile-diagnostics.log'" directory="'lifesigns-event-recorder'" append="true" text="$Line" />

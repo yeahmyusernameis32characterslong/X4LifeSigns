@@ -27,10 +27,12 @@ export function generateRecorder(config) {
   const writer=lib('Write',{Body:null,Diagnostic:'false'},
     iff('$Diagnostic and md.$LSPLevel == 0',ret('false'))+
     iff('md.$LSPStopped',ret('false'))+
+    set('$Session',"'UNAVAILABLE'")+
+    iff('md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?',iff("md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''",set('$Session','md.$LifeSignsProductionSessionKey')))+
     iff(`not $Diagnostic and md.$LSPRows ge ${c.maxRowsPerRun}L`,
-      set('md.$LSPStopped','true')+tag('debug_to_file',{name:"'profiles.log'",directory:"'lifesigns-event-recorder'",append:'true',text:"'LSEV1|run=%s|session=UNAVAILABLE|seq=%s|age=%s|LIMIT|reason=MAX_ROWS|capture_stopped=true|END'.[md.$LSPRun, md.$LSPSeq, player.age]"})+ret('false'))+
+      set('md.$LSPStopped','true')+tag('debug_to_file',{name:"'profiles.log'",directory:"'lifesigns-event-recorder'",append:'true',text:"'LSEV1|run=%s|session=%s|seq=%s|age=%s|LIMIT|reason=MAX_ROWS|capture_stopped=true|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age]"})+ret('false'))+
     iff(`$Diagnostic and md.$LSPDiagnosticRows ge ${c.maxRowsPerRun}L`,ret('false'))+
-    set('$Line',"'LSEV1|run=%s|session=UNAVAILABLE|seq=%s|age=%s|%s|END'.[md.$LSPRun, md.$LSPSeq, player.age, $Body]")+
+    set('$Line',"'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]")+
     iff('$Diagnostic',add('md.$LSPDiagnosticRows')+tag('debug_to_file',{name:"'profile-diagnostics.log'",directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+
     otherwise(add('md.$LSPRows')+tag('debug_to_file',{name:"'profiles.log'",directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+ret('true'));
   const val=lib('Value',{Field:null,Value:null,Available:'true',State:"'AUTO'"},
