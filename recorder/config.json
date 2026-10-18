@@ -3,6 +3,8 @@
   "periodSeconds": 300,
   "heartbeatSeconds": 60,
   "profilesPerTick": 8,
+  "npcProfilesPerTick": 2,
+  "npcTickSeconds": 0.1,
   "discoveryPerTick": 8,
   "personnelPerHost": 500,
   "profileValueItems": 16384,

@@ -27,7 +27,7 @@ function crew(home, ref = 'template-1', role = 'Crewman') {
 }
 function setup(env = {}, overrides = {}) { const h = harness(generateRecorder({ ...config, ...overrides }), env); h.start(); return h; }
 const rows = h => h.output.map(o => ({ file: o.name, ...parseRecord(o.line) }));
-function finish(h) { for (let i = 0; i < 2000; i++) { h.call('Tick'); if (!h.md.$LSPActive || h.md.$LSPStopped) return; } throw Error('Snapshot failed to finish'); }
+function finish(h) { for (let i = 0; i < 10000; i++) { h.player.age += config.npcTickSeconds; h.call('Tick'); if (!h.md.$LSPActive || h.md.$LSPStopped) return; } throw Error('Snapshot failed to finish'); }
 function profiles(h) {
   const records = rows(h), result = []; let current;
   for (const r of records) {
@@ -115,11 +115,13 @@ test('NPC profiles stream before the personnel inventory finishes and progress d
   const ships = Array.from({ length: 4 }, (_, i) => host('ship', `SHIP-${i}`));
   crew(ships[0], 'crew', 'Crewman'); crew(ships[2], 'marine', 'Marine');
   const h = setup({ ships }, { discoveryPerTick: 1, profilesPerTick: 64 });
-  h.call('Tick'); h.call('Tick');
+  h.call('Tick');
+  for (let i = 0; i < 100 && profiles(h).filter(p => p.kind === 'NPC').length === 0; i++) { h.player.age += config.npcTickSeconds; h.call('Tick'); }
   assert.equal(profiles(h).filter(p => p.kind === 'NPC').length, 1);
   assert.equal(rows(h).some(r => r.kind === 'DISCOVERY_END'), false);
   assert.equal(rows(h).some(r => r.kind === 'SNAPSHOT_END'), false);
   assert.equal(h.notifications.length, 1);
+  for (let i = 0; i < 100 && h.md.$LSPHostsVisited < 2; i++) { h.player.age += config.npcTickSeconds; h.call('Tick'); }
   h.player.age += config.heartbeatSeconds; h.call('Tick');
   const empty = rows(h).find(r => r.kind === 'DISCOVERY_HOST' && r.fields.host_reference === 'SHIP-1' && r.fields.state === 'END');
   assert.equal(empty.fields.templates_found, '0'); assert.equal(empty.fields.candidates_added, '0');
@@ -243,6 +245,7 @@ test('contextual scalar aliases reuse one observation without changing fields or
   assert.equal(p.fields.macro.value, p.fields.contextual_macro.value);
   assert.equal(p.fields.seed.type, 'datatype.largeint');
   assert.ok(h.md.$LSPTypeEscapes.size > 0);
+  assert.equal(h.callCounts.Escape, rows(h).filter(r => r.kind === 'VALUE').length + h.md.$LSPTypeEscapes.size);
   const missingShip = host('ship', 'MISSING'), missingTemplate = crew(missingShip);
   delete missingShip.people.get(missingTemplate).name;
   const m = setup({ ships: [missingShip] }); finish(m);
@@ -250,14 +253,70 @@ test('contextual scalar aliases reuse one observation without changing fields or
   assert.equal(mp.fields.name.state, 'UNAVAILABLE'); assert.equal(mp.fields.contextual_name.state, 'UNAVAILABLE');
 });
 
+test('discovery cursor bounds entries and holds profiles until host aliases are collected', () => {
+  const ship = host('ship', 'SHIP'); const templates = Array.from({ length: 64 }, (_, i) => crew(ship, `crew-${i}`));
+  const a = actor('last-actor', ship); a.npctemplate = templates.at(-1); ship.roleentities = [a];
+  const h = setup({ ships: [ship] }); h.call('Tick'); h.call('Tick');
+  assert.ok(h.md.$LSPCandidates.length <= config.discoveryPerTick);
+  assert.equal(profiles(h).filter(p => p.kind === 'NPC').length, 0);
+  let pending = true;
+  for (let i = 0; i < 1000 && pending; i++) {
+    const before = h.md.$LSPCandidates.length, emitted = h.md.$LSPNpcProfiles;
+    const steps = h.callCounts.DiscoveryStep || 0;
+    h.player.age += config.npcTickSeconds; h.call('Tick');
+    assert.ok((h.callCounts.DiscoveryStep || 0) - steps <= config.discoveryPerTick);
+    assert.ok(h.md.$LSPNpcProfiles - emitted <= config.npcProfilesPerTick);
+    if (!h.md.$LSPDiscoveryDone) assert.ok(h.md.$LSPCandidates.length - before <= config.discoveryPerTick);
+    pending = h.md.$LSPActive;
+  }
+  assert.equal(pending, false);
+  const npcs = profiles(h).filter(p => p.kind === 'NPC'); assert.equal(npcs.length, 64);
+  const last = npcs.find(p => p.fields.actor_reference.value === a.ref);
+  assert.equal(last.fields.discovery_origin.value, 'CONTEXT_AND_ACTOR');
+});
+
+test('asset cadence stays one second while NPC polling requests the finer interval', () => {
+  const h = setup({ ships: Array.from({ length: 12 }, (_, i) => host('ship', `SHIP-${i}`)) });
+  h.call('Tick'); const count = profiles(h).length;
+  h.player.age += config.npcTickSeconds; h.call('Tick'); assert.equal(profiles(h).length, count);
+  h.player.age += 1; h.call('Tick'); assert.ok(profiles(h).length > count);
+  const cue = h.tree.children[0].children.find(n => n.tag === 'cues').children.find(n => n.attrs.name === 'Bootstrap').children.find(n => n.tag === 'cues').children[0];
+  assert.equal(cue.attrs.checkinterval, `${config.npcTickSeconds}s`);
+  assert.throws(() => validateConfig({ ...config, npcTickSeconds: 0 }));
+  assert.throws(() => validateConfig({ ...config, npcProfilesPerTick: 0 }));
+});
+
+test('ownership loss during a resumable host scan closes it without reading more personnel', () => {
+  const ship = host('ship', 'SHIP'); for (let i = 0; i < 32; i++) crew(ship, `crew-${i}`);
+  const h = setup({ ships: [ship] }); h.call('Tick'); h.call('Tick');
+  assert.equal(h.md.$LSPDiscoveryStage, 'PEOPLE');
+  ship.isplayerowned = false;
+  Object.defineProperty(ship, 'people', { get() { throw Error('No roster access after ownership loss'); } });
+  finish(h);
+  assert.equal(rows(h).find(r => r.kind === 'DISCOVERY_END').fields.hosts_skipped, '1');
+  assert.ok(profiles(h).filter(p => p.kind === 'NPC').every(p => p.fields.name.state === 'UNAVAILABLE'));
+});
+
+test('row stop at host begin or roster-limit marker prevents subsequent native getters', () => {
+  const ship = host('ship', 'SHIP'); const h = setup({ ships: [ship] }, { maxRowsPerRun: 1000 }); h.call('Tick');
+  h.md.$LSPRows = 1000;
+  Object.defineProperty(ship, 'people', { get() { throw Error('No roster reads after row stop'); } });
+  h.call('Tick'); assert.equal(h.md.$LSPStopped, true);
+  const other = host('ship', 'OTHER'); crew(other, 'a'); crew(other, 'b');
+  const k = setup({ ships: [other] }, { maxRowsPerRun: 1000, personnelPerHost: 1 }); k.call('Tick'); k.md.$LSPRows = 999;
+  Object.defineProperty(other, 'roleentities', { get() { throw Error('No actor reads after row stop'); } });
+  k.call('Tick'); assert.equal(k.md.$LSPStopped, true);
+  assert.equal(k.notifications.some(n => n.text.includes('completed')), false);
+});
+
 test('old persisted discovery state is interrupted before new progress fields are read', () => {
   const h = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 }); h.call('Tick');
-  h.md.$LSPPass = 'NPC_DISCOVERY'; delete h.md.$LSPPersonnelVersion;
+  h.md.$LSPPass = 'NPC_DISCOVERY'; h.md.$LSPPersonnelVersion = 1;
   delete h.md.$LSPHostsVisited; delete h.md.$LSPNpcProfiles; delete h.md.$LSPDiscoveryDone;
   h.call('Tick');
   const interruption = rows(h).find(r => r.kind === 'SNAPSHOT_INTERRUPTED');
   assert.equal(interruption.fields.reason, 'PERSONNEL_COLLECTOR_UPDATE');
-  assert.equal(h.md.$LSPPersonnelVersion, 1); assert.equal(h.md.$LSPActive, false);
+  assert.equal(h.md.$LSPPersonnelVersion, 2); assert.equal(h.md.$LSPActive, false);
   finish(h);
   assert.equal(rows(h).filter(r => r.kind === 'SNAPSHOT_END').length, 1);
   assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);

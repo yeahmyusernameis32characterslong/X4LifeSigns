@@ -11,7 +11,7 @@
 </run_actions>
 </actions>
 <cues>
-<cue name="ProcessingTick" instantiate="true" checkinterval="1s">
+<cue name="ProcessingTick" instantiate="true" checkinterval="0.1s">
 <conditions>
 <check_value value="md.$LSPReady" />
 </conditions>
@@ -933,13 +933,13 @@
 </do_if>
 <set_value name="$HasActor" exact="false" />
 <do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0 and typeof $Actor == datatype.component and $Actor.exists">
-<do_if value="$Actor.isclass.npc">
+<do_if value="$Actor.isclass.npc and $Actor.isplayerowned">
 <set_value name="$HasActor" exact="true" />
 </do_if>
 </do_if>
 <set_value name="$HasContext" exact="false" />
 <do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0 and typeof $Host == datatype.component and $Host.exists">
-<do_if value="typeof $Template == datatype.npctemplate">
+<do_if value="$Host.isplayerowned and typeof $Template == datatype.npctemplate">
 <do_if value="@$Host.people.{$Template}.exists">
 <set_value name="$HasContext" exact="true" />
 </do_if>
@@ -2546,51 +2546,67 @@
 <return value="true" />
 </actions>
 </library>
-<library name="DiscoverHost" purpose="run_actions">
+<library name="FinishDiscoveryHost" purpose="run_actions">
 <params>
-<param name="Host" />
+</params>
+<actions>
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=END|templates_found=%s|roster_actors_found=%s|candidates_added=%s|candidates_total=%s|limited=%s'.[md.$LSPHostIndex, md.$LSPHost, md.$LSPPeopleCount, md.$LSPActorCount, md.$LSPCandidates.count - md.$LSPHostBefore, md.$LSPCandidates.count, md.$LSPCandidateLimit]" />
+</run_actions>
+<set_value name="md.$LSPReadyCandidates" exact="md.$LSPCandidates.count" />
+<set_value name="md.$LSPHostIndex" exact="1L" operation="add" />
+<set_value name="md.$LSPHostsVisited" exact="1L" operation="add" />
+<set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
+<set_value name="md.$LSPHost" exact="null" />
+<set_value name="md.$LSPPeople" exact="[]" />
+<set_value name="md.$LSPRosterActors" exact="[]" />
+<set_value name="md.$LSPPosts" exact="[]" />
+<return value="true" />
+</actions>
+</library>
+<library name="DiscoveryStep" purpose="run_actions">
+<params>
 </params>
 <actions>
 <do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
+<do_if value="md.$LSPDiscoveryStage == 'HOST'">
+<set_value name="md.$LSPHost" exact="md.$LSPHosts.{md.$LSPHostIndex}" />
+<set_value name="md.$LSPHostBefore" exact="md.$LSPCandidates.count" />
+<set_value name="md.$LSPPeopleCount" exact="'UNAVAILABLE'" />
+<set_value name="md.$LSPActorCount" exact="'UNAVAILABLE'" />
 <run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=BEGIN'.[md.$LSPHostIndex, $Host]" />
+<param name="Body" value="'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=BEGIN'.[md.$LSPHostIndex, md.$LSPHost]" />
 </run_actions>
-<do_if value="not (typeof $Host == datatype.component and $Host.exists)">
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="not (typeof md.$LSPHost == datatype.component and md.$LSPHost.exists)">
 <set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_GAP|reason=HOST_UNAVAILABLE|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, $Host]" />
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_UNAVAILABLE|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
 </run_actions>
 <return value="false" />
 </do_if>
-<do_if value="not $Host.isplayerowned">
+<do_if value="not md.$LSPHost.isplayerowned">
 <set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_GAP|reason=HOST_NOT_PLAYER_OWNED|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, $Host]" />
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_NOT_PLAYER_OWNED|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
 </run_actions>
 <return value="false" />
 </do_if>
-<set_value name="$Before" exact="md.$LSPCandidates.count" />
-<set_value name="$PeopleCount" exact="'UNAVAILABLE'" />
-<set_value name="$ActorCount" exact="'UNAVAILABLE'" />
-<do_if value="$Host.isplayerowned">
-<set_value name="$People" exact="@$Host.people.list" />
-<do_if value="typeof $People == datatype.list">
-<set_value name="$PeopleCount" exact="$People.count" />
-<set_value name="$Count" exact="[$People.count, 500].min" />
-<do_all exact="$Count" counter="$Index">
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
-<break />
-</do_if>
-<run_actions ref="AddContext">
-<param name="Host" value="$Host" />
-<param name="Template" value="$People.{$Index}" />
-</run_actions>
-</do_all>
-<do_if value="$People.count gt $Count">
+<set_value name="md.$LSPPeople" exact="@md.$LSPHost.people.list" />
+<do_if value="typeof md.$LSPPeople == datatype.list">
+<set_value name="md.$LSPPeopleCount" exact="md.$LSPPeople.count" />
+<set_value name="md.$LSPPeopleLimit" exact="[md.$LSPPeople.count, 500].min" />
+<do_if value="md.$LSPPeople.count gt md.$LSPPeopleLimit">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
 <param name="Body" value="'DISCOVERY_LIMIT|reason=CONTEXTUAL_ROSTER'" />
@@ -2598,30 +2614,21 @@
 </do_if>
 </do_if>
 <do_else>
+<set_value name="md.$LSPPeople" exact="[]" />
+<set_value name="md.$LSPPeopleLimit" exact="0" />
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_GAP|reason=CONTEXTUAL_COLLECTION_UNAVAILABLE'" />
+<param name="Body" value="'DISCOVERY_GAP|reason=CONTEXTUAL_ROSTER_UNAVAILABLE'" />
 </run_actions>
 </do_else>
-</do_if>
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
+<do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
-<set_value name="$Actors" exact="@$Host.roleentities" />
-<do_if value="typeof $Actors == datatype.list">
-<set_value name="$ActorCount" exact="$Actors.count" />
-<set_value name="$Count" exact="[$Actors.count, 500].min" />
-<do_all exact="$Count" counter="$Index">
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
-<break />
-</do_if>
-<run_actions ref="AddActor">
-<param name="Actor" value="$Actors.{$Index}" />
-<param name="Host" value="$Host" />
-<param name="Origin" value="'PERSONNEL_ROSTER_ACTOR'" />
-</run_actions>
-</do_all>
-<do_if value="$Actors.count gt $Count">
+<set_value name="md.$LSPRosterActors" exact="@md.$LSPHost.roleentities" />
+<do_if value="typeof md.$LSPRosterActors == datatype.list">
+<set_value name="md.$LSPActorCount" exact="md.$LSPRosterActors.count" />
+<set_value name="md.$LSPActorLimit" exact="[md.$LSPRosterActors.count, 500].min" />
+<do_if value="md.$LSPRosterActors.count gt md.$LSPActorLimit">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
 <param name="Body" value="'DISCOVERY_LIMIT|reason=ACTOR_RESULTS'" />
@@ -2629,54 +2636,21 @@
 </do_if>
 </do_if>
 <do_else>
+<set_value name="md.$LSPRosterActors" exact="[]" />
+<set_value name="md.$LSPActorLimit" exact="0" />
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_GAP|reason=ACTOR_COLLECTION_UNAVAILABLE'" />
+<param name="Body" value="'DISCOVERY_GAP|reason=ACTOR_RESULTS_UNAVAILABLE'" />
 </run_actions>
 </do_else>
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
+<do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
-<run_actions ref="AddActor">
-<param name="Actor" value="@$Host.assignedaipilot" />
-<param name="Host" value="$Host" />
-<param name="Origin" value="'PERSONNEL_PILOT'" />
-</run_actions>
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
-<return value="false" />
-</do_if>
-<do_if value="$Host.isclass.station">
-<run_actions ref="AddActor">
-<param name="Actor" value="@$Host.tradenpc" />
-<param name="Host" value="$Host" />
-<param name="Origin" value="'PERSONNEL_MANAGER'" />
-</run_actions>
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
-<return value="false" />
-</do_if>
-<run_actions ref="AddActor">
-<param name="Actor" value="@$Host.shiptrader" />
-<param name="Host" value="$Host" />
-<param name="Origin" value="'PERSONNEL_SHIPTRADER'" />
-</run_actions>
-</do_if>
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
-<return value="false" />
-</do_if>
-<set_value name="$Posts" exact="@$Host.controlposts.all" />
-<do_if value="typeof $Posts == datatype.list">
-<set_value name="$Count" exact="[$Posts.count, 500].min" />
-<do_all exact="$Count" counter="$Index">
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
-<break />
-</do_if>
-<run_actions ref="AddActor">
-<param name="Actor" value="@$Host.assignedcontrolentity.{$Posts.{$Index}}" />
-<param name="Host" value="$Host" />
-<param name="Origin" value="'CONTROL_ASSIGNMENT'" />
-</run_actions>
-</do_all>
-<do_if value="$Posts.count gt $Count">
+<set_value name="md.$LSPPosts" exact="@md.$LSPHost.controlposts.all" />
+<do_if value="typeof md.$LSPPosts == datatype.list">
+<set_value name="$PostCount" exact="md.$LSPPosts.count" />
+<set_value name="md.$LSPPostLimit" exact="[md.$LSPPosts.count, 500].min" />
+<do_if value="md.$LSPPosts.count gt md.$LSPPostLimit">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
 <param name="Body" value="'DISCOVERY_LIMIT|reason=CONTROL_POSTS'" />
@@ -2684,21 +2658,120 @@
 </do_if>
 </do_if>
 <do_else>
+<set_value name="md.$LSPPosts" exact="[]" />
+<set_value name="md.$LSPPostLimit" exact="0" />
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_GAP|reason=CONTROL_POST_COLLECTION_UNAVAILABLE'" />
+<param name="Body" value="'DISCOVERY_GAP|reason=CONTROL_POSTS_UNAVAILABLE'" />
 </run_actions>
 </do_else>
-<do_if value="md.$LSPStopped or md.$LSPCandidateLimit">
+<do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPDiscoveryStage" exact="'PEOPLE'" />
+<return value="true" />
+</do_if>
+<do_if value="not (typeof md.$LSPHost == datatype.component and md.$LSPHost.exists)">
+<set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_UNAVAILABLE|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPHost.isplayerowned">
+<set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_NOT_PLAYER_OWNED|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'PEOPLE'">
+<do_if value="md.$LSPEntry le md.$LSPPeopleLimit">
+<run_actions ref="AddContext">
+<param name="Host" value="md.$LSPHost" />
+<param name="Template" value="md.$LSPPeople.{md.$LSPEntry}" />
+</run_actions>
+<set_value name="md.$LSPEntry" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPDiscoveryStage" exact="'ACTORS'" />
+</do_else>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'ACTORS'">
+<do_if value="md.$LSPEntry le md.$LSPActorLimit">
 <run_actions ref="AddActor">
-<param name="Actor" value="@$Host.assignedpilot" />
-<param name="Host" value="$Host" />
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="md.$LSPRosterActors.{md.$LSPEntry}" />
+<param name="Origin" value="'PERSONNEL_ROSTER_ACTOR'" />
+</run_actions>
+<set_value name="md.$LSPEntry" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPDiscoveryStage" exact="'PILOT'" />
+</do_else>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'PILOT'">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.assignedaipilot" />
+<param name="Origin" value="'PERSONNEL_PILOT'" />
+</run_actions>
+<set_value name="md.$LSPDiscoveryStage" exact="'MANAGER'" />
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'MANAGER'">
+<do_if value="md.$LSPHost.isclass.station">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.tradenpc" />
+<param name="Origin" value="'PERSONNEL_MANAGER'" />
+</run_actions>
+</do_if>
+<set_value name="md.$LSPDiscoveryStage" exact="'TRADER'" />
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'TRADER'">
+<do_if value="md.$LSPHost.isclass.station">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.shiptrader" />
+<param name="Origin" value="'PERSONNEL_SHIPTRADER'" />
+</run_actions>
+</do_if>
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPDiscoveryStage" exact="'POSTS'" />
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'POSTS'">
+<do_if value="md.$LSPEntry le md.$LSPPostLimit">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.assignedcontrolentity.{md.$LSPPosts.{md.$LSPEntry}}" />
+<param name="Origin" value="'CONTROL_ASSIGNMENT'" />
+</run_actions>
+<set_value name="md.$LSPEntry" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPDiscoveryStage" exact="'ASSIGNED_PILOT'" />
+</do_else>
+<return value="true" />
+</do_if>
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.assignedpilot" />
 <param name="Origin" value="'PILOT_ASSIGNMENT'" />
 </run_actions>
-<run_actions ref="Write">
-<param name="Body" value="'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=END|templates_found=%s|roster_actors_found=%s|candidates_added=%s|candidates_total=%s'.[md.$LSPHostIndex, $Host, $PeopleCount, $ActorCount, md.$LSPCandidates.count - $Before, md.$LSPCandidates.count]" />
+<run_actions ref="FinishDiscoveryHost">
 </run_actions>
 <return value="true" />
 </actions>
@@ -2765,6 +2838,9 @@
 <set_value name="md.$LSPHostsVisited" exact="0" />
 <set_value name="md.$LSPHostsSkipped" exact="0" />
 <set_value name="md.$LSPNpcProfiles" exact="0" />
+<set_value name="md.$LSPReadyCandidates" exact="0" />
+<set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
+<set_value name="md.$LSPEntry" exact="1" />
 <set_value name="md.$LSPIndex" exact="1" />
 <set_value name="md.$LSPDiscoveryDone" exact="false" />
 <set_value name="md.$LSPCandidates" exact="[]" />
@@ -2838,7 +2914,11 @@
 <set_value name="md.$LSPHostCount" exact="0" />
 <set_value name="md.$LSPNpcProfiles" exact="0" />
 <set_value name="md.$LSPCandidates" exact="[]" />
-<set_value name="md.$LSPPersonnelVersion" exact="1" />
+<set_value name="md.$LSPPersonnelVersion" exact="2" />
+<set_value name="md.$LSPNextAssetTick" exact="player.age" />
+<set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPTypeEscapes" exact="table[]" />
 <run_actions ref="Write">
 <param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=2000000|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'" />
 </run_actions>
@@ -2858,7 +2938,7 @@
 </run_actions>
 <return value="true" />
 </do_if>
-<do_if value="md.$LSPPersonnelVersion != 1">
+<do_if value="md.$LSPPersonnelVersion != 2">
 <run_actions ref="Initialize">
 <param name="Reason" value="'PERSONNEL_COLLECTOR_UPDATE'" />
 </run_actions>
@@ -2873,6 +2953,12 @@
 <do_if value="md.$LSPStopped">
 <return value="false" />
 </do_if>
+<do_if value="md.$LSPPass != 'NPCS' and player.age lt md.$LSPNextAssetTick">
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPPass != 'NPCS'">
+<set_value name="md.$LSPNextAssetTick" exact="player.age + 1s" />
+</do_if>
 <do_if value="not md.$LSPActive and player.age ge md.$LSPNextSnapshot">
 <run_actions ref="BeginSnapshot">
 </run_actions>
@@ -2882,20 +2968,22 @@
 <do_if value="md.$LSPStopped or md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit">
 <break />
 </do_if>
-<run_actions ref="DiscoverHost">
-<param name="Host" value="md.$LSPHosts.{md.$LSPHostIndex}" />
+<run_actions ref="DiscoveryStep">
 </run_actions>
-<set_value name="md.$LSPHostIndex" exact="1L" operation="add" />
-<set_value name="md.$LSPHostsVisited" exact="1L" operation="add" />
 </do_all>
 <do_if value="md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit">
+<do_if value="md.$LSPCandidateLimit and md.$LSPDiscoveryStage != 'HOST'">
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+</do_if>
+<set_value name="md.$LSPReadyCandidates" exact="md.$LSPCandidates.count" />
 <run_actions ref="Write">
 <param name="Body" value="'DISCOVERY_END|hosts_visited=%s|hosts_skipped=%s|candidates=%s|complete=UNVERIFIED'.[md.$LSPHostsVisited, md.$LSPHostsSkipped, md.$LSPCandidates.count]" />
 </run_actions>
 <set_value name="md.$LSPDiscoveryDone" exact="true" />
 </do_if>
 </do_if>
-<do_all exact="8">
+<do_all exact="if md.$LSPPass == 'NPCS' then 2 else 8">
 <do_if value="md.$LSPStopped or not md.$LSPActive">
 <break />
 </do_if>
@@ -2924,7 +3012,7 @@
 </do_else>
 </do_elseif>
 <do_elseif value="md.$LSPPass == 'NPCS'">
-<do_if value="md.$LSPIndex le md.$LSPCandidates.count">
+<do_if value="md.$LSPIndex le md.$LSPReadyCandidates">
 <run_actions ref="NpcProfile">
 <param name="Candidate" value="md.$LSPCandidates.{md.$LSPIndex}" />
 </run_actions>
@@ -2950,7 +3038,7 @@
 <do_if value="md.$LSPLevel ge 3">
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles]" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
 </do_if>

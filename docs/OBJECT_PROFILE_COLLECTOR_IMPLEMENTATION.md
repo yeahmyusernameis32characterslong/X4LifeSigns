@@ -56,6 +56,24 @@ The same types/values/states and two-million-row ceiling are preserved. Syntheti
 tests verify scalar reuse, missing data and reserved/Unicode text; native speed
 and FPS effects remain unmeasured.
 
+The second increment uses a resumable personnel cursor. `discoveryPerTick` now
+bounds individual cursor steps (one roster entry, control reference or stage
+transition), rather than whole hosts. Host list getters remain native operations
+without a measured time bound. A completed host releases its candidates for
+profiling only after alias gathering, avoiding emission of a contextual profile
+before its actor association is examined. Limits release the observed partial
+candidate set explicitly; stale/changed ownership is checked as work resumes
+and before profiling. Health adds discovery stage/entry progress.
+
+NPC work requests two profiles per 0.1 game seconds by default; station/ship work
+retains eight slots per one game second. This reduces per-tick NPC profile count
+and increases nominal NPC throughput from eight to twenty per game second, while
+spreading large rosters across ticks. It is **not** a measured FPS improvement or
+native completion-time guarantee. Completion-based 300-second cadence, row/value
+ceilings, field set and notification actions remain unchanged. Recorder state
+version 2 restarts an observed older in-flight scan instead of interpreting old
+cursor fields. Saved-cue engine migration remains unverified.
+
 ### Personnel List NPC correction, 2026-10-18
 
 Owner authorised this correction from notification baseline `868d00d`, using the
@@ -215,8 +233,10 @@ and [NPC](OBJECT_PROFILE_NPCS.md) tables define required reads.
 | Configuration | Default | Meaning |
 | --- | ---: | --- |
 | `periodSeconds` | 300 | Wait after a completed collection before the next; no queue or overlap. |
-| `profilesPerTick` | 8 | Maximum profile/phase work slots per polling tick. |
-| `discoveryPerTick` | 8 | Maximum NPC discovery hosts per tick. |
+| `profilesPerTick` | 8 | Maximum station/ship profile/phase work slots per one-second asset tick. |
+| `npcProfilesPerTick` | 2 | Maximum NPC profile/phase work slots per NPC tick. |
+| `npcTickSeconds` | 0.1 | Requested NPC polling interval; asset work retains a one-second gate. |
+| `discoveryPerTick` | 8 | Maximum NPC cursor steps per NPC tick, including entry/control/stage work. |
 | `personnelPerHost` | 500 | Separate contextual, actor-result and control-post traversal ceilings. |
 | `profileValueItems` | 16384 | Ceiling per independent profile, not a target; no padding. |
 | `maxCandidates` | 10000 | NPC candidates per collection. |

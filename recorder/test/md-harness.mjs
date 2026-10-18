@@ -30,7 +30,7 @@ const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : 
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
 export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1 } = {}) {
-  const tree = parseXml(source), md = {}, output = [], notifications = [], libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+  const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   function walk(node, parentCue) { if (node.tag === 'library') libraries.set(node.attrs.name, node); if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; } node.children.forEach(child => walk(child, parentCue)); }
   walk(tree);
   const player = { age, entity: { __type: 'component', exists: true }, galaxy: true, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
@@ -82,6 +82,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     if (s.startsWith('typeof ')) return { __type: 'datatype', name: dtype(evalx(s.slice(7), local)) };
     if (s.startsWith('@')) { try { return evalx(s.slice(1), local); } catch { return null; } }
     if (s.endsWith('?')) { try { evalx(s.slice(0, -1), local); return true; } catch { return false; } }
+    if (/^-?\d+(?:\.\d+)?(?:L|s)?$/.test(s)) return Number.parseFloat(s);
     const parts = split(s, '.');
     let value;
     const first = parts.shift();
@@ -149,6 +150,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     }
   }
   function call(name, args = {}) {
+    callCounts[name] = (callCounts[name] || 0) + 1;
     const library = libraries.get(name); if (!library) throw new Error(`Unknown library ${name}`);
     const local = {};
     for (const p of library.children.find(x => x.tag === 'params').children) {
@@ -168,5 +170,5 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
   }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
   function start() { cue('Bootstrap'); }
-  return { md, player, output, notifications, call, cue, start, tree };
+  return { md, player, output, notifications, callCounts, call, cue, start, tree };
 }
