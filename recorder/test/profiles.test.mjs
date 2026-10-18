@@ -206,6 +206,18 @@ test('finished partial snapshots say partial data and interrupted snapshots neve
   assert.deepEqual(interrupted.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
 });
 
+test('row ceiling at snapshot boundaries suppresses unrecorded start or completion notifications', () => {
+  const start = setup({}, { maxRowsPerRun: 1000 }); start.md.$LSPRows = 1000;
+  start.call('BeginSnapshot');
+  assert.equal(start.md.$LSPStopped, true); assert.deepEqual(start.notifications, []);
+  const end = setup({}, { maxRowsPerRun: 1000 }); end.call('BeginSnapshot');
+  end.md.$LSPPass = 'NPCS'; end.md.$LSPRows = 999; end.call('Advance');
+  assert.equal(end.md.$LSPStopped, true);
+  assert.equal(rows(end).at(-1).kind, 'LIMIT');
+  assert.equal(rows(end).some(r => r.kind === 'SNAPSHOT_END'), false);
+  assert.deepEqual(end.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+});
+
 test('production session correlation is read-only and optional', () => {
   const h = setup(); h.md.$LifeSignsProductionSessionKey = 'synthetic-session'; h.md.$LifeSignsProductionSessionReady = true;
   finish(h);
