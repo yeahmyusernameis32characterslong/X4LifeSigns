@@ -26,10 +26,10 @@ function split(s, delimiter) {
   }
   return [...out, s.slice(start)];
 }
-const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
+const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1 } = {}) {
   const tree = parseXml(source), md = {}, output = [], libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   function walk(node, parentCue) { if (node.tag === 'library') libraries.set(node.attrs.name, node); if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; } node.children.forEach(child => walk(child, parentCue)); }
   walk(tree);
@@ -40,11 +40,12 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
     if (Object.hasOwn(value, '__pseudoEntry')) return get(value.entry, key);
     if (Object.hasOwn(value, '__indexOf')) return value.__indexOf.indexOf(key) + 1;
     if (value instanceof Map) {
+      if (Object.hasOwn(value, key)) return value[key];
       if (key === 'keys') return { count: value.size, list: [...value.keys()] };
       if (!value.has(key)) throw new Error(`Missing table ${key}`);
       const item = value.get(key);
       // Contextual entry pseudo-types support terminal access, never storage.
-      return key?.__type === 'npctemplate' ? { __pseudoEntry: true, entry: item } : item;
+      return key?.__type === 'npctemplate' && item != null && typeof item === 'object' && Object.hasOwn(item, 'exists') ? { __pseudoEntry: true, entry: item } : item;
     }
     if (Array.isArray(value)) {
       if (key === 'count') return value.length;
@@ -55,7 +56,7 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
     }
     if (value.__type === 'datatype' && key === 'isstring') return value.name === 'string';
     if (value.__type === 'datatype' && key === 'isnumeric') return value.name === 'integer';
-    if (key === 'isclass') return new Proxy({}, { get: (_, klass) => value.class === klass });
+    if (key === 'isclass') return new Proxy({}, { get: (_, klass) => value.class === klass || (klass === 'ship' && value.class === 'spacesuit') });
     if (value[key] === undefined) throw new Error(`Missing property ${key}`);
     return value[key];
   }
@@ -93,6 +94,8 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
     else if (first === 'md') value = md;
     else if (first === 'player') value = player;
     else if (first === 'faction') value = { player: 'player' };
+    else if (first === 'controlpost') value = {aipilot:'aipilot',manager:'manager'};
+    else if (first === 'class') value = {npc:'npc'};
     else if (first === 'datatype') value = new Proxy({}, { get: (_, name) => ({ __type: 'datatype', name }) });
     else if (Object.hasOwn(local, first)) value = local[first];
     else throw new Error(`Unknown expression ${s}`);
@@ -131,8 +134,9 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
       else if (n.tag === 'debug_to_file') output.push({ name: ev(a.name), line: ev(a.text) });
       else if (n.tag === 'append_to_list') ev(a.name).push(ev(a.exact));
       else if (n.tag === 'remove_value') assign(a.name, null, local, true);
-      else if (n.tag === 'find_ship') assign(a.name, [...ships], local);
-      else if (n.tag === 'find_station') assign(a.name, [...stations], local);
+      else if (n.tag === 'find_ship') assign(a.name, [...(a.trueowner ? ships : allShips)], local);
+      else if (n.tag === 'find_station') assign(a.name, [...(a.trueowner ? stations : allStations)], local);
+      else if (n.tag === 'find_object_component') { const host = ev(a.object); assign(a.name, (host.componentNpcs || []).filter(x => x.class === 'npc' && x.isplayerowned), local); }
       else if (n.tag === 'create_group') assign(a.groupname, [], local);
       else if (n.tag === 'add_to_group') { let group; try { group = ev(a.groupname); } catch { group = []; } if (a.replace === 'true') group = []; const items = a.list ? ev(a.list) : [ev(a.object)]; for (const item of items) if (!group.includes(item)) group.push(item); assign(a.groupname, group, local); }
       else if (n.tag === 'do_all' || n.tag === 'do_for_each') {
@@ -161,6 +165,6 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
     return execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
   }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
-  function start() { cue('Runtime'); cue('Bootstrap'); cue('ListenersReady'); }
+  function start() { cue('Bootstrap'); }
   return { md, player, output, call, cue, start, tree };
 }

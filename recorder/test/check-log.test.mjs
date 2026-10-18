@@ -36,3 +36,17 @@ test('explicit lifecycle interruption remains incomplete and is counted only onc
   const result = await inspectLog(file);
   assert.equal(result.interruptedBatches, 1); assert.equal(result.incompleteBatches, 1);
 });
+
+test('profile checker tracks profile identities, pass kinds, discovery and explicit partials', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'lifesigns-profiles-')); t.after(() => rm(dir, { recursive: true }));
+  const file = join(dir, 'profiles.log');
+  await writeFile(file, row(0, 'RUN_BEGIN') + row(1, 'SNAPSHOT_BEGIN') + row(1, 'PASS_BEGIN', '|kind=NPCS') +
+    row(1, 'DISCOVERY_BEGIN') + row(1, 'DISCOVERY_LIMIT', '|reason=HOSTS') + row(1, 'DISCOVERY_END') +
+    row(1, 'PROFILE_BEGIN', '|profile=1') + row(1, 'PROFILE_LIMIT', '|reason=VALUE_BUDGET') + row(1, 'PROFILE_END', '|profile=1|partial=true') +
+    row(1, 'PROFILE_BEGIN', '|profile=2') + row(1, 'PROFILE_END', '|profile=2|partial=false') + row(1, 'PASS_END', '|kind=NPCS') + row(1, 'SNAPSHOT_END', '|partial=true'));
+  const r = await inspectLog(file);
+  assert.equal(r.incompleteBatches, 0); assert.equal(r.partialProfiles, 1); assert.equal(r.partialSnapshots, 1);
+  assert.equal(r.profileLimitMarkers, 1); assert.equal(r.discoveryLimitMarkers, 1);
+  await writeFile(file, row(1, 'PROFILE_BEGIN', '|profile=1') + row(1, 'PROFILE_END', '|profile=2'));
+  assert.equal((await inspectLog(file)).incompleteBatches, 2);
+});

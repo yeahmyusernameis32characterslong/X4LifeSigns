@@ -10,7 +10,7 @@ export async function inspectLog(file, { expectedRun, maxLineBytes = 1048576 } =
   try { stat = await lstat(file); } catch (error) { if (error.code === 'ENOENT') return { readiness: 'NO_FILE', launchFlag: 'UNAVAILABLE', writeConfirmation: 'UNAVAILABLE' }; throw error; }
   if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Input must be an ordinary single-link file');
   const hash = createHash('sha256'), runs = new Set(), open = new Set();
-  const result = { readiness: 'NO_VALID_RUN', bytes: 0, validRows: 0, malformedRows: 0, oversizedRows: 0, incompleteBatches: 0, interruptedBatches: 0, captureLimitMarkers: 0, lastRun: null, trackingLimited: false, launchFlag: 'UNAVAILABLE', writeConfirmation: 'UNAVAILABLE' };
+  const result = { readiness: 'NO_VALID_RUN', bytes: 0, validRows: 0, malformedRows: 0, oversizedRows: 0, incompleteBatches: 0, interruptedBatches: 0, captureLimitMarkers: 0, profileLimitMarkers: 0, discoveryLimitMarkers: 0, partialProfiles: 0, partialSnapshots: 0, lastRun: null, trackingLimited: false, launchFlag: 'UNAVAILABLE', writeConfirmation: 'UNAVAILABLE' };
   let pending = Buffer.alloc(0), skipping = false;
   function line(bytes) {
     let r;
@@ -18,13 +18,18 @@ export async function inspectLog(file, { expectedRun, maxLineBytes = 1048576 } =
     result.validRows++;
     if (r.kind === 'RUN_BEGIN') { result.lastRun = r.run; if (runs.size < 4096) runs.add(r.run); else result.trackingLimited = true; }
     if (r.kind === 'LIMIT') result.captureLimitMarkers++;
+    if (r.kind === 'PROFILE_LIMIT') result.profileLimitMarkers++;
+    if (r.kind === 'DISCOVERY_LIMIT' || r.kind === 'DISCOVERY_GAP') result.discoveryLimitMarkers++;
+    if (r.kind === 'PROFILE_END' && ['true', '1'].includes(r.fields.partial)) result.partialProfiles++;
+    if (r.kind === 'SNAPSHOT_END' && ['true', '1'].includes(r.fields.partial)) result.partialSnapshots++;
     if (r.kind === 'SNAPSHOT_INTERRUPTED') {
-      open.delete(`${r.run}/${r.seq}/SNAPSHOT`);
+      for (const key of open) if (key.startsWith(`${r.run}/${r.seq}/`)) open.delete(key);
       result.interruptedBatches++; result.incompleteBatches++;
     }
-    const match = r.kind.match(/^(EVENT|SNAPSHOT)_(BEGIN|END)$/);
+    const match = r.kind.match(/^(EVENT|SNAPSHOT|PROFILE|PASS|DISCOVERY)_(BEGIN|END)$/);
     if (match) {
-      const key = `${r.run}/${r.seq}/${match[1]}`;
+      const suffix = match[1] === 'PROFILE' ? `/${r.fields.profile}` : match[1] === 'PASS' ? `/${r.fields.kind}` : '';
+      const key = `${r.run}/${r.seq}/${match[1]}${suffix}`;
       if (match[2] === 'BEGIN') { if (open.size < 4096) open.add(key); else result.trackingLimited = true; }
       else if (!open.delete(key)) result.incompleteBatches++;
     }
@@ -52,8 +57,8 @@ export async function inspectLog(file, { expectedRun, maxLineBytes = 1048576 } =
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
-  if (args[0] !== '--events' || !args[1] || (args.length !== 2 && !(args.length === 4 && args[2] === '--run'))) {
-    console.error('Usage: node recorder/check-log.mjs --events <native events.log> [--run <expected run marker>]');
+  if (!['--profiles', '--events'].includes(args[0]) || !args[1] || (args.length !== 2 && !(args.length === 4 && args[2] === '--run'))) {
+    console.error('Usage: node recorder/check-log.mjs --profiles <native profiles.log> [--run <expected run marker>]');
     process.exitCode = 2;
   } else {
     try { console.log(JSON.stringify(await inspectLog(args[1], { expectedRun: args[3] }), null, 2)); }

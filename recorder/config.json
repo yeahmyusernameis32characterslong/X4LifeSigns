@@ -1,14 +1,12 @@
 {
   "diagnostics": "DEBUG",
   "periodSeconds": 300,
-  "reconcileSeconds": 30,
   "heartbeatSeconds": 60,
-  "assetsPerTick": 8,
-  "crewPerAsset": 500,
-  "snapshotValueItems": 16384,
-  "eventValueItems": 1024,
-  "valueDepth": 3,
-  "snapshotQueue": 16,
-  "actorReferences": 10000,
+  "profilesPerTick": 8,
+  "discoveryPerTick": 8,
+  "personnelPerHost": 500,
+  "profileValueItems": 16384,
+  "maxCandidates": 10000,
+  "maxDiscoveryHosts": 10000,
   "maxRowsPerRun": 2000000
 }

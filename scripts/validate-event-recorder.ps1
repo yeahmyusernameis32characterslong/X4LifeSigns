@@ -24,19 +24,8 @@ $file = Join-Path $repo 'extensions/lifesigns_event_recorder/md/LifeSigns_EventR
 $reader = [System.Xml.XmlReader]::Create($file, $settings)
 try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 
-[xml]$source = Get-Content -LiteralPath (Join-Path $schemas 'common.xsd')
-$ns = New-Object System.Xml.XmlNamespaceManager($source.NameTable)
-$ns.AddNamespace('xs', 'http://www.w3.org/2001/XMLSchema')
 [xml]$generated = Get-Content -LiteralPath $file
-$listeners = @($generated.SelectNodes('//cue[starts-with(@name,"Listen")]/conditions/*[starts-with(name(),"event_")]'))
-foreach ($event in $listeners) {
-    $definition = $source.SelectSingleNode("//xs:element[@name='$($event.Name)']", $ns)
-    if (-not $definition) { throw "Unknown event: $($event.Name)" }
-    $sourceGroup = $definition.SelectSingleNode('.//xs:attributeGroup[@ref="objecteventsource"]', $ns)
-    if ($event.HasAttribute('group') -and -not $sourceGroup) { throw "Unsupported group selector: $($event.Name)" }
-    if ($sourceGroup -and -not ($event.HasAttribute('object') -or $event.HasAttribute('group'))) { throw "Unbound object event: $($event.Name)" }
-    foreach ($required in $definition.SelectNodes('.//xs:attribute[@use="required"]', $ns)) {
-        if (-not $event.HasAttribute($required.name)) { throw "Missing selector $($required.name): $($event.Name)" }
-    }
-}
-Write-Output "Validated generated MD and $($listeners.Count) listener selectors against hash-checked installed X4 9.00 schemas. This is not runtime verification."
+$listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
+if ($listeners.Count -ne 0) { throw 'Snapshot-only collector must contain zero event listeners (including UI and lifecycle).' }
+if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }
+Write-Output 'Validated generated snapshot-only MD against hash-checked installed X4 9.00 schemas; zero event listeners and no NPC creation actions. This is not runtime verification.'

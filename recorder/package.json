@@ -1,5 +1,5 @@
 {
-  "name": "lifesigns-native-event-recorder",
+  "name": "lifesigns-object-profile-collector",
   "private": true,
   "type": "module",
   "scripts": { "build": "node ../scripts/build-event-recorder.mjs", "test": "node --test test/*.test.mjs" },
