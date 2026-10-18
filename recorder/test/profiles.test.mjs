@@ -181,6 +181,31 @@ test('clock regression explicitly interrupts active snapshot and starts a new ru
   assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN').length, 2);
 });
 
+test('ticker notifications bracket the whole snapshot once, including each scheduled snapshot', () => {
+  const h = setup({}, { profilesPerTick: 1, discoveryPerTick: 1 });
+  h.call('Tick');
+  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+  assert.equal(rows(h)[h.notifications[0].afterRows - 1].kind, 'SNAPSHOT_BEGIN');
+  assert.equal(h.notifications[0].timeout, 5); assert.equal(h.notifications[0].priority, 1);
+  finish(h);
+  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed.']);
+  assert.equal(rows(h)[h.notifications[1].afterRows - 1].kind, 'SNAPSHOT_END');
+  assert.equal(rows(h).filter(r => r.kind === 'PASS_END').length, 3);
+  h.call('Tick'); assert.equal(h.notifications.length, 2);
+  h.player.age += config.periodSeconds; finish(h);
+  assert.equal(h.notifications.length, 4);
+});
+
+test('finished partial snapshots say partial data and interrupted snapshots never say completed', () => {
+  const stale = host('ship', 'STALE'); stale.exists = false;
+  const partial = setup({ allShips: [stale] }); finish(partial);
+  assert.equal(partial.notifications.at(-1).text, 'Life Signs: Snapshot completed (partial data).');
+  assert.equal(rows(partial).find(r => r.kind === 'SNAPSHOT_END').fields.partial, 'true');
+  const interrupted = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 });
+  interrupted.call('Tick'); interrupted.player.age = 0; interrupted.call('Tick');
+  assert.deepEqual(interrupted.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+});
+
 test('production session correlation is read-only and optional', () => {
   const h = setup(); h.md.$LifeSignsProductionSessionKey = 'synthetic-session'; h.md.$LifeSignsProductionSessionReady = true;
   finish(h);
@@ -196,6 +221,7 @@ test('raw row cap writes one final stop marker and OFF suppresses diagnostics', 
   assert.equal(raw.at(-1).kind, 'LIMIT'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 1);
   assert.equal(rows(h).filter(x => x.file === 'profile-diagnostics.log').length, 0);
   assert.equal(h.md.$LSPStopped, true);
+  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
 });
 
 test('text framing preserves reserved characters and rejects malformed rows', () => {

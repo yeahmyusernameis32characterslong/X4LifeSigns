@@ -10,6 +10,7 @@ const ret = value => tag('return', {value});
 const run = (ref, params = {}, result) => tag('run_actions', {ref, ...(result ? {result} : {})}, Object.entries(params).map(([name,value]) => tag('param',{name,value})).join(''));
 const lib = (name, params, actions) => tag('library',{name,purpose:'run_actions'},tag('params',{},Object.entries(params).map(([name,value])=>tag('param',{name,...(value===null?{}:{default:value})})).join(''))+tag('actions',{},actions));
 const write = body => run('Write', {Body:body});
+const notify = text => tag('show_notification', {text:`'Life Signs: ${text}'`,timeout:'5s',priority:'1'});
 const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => iff('not md.$LSPStopped', iff('md.$LSPRemaining gt 0', run('Value',{Field:`'${field}'`,Value:`@${expression}`,Available:available,State:state})) + otherwise(run('Value',{Field:`'${field}'`,Value:'null',Available:'false',State:state})));
 const missing = (field, state) => value(field,'null','false',`'${state}'`);
 const valid = ref => `typeof ${ref} == datatype.component and ${ref}.exists`;
@@ -138,6 +139,7 @@ export function generateRecorder(config) {
   const begin=lib('BeginSnapshot',{},add('md.$LSPSeq')+set('md.$LSPProfile','0L')+set('md.$LSPSnapshotPartial','false')+set('md.$LSPActive','true')+set('md.$LSPPass',"'STATIONS'")+set('md.$LSPIndex','1')+
     find('station','md.$LSPStations',true)+find('ship','md.$LSPShips',true)+
     write("'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'")+
+    iff('not md.$LSPStopped',notify('Snapshot begun.'))+
     write("'PASS_BEGIN|kind=STATIONS'"));
   const startNpc= find('station','$AllStations',false)+find('ship','$AllShips',false)+set('md.$LSPHosts','$AllStations.clone')+
     each('$Host','$AllShips',iff('md.$LSPHosts.indexof.{$Host} == 0',tag('append_to_list',{name:'md.$LSPHosts',exact:'$Host'})))+
@@ -148,6 +150,7 @@ export function generateRecorder(config) {
     iff("md.$LSPPass == 'STATIONS'",write("'PASS_END|kind=STATIONS'")+set('md.$LSPPass',"'SHIPS'")+set('md.$LSPIndex','1')+write("'PASS_BEGIN|kind=SHIPS'")+ret('true'))+
     iff("md.$LSPPass == 'SHIPS'",write("'PASS_END|kind=SHIPS'")+write("'PASS_BEGIN|kind=NPCS'")+startNpc+ret('true'))+
     iff("md.$LSPPass == 'NPCS'",write("'PASS_END|kind=NPCS'")+write("'SNAPSHOT_END|mode=OBJECT_PROFILES|profiles=%s|partial=%s|atomic=false|discovery_complete=UNVERIFIED'.[md.$LSPProfile, md.$LSPSnapshotPartial]")+
+      iff('not md.$LSPStopped',iff('md.$LSPSnapshotPartial',notify('Snapshot completed (partial data).'))+otherwise(notify('Snapshot completed.')))+
       set('md.$LSPActive','false')+set('md.$LSPNextSnapshot',`player.age + ${c.periodSeconds}s`)+
       ['Stations','Ships','Hosts','Candidates'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+set('md.$LSPActors','table[]')+set('md.$LSPContexts','table[]')+ret('true'))+ret('false'));
   const initialize=lib('Initialize',{},

@@ -2411,6 +2411,9 @@
 <run_actions ref="Write">
 <param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'" />
 </run_actions>
+<do_if value="not md.$LSPStopped">
+<show_notification text="'Life Signs: Snapshot begun.'" timeout="5s" priority="1" />
+</do_if>
 <run_actions ref="Write">
 <param name="Body" value="'PASS_BEGIN|kind=STATIONS'" />
 </run_actions>
@@ -2471,6 +2474,14 @@
 <run_actions ref="Write">
 <param name="Body" value="'SNAPSHOT_END|mode=OBJECT_PROFILES|profiles=%s|partial=%s|atomic=false|discovery_complete=UNVERIFIED'.[md.$LSPProfile, md.$LSPSnapshotPartial]" />
 </run_actions>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPSnapshotPartial">
+<show_notification text="'Life Signs: Snapshot completed (partial data).'" timeout="5s" priority="1" />
+</do_if>
+<do_else>
+<show_notification text="'Life Signs: Snapshot completed.'" timeout="5s" priority="1" />
+</do_else>
+</do_if>
 <set_value name="md.$LSPActive" exact="false" />
 <set_value name="md.$LSPNextSnapshot" exact="player.age + 300s" />
 <set_value name="md.$LSPStations" exact="[]" />

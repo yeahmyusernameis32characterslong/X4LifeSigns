@@ -53,6 +53,34 @@ continuity. The extension display name is now Life Signs Object Profile Collecto
 
 ## Collection sequence
 
+### Snapshot notifications
+
+Owner-requested snapshot notifications use the native, non-interactive message
+ticker (`show_notification`). The collector requests **Life Signs: Snapshot
+begun.** after the snapshot begin record, and **Life Signs: Snapshot completed.**
+after all three passes and the snapshot end record. If collection finishes with
+recorded gaps or partial profiles, the latter reads **Life Signs: Snapshot
+completed (partial data).** Completion describes the collection cycle finishing;
+it does not establish complete NPC discovery or confirmed disk writes.
+
+Each notification requests five seconds at normal priority (1), with X4's default
+generic notification sound. Higher-priority game messages can replace the ticker;
+on-screen delivery/timing has not been verified in X4. Notifications are requested
+once per transition, including periodic collections, independently of diagnostic
+verbosity. A row-limit stop or interrupted snapshot does not request completion.
+No listeners, interactive prompts, mission records or explicit logbook writes
+are added. An unfinished NPC discovery pass therefore leaves only the start
+notification. The Personnel List replacement remains a separate pending change.
+
+Source: installed X4 9.00 `libraries/common.xsd:36951` defines
+`show_notification`, its required `text`, timeout, priority and default sound;
+`:1049` defines ticker text. Shipped `md/gm_transport_passengers.xml:1425`
+demonstrates the non-interactive action. Qwen located these references; Codex
+verified their schema and callsite. Generated-action checks cover transition
+ordering, repeated collections, partial completion, interruption and row stops.
+
+## Ordered passes
+
 Polling bootstrap waits for `player.entity.exists` and `player.galaxy`. It
 initialises a recorder-local run and schedules an initial collection. Polling
 ticks then perform ordered work:
