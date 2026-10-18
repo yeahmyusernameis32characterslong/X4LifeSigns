@@ -11,7 +11,10 @@ const run = (ref, params = {}, result) => tag('run_actions', {ref, ...(result ? 
 const lib = (name, params, actions) => tag('library',{name,purpose:'run_actions'},tag('params',{},Object.entries(params).map(([name,value])=>tag('param',{name,...(value===null?{}:{default:value})})).join(''))+tag('actions',{},actions));
 const write = body => run('Write', {Body:body});
 const notify = text => tag('show_notification', {text:`'Life Signs: ${text}'`,timeout:'5s',priority:'1'});
-const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => iff('not md.$LSPStopped', iff('md.$LSPRemaining gt 0', run('Value',{Field:`'${field}'`,Value:`@${expression}`,Available:available,State:state})) + otherwise(run('Value',{Field:`'${field}'`,Value:'null',Available:'false',State:state})));
+const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => {
+  if (!/^[a-z0-9_]+$/.test(field)) throw Error('Generated field name must be framing-safe');
+  return iff('not md.$LSPStopped', iff('md.$LSPRemaining gt 0', run('Value',{Field:`'${field}'`,Value:`@${expression}`,Available:available,State:state})) + otherwise(run('Value',{Field:`'${field}'`,Value:'null',Available:'false',State:state})));
+};
 const missing = (field, state) => value(field,'null','false',`'${state}'`);
 const valid = ref => `typeof ${ref} == datatype.component and ${ref}.exists`;
 const levels = ['OFF','ERROR','WARNING','INFO','DEBUG'];
@@ -45,7 +48,10 @@ export function generateRecorder(config) {
         iff('typeof $Value == datatype.null',set('$State',"'NULL'"))+
         iff('typeof $Value == datatype.component',iff('not $Value.exists',set('$State',"'UNAVAILABLE_REFERENCE'")))))+
     iff("$State == 'UNAVAILABLE' or $State == 'UNAVAILABLE_REFERENCE' or $State == 'UNVERIFIED' or $State == 'AMBIGUOUS_ASSIGNMENT'",set('md.$LSPProfilePartial','true'))+
-    run('Escape',{Value:'$Field'},'$FieldText')+run('Escape',{Value:'$Text'},'$Text')+run('Escape',{Value:'$Type'},'$TypeText')+
+    set('$FieldText','$Field')+run('Escape',{Value:'$Text'},'$Text')+
+    iff('not md.$LSPTypeEscapes?',set('md.$LSPTypeEscapes','table[]'))+set('$TypeKey',"'%s'.[$Type]")+
+    iff('md.$LSPTypeEscapes.{$TypeKey}?',set('$TypeText','md.$LSPTypeEscapes.{$TypeKey}'))+
+    otherwise(run('Escape',{Value:'$Type'},'$TypeText')+set('md.$LSPTypeEscapes.{$TypeKey}','$TypeText'))+
     write("'VALUE|profile=%s|field=%s|type=%s|state=%s|render=ENGINE_TEXT_UNVERIFIED|value=%s'.[md.$LSPProfile, $FieldText, $TypeText, $State, $Text]")+ret('true'));
   const beginProfile=type=>set('md.$LSPProfilePartial','false')+set('md.$LSPValueLimit','false')+set('md.$LSPRemaining',String(c.profileValueItems))+add('md.$LSPProfile')+write(`'PROFILE_BEGIN|profile=%s|kind=${type}|atomic=false'.[md.$LSPProfile]`);
   const endProfile=write("'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]")+iff('md.$LSPProfilePartial',set('md.$LSPSnapshotPartial','true'))+ret('true');
@@ -66,9 +72,19 @@ export function generateRecorder(config) {
       iff(valid('$Commander'),value('commander_idcode','$Commander.idcode')+value('commander_class','$Commander.class'))+otherwise(missing('commander_idcode','NO_COMMANDER')+missing('commander_class','NO_COMMANDER'))+
       value('fleet_assignment','$Ship.assignment')+value('fleet_role','$Ship.assignment.name'))+
     otherwise(missing('reference','UNAVAILABLE_REFERENCE'))+endProfile);
-  const contextField=(field,terminal)=>value(field,`$Host.people.{$Template}.${terminal}`);
+  const contextCaches={seed:'Seed',name:'Name','race.name':'Race',macro:'Macro'};
+  const contextField=(field,terminal)=>{
+    const key=contextCaches[terminal],expression=`$Host.people.{$Template}.${terminal}`;
+    if (!key) return value(field,expression);
+    return iff('not md.$LSPStopped and md.$LSPRemaining gt 0',
+      iff(`not $Cached${key}Ready`,set(`$Cached${key}Available`,`${expression}?`)+set(`$Cached${key}`,'null')+
+        iff(`$Cached${key}Available`,set(`$Cached${key}`,`@${expression}`))+set(`$Cached${key}Ready`,'true'))+
+      value(field,`$Cached${key}`,`$Cached${key}Available`))+
+      otherwise(value(field,'null','false'));
+  };
   const npc=lib('NpcProfile',{Candidate:null},beginProfile('NPC')+
     set('$Actor','$Candidate.$actor')+set('$Host','$Candidate.$host')+set('$Template','$Candidate.$template')+
+    Object.values(contextCaches).map(k=>set(`$Cached${k}Ready`,'false')).join('')+
     value('actor_reference','$Actor','true')+value('context_host_reference','$Host','true')+value('npctemplate','$Template','true')+value('discovery_origin','$Candidate.$origin')+
     set('$HasActor','false')+iff(`not md.$LSPStopped and md.$LSPRemaining gt 0 and ${valid('$Actor')}`,iff('$Actor.isclass.npc',set('$HasActor','true')))+
     set('$HasContext','false')+iff(`not md.$LSPStopped and md.$LSPRemaining gt 0 and ${valid('$Host')}`,iff('typeof $Template == datatype.npctemplate',iff('@$Host.people.{$Template}.exists',set('$HasContext','true'))))+

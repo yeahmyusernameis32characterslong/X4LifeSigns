@@ -39,6 +39,23 @@ X4 launch, gameplay test or merge is authorised by this implementation request.
 
 ## Status and delivery
 
+### Performance work, owner-authorised 2026-10-18
+
+Starting at `4b0a1ca`, reduce duplicate NPC reads/text processing, then refine
+batching. No deployment or native benchmark is included. Contextual-only primary
+and contextual seed/name/race/macro fields now reuse per-profile scalar
+observations and availability states. Actor/contextual sources remain distinct;
+no pseudo-entry or host-wide stale value is cached. Exhausted value budgets still
+prevent getter evaluation and all output fields retain their normal budget cost.
+
+Generated field names are validated as framing-safe at build time, so the writer
+uses them directly. Escaped datatype labels are cached by their rendered type
+within the recorder state. Dynamic values retain full escaping. This removes
+repeated constant text work without changing record framing or batching writes.
+The same types/values/states and two-million-row ceiling are preserved. Synthetic
+tests verify scalar reuse, missing data and reserved/Unicode text; native speed
+and FPS effects remain unmeasured.
+
 ### Personnel List NPC correction, 2026-10-18
 
 Owner authorised this correction from notification baseline `868d00d`, using the

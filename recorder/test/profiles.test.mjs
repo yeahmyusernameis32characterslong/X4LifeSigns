@@ -230,6 +230,26 @@ test('clock regression explicitly interrupts active snapshot and starts a new ru
   assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN').length, 2);
 });
 
+test('contextual scalar aliases reuse one observation without changing fields or escaping', () => {
+  const ship = host('ship', 'SHIP'), t = crew(ship), entry = ship.people.get(t);
+  let reads = 0; const text = "Synthetic % | name\n船";
+  Object.defineProperty(entry, 'name', { get() { reads++; return text; } });
+  const h = setup({ ships: [ship] }); finish(h);
+  const p = profiles(h).find(p => p.kind === 'NPC');
+  assert.equal(reads, 2, 'One availability lookup and one value lookup, reused for both output fields');
+  assert.equal(p.fields.name.value, text); assert.equal(p.fields.contextual_name.value, text);
+  assert.equal(p.fields.seed.value, p.fields.contextual_seed.value);
+  assert.equal(p.fields.race.value, p.fields.contextual_race.value);
+  assert.equal(p.fields.macro.value, p.fields.contextual_macro.value);
+  assert.equal(p.fields.seed.type, 'datatype.largeint');
+  assert.ok(h.md.$LSPTypeEscapes.size > 0);
+  const missingShip = host('ship', 'MISSING'), missingTemplate = crew(missingShip);
+  delete missingShip.people.get(missingTemplate).name;
+  const m = setup({ ships: [missingShip] }); finish(m);
+  const mp = profiles(m).find(p => p.kind === 'NPC');
+  assert.equal(mp.fields.name.state, 'UNAVAILABLE'); assert.equal(mp.fields.contextual_name.state, 'UNAVAILABLE');
+});
+
 test('old persisted discovery state is interrupted before new progress fields are read', () => {
   const h = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 }); h.call('Tick');
   h.md.$LSPPass = 'NPC_DISCOVERY'; delete h.md.$LSPPersonnelVersion;

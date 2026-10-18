@@ -57,8 +57,9 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     if (value.__type === 'datatype' && key === 'isstring') return value.name === 'string';
     if (value.__type === 'datatype' && key === 'isnumeric') return value.name === 'integer';
     if (key === 'isclass') return new Proxy({}, { get: (_, klass) => value.class === klass || (klass === 'ship' && value.class === 'spacesuit') });
-    if (value[key] === undefined) throw new Error(`Missing property ${key}`);
-    return value[key];
+    const item = value[key];
+    if (item === undefined) throw new Error(`Missing property ${key}`);
+    return item;
   }
   function evalx(s, local) {
     s = s.trim();
