@@ -1,5 +1,28 @@
 # Snapshot-only object profile collector
 
+## Datatype-cache investigation, 2026-10-19
+
+**Root cause identified; implementation correction pending.** The cache renders
+type labels into string keys such as `component` and `string`. Egosoft's
+[MD guide, Tables section](https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/#HTables)
+requires string table keys to begin with `$`. The existing key formatter omits
+that prefix, explaining the repeated cache assignment errors. This restriction
+concerns the resulting key value, not the variable name `$TypeKey`.
+
+The proposed minimal correction prefixes only the internal cache key with a
+literal `$`; recorded datatype labels and profile values remain unchanged.
+Component/template keys in the other discovery maps are typed references, not
+these rendered strings, and should retain their existing representation.
+
+A local research reproduction enforces the documented string-key rule: the
+current key fails, while an in-memory prefixed-key candidate completes four
+synthetic profiles with all 77 VALUE rows, types/states/framing identical to the
+permissive baseline. The production harness currently accepts invalid string
+keys; its table-assignment checks need a corresponding regression improvement.
+This is a source-backed diagnosis and synthetic design check, not a native
+retest, measured performance gain or implemented cache fix. Slot 10 was not
+accessed; no save data is needed to explain this language-rule violation.
+
 ## Literal-expression correction, 2026-10-18
 
 The larger-save native debug log exposed 44 generated expression errors:
