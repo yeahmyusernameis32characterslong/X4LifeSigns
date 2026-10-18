@@ -68,7 +68,7 @@ export function generateRecorder(config) {
       value('captain_reference','$Captain','true')+value('pilot_reference','$Pilot','true')+
       iff(valid('$Captain'),value('captain_seed','$Captain.seed'))+otherwise(missing('captain_seed','NO_ASSIGNED_CAPTAIN'))+
       iff(valid('$Pilot'),value('pilot_seed','$Pilot.seed'))+otherwise(missing('pilot_seed','NO_ASSIGNED_PILOT'))+
-      missing('personnel_onboard','UNVERIFIED')+value('onboard_template_personnel','$Ship.availablepeople.count')+value('assigned_template_personnel','$Ship.people.count')+
+      value('onboard_template_personnel','$Ship.availablepeople.count')+value('assigned_template_personnel','$Ship.people.count')+
       value('commander_reference','$Commander','true')+
       iff(valid('$Commander'),value('commander_idcode','$Commander.idcode')+value('commander_class','$Commander.class'))+otherwise(missing('commander_idcode','NO_COMMANDER')+missing('commander_class','NO_COMMANDER'))+
       value('fleet_assignment','$Ship.assignment')+value('fleet_role','$Ship.assignment.name'))+
@@ -89,7 +89,7 @@ export function generateRecorder(config) {
     value('actor_reference','$Actor','true')+value('context_host_reference','$Host','true')+value('npctemplate','$Template','true')+value('discovery_origin','$Candidate.$origin')+
     set('$HasActor','false')+iff(`not md.$LSPStopped and md.$LSPRemaining gt 0 and ${valid('$Actor')}`,iff('$Actor.isclass.npc and $Actor.isplayerowned',set('$HasActor','true')))+
     set('$HasContext','false')+iff(`not md.$LSPStopped and md.$LSPRemaining gt 0 and ${valid('$Host')}`,iff('$Host.isplayerowned and typeof $Template == datatype.npctemplate',iff('@$Host.people.{$Template}.exists',set('$HasContext','true'))))+
-    iff('$HasActor',value('seed','$Actor.seed')+value('idcode','$Actor.idcode')+value('debugname','$Actor.debugname')+value('name','$Actor.knownname')+value('race','$Actor.race.name')+
+    iff('$HasActor',value('seed','$Actor.seed')+value('debugname','$Actor.debugname')+value('name','$Actor.knownname')+value('race','$Actor.race.name')+
       value('sector_name','$Actor.sector.name')+value('role','$Actor.role')+value('role_name','$Actor.role.name')+value('controlpost','$Actor.controlpost')+value('controlpost_name','$Actor.controlpost.name')+
       value('owner','$Actor.owner')+value('trueowner','$Actor.trueowner')+value('container_reference','$Actor.container')+value('macro','$Actor.macro')+
       set('$RoleObject','null')+set('$Controlled','null')+iff('not md.$LSPStopped and md.$LSPRemaining gt 0',set('$RoleObject','@$Actor.roleobject')+set('$Controlled','@$Actor.assignedcontrolled'))+
@@ -105,7 +105,7 @@ export function generateRecorder(config) {
     otherwise(
       iff('$HasContext',contextField('seed','seed')+contextField('name','name')+contextField('race','race.name')+contextField('macro','macro')+contextField('role','role')+contextField('role_name','role.name'))+
       otherwise(['seed','name','race','macro','role','role_name'].map(f=>missing(f,'UNAVAILABLE')).join(''))+
-      missing('idcode','UNVERIFIED')+missing('debugname','NO_ACTOR_OBSERVED')+missing('controlpost','NO_ACTOR_OBSERVED')+missing('controlpost_name','NO_ACTOR_OBSERVED')+
+      missing('debugname','NO_ACTOR_OBSERVED')+missing('controlpost','NO_ACTOR_OBSERVED')+missing('controlpost_name','NO_ACTOR_OBSERVED')+
       set('$Onboard','false')+iff('not md.$LSPStopped and md.$LSPRemaining gt 0 and $HasContext',iff('@$Host.availablepeople.{$Template}.exists',iff('not @$Host.people.{$Template}.isintransit',set('$Onboard','true'))))+
       iff('$Onboard',value('sector_name','$Host.sector.name')+value('location_basis',"'HOST_CURRENT_PERSONNEL_ENTRY'",'true'))+
       otherwise(missing('sector_name','UNVERIFIED')+value('location_basis',"'HOST_LOCATION_NOT_ASSERTED'",'true'))+

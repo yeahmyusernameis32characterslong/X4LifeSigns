@@ -38,18 +38,17 @@ Source locations below refer to the installed X4 9.00 reference.
 | Sector name | `$Ship.sector.name` | Display name of the observed sector, if available. | `scriptproperties.xml:40,50,1253,1309` |
 | Captain seed | `$Captain.seed` | Read directly from a validated assigned actor; do not derive it from template text. | `scriptproperties.xml:48,315,1358`; `common.xsd:3565` |
 | Pilot seed | `$Pilot.seed` | Assigned-pilot actor seed; keep current-pilot versus assigned-AI-pilot distinctions explicit. | `scriptproperties.xml:48,302-305,1358` |
-| Number of personnel onboard | `$Ship.availablepeople.count` supplies a currently onboard template-personnel count | **Partial answer:** a complete total including separately represented control actors is not verified. `$Ship.people.count` is another documented template-personnel count; neither is proven to be an inclusive headcount. | `scriptproperties.xml:374,395` |
+| Templates onboard | `$Ship.availablepeople.count` | Retain as `onboard_template_personnel`, separate from assigned roster; physical presence may include rescued, unassigned personnel. No inclusive `personnel_onboard` total is requested or emitted. | `scriptproperties.xml:395`; owner-directed interpretation |
+| Templates assigned | `$Ship.people.count` | Retain as `assigned_template_personnel`; do not force equality with onboard templates or add actor aliases to it. | `scriptproperties.xml:374`; owner-directed interpretation |
 | Commander idcode | `$Commander.idcode` | Immediate commander, not top-level fleet commander. It can be a station; record type and do not mislabel it as a ship. | `scriptproperties.xml:198,332-333,355` |
 | Role in fleet | `$Ship.assignment` and `$Ship.assignment.name` | Assignment under its commander, including Defence, Interception and Bombardment. Not an NPC role or the ship's instantaneous AI command. | `scriptproperties.xml:334,2305-2308`; `common.xsd:3682,3696,3703` |
 
 ## Personnel-count boundary
 
-The requested field is the number of people onboard, not a count of raw rows,
-actor aliases, crew capacity or inbound transfers. Do not blindly add
-`people.count`, `roleentities.count`, captain and pilot: an instantiated actor
-can represent a personnel entry and captain/pilot can be the same actor.
-The exact inclusive counting rule remains open. Preserve named source counts
-and their meanings until it has been verified.
+The owner removed the inclusive personnel-total requirement. Preserve assigned
+and onboard template counts separately: rescued NPCs can be physically onboard
+without assignment to that ship. Do not add `people.count`, `roleentities.count`,
+captain and pilot; actor aliases can overlap. No new inclusive total is inferred.
 
 ## Read and identity rules
 
@@ -81,5 +80,6 @@ the actual definitions. Vendor files and raw model/log evidence remain local.
   `8eec878511d06dd2be88a7054eb54556b29e481bf0feba20fe2cf3c6eabd3452`.
 
 The [profile collector](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md) implements
-these reads with explicit uncertainty for inclusive personnel count. Native
+these reads with separate onboard/assigned template counts; the inclusive
+personnel-total field was removed by the owner. Native
 acceptance and existing database contracts are unaffected by the source checks.

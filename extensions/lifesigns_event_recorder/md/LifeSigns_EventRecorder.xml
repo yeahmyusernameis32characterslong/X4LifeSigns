@@ -629,24 +629,6 @@
 <do_if value="not md.$LSPStopped">
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
-<param name="Field" value="'personnel_onboard'" />
-<param name="Value" value="@null" />
-<param name="Available" value="false" />
-<param name="State" value="'UNVERIFIED'" />
-</run_actions>
-</do_if>
-<do_else>
-<run_actions ref="Value">
-<param name="Field" value="'personnel_onboard'" />
-<param name="Value" value="null" />
-<param name="Available" value="false" />
-<param name="State" value="'UNVERIFIED'" />
-</run_actions>
-</do_else>
-</do_if>
-<do_if value="not md.$LSPStopped">
-<do_if value="md.$LSPRemaining gt 0">
-<run_actions ref="Value">
 <param name="Field" value="'onboard_template_personnel'" />
 <param name="Value" value="@$Ship.availablepeople.count" />
 <param name="Available" value="$Ship.availablepeople.count?" />
@@ -958,24 +940,6 @@
 <do_else>
 <run_actions ref="Value">
 <param name="Field" value="'seed'" />
-<param name="Value" value="null" />
-<param name="Available" value="false" />
-<param name="State" value="'AUTO'" />
-</run_actions>
-</do_else>
-</do_if>
-<do_if value="not md.$LSPStopped">
-<do_if value="md.$LSPRemaining gt 0">
-<run_actions ref="Value">
-<param name="Field" value="'idcode'" />
-<param name="Value" value="@$Actor.idcode" />
-<param name="Available" value="$Actor.idcode?" />
-<param name="State" value="'AUTO'" />
-</run_actions>
-</do_if>
-<do_else>
-<run_actions ref="Value">
-<param name="Field" value="'idcode'" />
 <param name="Value" value="null" />
 <param name="Available" value="false" />
 <param name="State" value="'AUTO'" />
@@ -1841,24 +1805,6 @@
 </do_else>
 </do_if>
 </do_else>
-<do_if value="not md.$LSPStopped">
-<do_if value="md.$LSPRemaining gt 0">
-<run_actions ref="Value">
-<param name="Field" value="'idcode'" />
-<param name="Value" value="@null" />
-<param name="Available" value="false" />
-<param name="State" value="'UNVERIFIED'" />
-</run_actions>
-</do_if>
-<do_else>
-<run_actions ref="Value">
-<param name="Field" value="'idcode'" />
-<param name="Value" value="null" />
-<param name="Available" value="false" />
-<param name="State" value="'UNVERIFIED'" />
-</run_actions>
-</do_else>
-</do_if>
 <do_if value="not md.$LSPStopped">
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">

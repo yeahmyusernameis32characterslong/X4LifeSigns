@@ -1,5 +1,18 @@
 # Snapshot-only object profile collector
 
+## Owner-directed larger-save preparation, 2026-10-18
+
+First increment removes standalone NPC `idcode` reads/placeholders and the ship
+`personnel_onboard` placeholder. Raw NPC debugname and both assigned/onboard
+template counts remain. Derive an NPC code offline from its parenthesised
+debugname value when available; absence leaves it unknown. These fields and
+their reference tables supersede the historical initial plan below.
+
+The same owner request also requires one initial snapshot, no aggregate row cap
+and separate session/load-time log files. That scheduling/output increment is
+pending in this first commit; earlier periodic/cap descriptions remain current
+until the next increment. No deployment or new gameplay is included.
+
 ## Authorised implementation task, 2026-10-18
 
 Owner requested replacement of snapshot generation with independent station,
@@ -205,11 +218,13 @@ and [NPC](OBJECT_PROFILE_NPCS.md) tables define required reads.
 - Ship profiles include seed/idcode/name/model/sector, captain/pilot seeds and
   references, commander idcode/class and fleet assignment value/name. No captain
   or pilot idcode field is generated.
-- Inclusive `personnel_onboard` is explicitly UNVERIFIED. Separate currently
-  onboard and assigned template counts are collected without asserting that
-  adding actors/captain would produce a correct total.
+- The owner removed inclusive `personnel_onboard` collection. Currently onboard
+  and assigned template counts remain separate; rescued, unassigned personnel
+  can make physical presence differ from the assigned roster.
 - NPC profiles read actor seed/name/race/sector, role/post, assignment references,
-  attempted idcode and raw debugname. Contextual entries read seed/name/race/macro,
+  and raw debugname. No standalone NPC `idcode` read or placeholder is emitted;
+  derive the parenthesised code offline when available, otherwise leave unknown.
+  Contextual entries read seed/name/race/macro,
   role and transfer/temporary flags. When both representations match, additional
   `contextual_*` fields retain their distinct values.
 - `assigned_ship_idcode` uses actor role/control relationships, with the source

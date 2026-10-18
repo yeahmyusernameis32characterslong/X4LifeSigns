@@ -36,7 +36,7 @@ Source locations below refer to the installed X4 9.00 reference.
 | Requested field | Actor collection candidate | Contextual personnel candidate and limitations | Source |
 | --- | --- | --- | --- |
 | Seed | `$NPC.seed` | `$Host.people.{$Template}.seed`. Read it; never infer it from template numeric text. Actor/contextual equivalence and lifetime require evidence. | `scriptproperties.xml:48,1358,2047` |
-| Idcode | Standalone NPC `.idcode` getter remains unverified; also collect `$NPC.debugname` as raw diagnostic evidence | Owner-supplied save evidence confirms a code exists for an NPC. Inherited debugname is documented to include name, idcode and ID, but its actual NPC output and safe extraction of a standalone code need verification. No contextual idcode property is documented. | `scriptproperties.xml:54,198,1358,1427-1429,2042-2068` |
+| Idcode (offline derivation only) | Collect raw `$NPC.debugname`; do not request or emit a standalone NPC `idcode` field | Owner-directed change after observed actor debugname output: extract the code between parentheses offline when available. If absent or ambiguous, leave the code unknown. Context-only profiles may have no debugname; do not invent a code. This is separate from assigned-ship ID codes. | `scriptproperties.xml:54,1358`; owner-reviewed native profiles |
 | NPC name | `$NPC.knownname` | `$Host.people.{$Template}.name`. Lack of a captured actor is not proof that the contextual name is unavailable. | `scriptproperties.xml:52,2049` |
 | Race | `$NPC.race.name` | `$Host.people.{$Template}.race.name`. | `scriptproperties.xml:1369,1884,2050` |
 | Sector name | `$NPC.sector.name` | `$Host.sector.name` is only a host-derived location candidate when onboard presence is established. Do not assert it as actual NPC location during transit or from assignment alone. | `scriptproperties.xml:40,50,394-398,1253,1309,2055` |
@@ -68,9 +68,11 @@ The private example's name and actual identifiers are intentionally not copied.
 
 Component `.debugname` (`scriptproperties.xml:54`) is documented as combining
 knownname, idcode and ID. NPC actors inherit it through entity/component. Record
-its complete raw value as an additional candidate observation rather than
-assuming a delimiter, parsing a permanent ID, or promising it exposes every NPC
-code in practice. Actual output and any standalone getter still need validation.
+its complete raw value. In owner-reviewed captures the code appears between
+parentheses. The owner now requests offline extraction from that value and no
+standalone NPC `idcode` collection. Missing or ambiguous debugname leaves the
+code unknown; not every profile has an observed actor/debugname. Preserve the
+raw observation alongside any offline derived value.
 
 The bracketed hex save ID resembles a component reference, not an established
 encoding of the seed. Converting hex to decimal only changes notation; it does
