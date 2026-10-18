@@ -86,6 +86,15 @@ observations; they do not establish person death or identity continuity.
 
 ## Configuration and resource bounds
 
+The post-test personnel correction uses complete
+`people.{template}.exists/seed/role/...` terminal chains. The contextual entry
+is a non-storable pseudo-type, never an intermediate script value. Missing
+entries or terminal fields mark the asset partial; false, zero and null remain
+recorded values. Detail traversal stops before further personnel reads when
+the value budget or raw capture allowance has stopped it. The synthetic harness
+rejects pseudo-type storage; native getter correctness still requires a later
+separately approved X4 test.
+
 Edit `recorder/config.json`, then rebuild **before a later authorised
 installation**. No Node process is needed during collection. Configuration is
 compiled into the optional extension and applied on each recorder bootstrap;
@@ -104,7 +113,7 @@ runtime M1–M4 changes do not override that setting permanently across loads.
 | `valueDepth` | 3 | Nested collection depth bound. |
 | `snapshotQueue` | 16 | Queued full snapshots; excess requests produce a visible gap marker. |
 | `actorReferences` | 10000 | Run-local retained personnel component references. Previously observed association is not proof of current ownership. |
-| `maxRowsPerRun` | 1000000 | Raw row attempts before an explicit LIMIT marker stops capture for that run. Diagnostics have a separate equal row allowance. |
+| `maxRowsPerRun` | 2000000 | Raw row attempts before an additional explicit LIMIT marker stops capture for that run. Diagnostics have a separate equal row allowance. |
 
 Owner-requested discovery configuration (2026-10-17): periodic snapshots
 are scheduled every **300 seconds of X4 game time**, and each asset can now
@@ -117,8 +126,11 @@ does not guarantee complete crew records: nested values and other independent
 limits can still leave a partial snapshot. The obsolete shared `valueItems`
 configuration key is rejected; snapshot validation permits 16–16,384 nodes,
 and event validation retains the earlier configurable 16–4,096 range.
-`assetsPerTick=8` and the one-million-native-
-row run cap are unchanged. To gauge scan duration after a separately approved
+`assetsPerTick=8` is unchanged. The owner-approved correction raises the raw
+row allowance to **2,000,000 per run**; one final MAX_ROWS marker is additional
+to that allowance. Diagnostic output independently shares the configured
+threshold (2,000,000 diagnostic rows), retaining its existing semantics.
+The cap is neither a native-event count nor a byte/word limit. To gauge scan duration after a separately approved
 gameplay test, compare each `SNAPSHOT_BEGIN` and `SNAPSHOT_END` record's
 `age` header for the same run/sequence. That measures elapsed **game time**;
 it is not a profiler measurement or necessarily real-world wall-clock time.

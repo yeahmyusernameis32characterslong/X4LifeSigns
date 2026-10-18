@@ -10,5 +10,5 @@
   "valueDepth": 3,
   "snapshotQueue": 16,
   "actorReferences": 10000,
-  "maxRowsPerRun": 1000000
+  "maxRowsPerRun": 2000000
 }

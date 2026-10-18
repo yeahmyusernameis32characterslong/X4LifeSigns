@@ -37,11 +37,14 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
   function get(value, key) {
     if (value == null && key === 'exists') return false;
     if (value == null) throw new Error(`Unavailable ${key}`);
+    if (Object.hasOwn(value, '__pseudoEntry')) return get(value.entry, key);
     if (Object.hasOwn(value, '__indexOf')) return value.__indexOf.indexOf(key) + 1;
     if (value instanceof Map) {
       if (key === 'keys') return { count: value.size, list: [...value.keys()] };
       if (!value.has(key)) throw new Error(`Missing table ${key}`);
-      return value.get(key);
+      const item = value.get(key);
+      // Contextual entry pseudo-types support terminal access, never storage.
+      return key?.__type === 'npctemplate' ? { __pseudoEntry: true, entry: item } : item;
     }
     if (Array.isArray(value)) {
       if (key === 'count') return value.length;
@@ -100,6 +103,7 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
     return value;
   }
   function assign(path, value, local, remove = false) {
+    if (value != null && Object.hasOwn(Object(value), '__pseudoEntry')) throw new Error('Cannot store contextual pseudo-type');
     const parts = split(path, '.'); const first = parts.shift();
     if (!parts.length) { if (remove) delete local[first]; else local[first] = value; return; }
     let owner = first === 'md' ? md : local[first];
