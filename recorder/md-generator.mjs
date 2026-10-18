@@ -107,6 +107,7 @@ export function generateRecorder(config) {
         set('$Count', `[$PeopleCount, ${c.crewPerAsset}].min`) +
         tag('do_all', { exact: '$Count', counter: '$Index' }, stopDetails + set('$Template', '$People.{$Index}') +
           value("$Path + '.people.' + $Index + '.template'", '$Template') +
+          stopDetails +
           iff('@$Asset.people.{$Template}.exists', ['seed', 'role', 'isintransit', 'istransferscheduled', 'istemporary'].map(field =>
             iff('not md.$LSERStopped and $Budget.$remaining gt 0',
               iff(`not $Asset.people.{$Template}.${field}?`, set('$Budget.$reported', 'true') + add('md.$LSERIncomplete')) +

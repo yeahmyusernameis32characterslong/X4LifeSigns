@@ -1991,6 +1991,21 @@
 <param name="Depth" value="0" />
 <param name="Enrich" value="false" />
 </run_actions>
+<do_if value="md.$LSERStopped">
+<break />
+</do_if>
+<do_if value="$Budget.$remaining le 0">
+<do_if value="not $Budget.$limited">
+<set_value name="$Budget.$limited" exact="true" />
+<set_value name="$Budget.$reported" exact="true" />
+<set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'PAYLOAD_LIMIT|reason=VALUE_BUDGET'" />
+<param name="Seq" value="$Seq" />
+</run_actions>
+</do_if>
+<break />
+</do_if>
 <do_if value="@$Asset.people.{$Template}.exists">
 <do_if value="not md.$LSERStopped and $Budget.$remaining gt 0">
 <do_if value="not $Asset.people.{$Template}.seed?">

@@ -135,6 +135,13 @@ test('personnel detail reads cease at the node budget or stopped raw capture and
   const h = create({}, { snapshotValueItems: 16 });
   h.call('Asset', { Asset: a, Seq: 1, Trigger: 'EVENT' });
   assert.equal(reads, 0); assert.ok(rows(h).some(x => x.kind === 'PAYLOAD_LIMIT'));
+  let existenceReads = 0;
+  Object.defineProperty(entry, 'exists', { get() { existenceReads++; return true; } });
+  a.assignedaipilot = [1, 2, 3, 4, 5]; // The template itself consumes the final node.
+  const boundary = create({}, { snapshotValueItems: 16 });
+  boundary.call('Asset', { Asset: a, Seq: 1, Trigger: 'EVENT' });
+  assert.equal(existenceReads, 0);
+  assert.ok(rows(boundary).some(x => x.kind === 'PAYLOAD_LIMIT'));
   h.md.$LSERStopped = true; const before = h.output.length;
   h.call('Asset', { Asset: a, Seq: 2, Trigger: 'EVENT' });
   assert.equal(h.output.length, before); assert.equal(reads, 0);
