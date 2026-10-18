@@ -32,7 +32,7 @@ Source locations below refer to the installed X4 9.00 reference.
 | Requested field | Actor collection candidate | Contextual personnel candidate and limitations | Source |
 | --- | --- | --- | --- |
 | Seed | `$NPC.seed` | `$Host.people.{$Template}.seed`. Read it; never infer it from template numeric text. Actor/contextual equivalence and lifetime require evidence. | `scriptproperties.xml:48,1358,2047` |
-| Idcode | No documented NPC idcode getter established | No contextual idcode property documented either. Keep this requirement explicitly unavailable/unsupported; a component reference or seed is a different field. | `scriptproperties.xml:198,1358,1427-1429,2042-2068` |
+| Idcode | Standalone NPC `.idcode` getter remains unverified; also collect `$NPC.debugname` as raw diagnostic evidence | Owner-supplied save evidence confirms a code exists for an NPC. Inherited debugname is documented to include name, idcode and ID, but its actual NPC output and safe extraction of a standalone code need verification. No contextual idcode property is documented. | `scriptproperties.xml:54,198,1358,1427-1429,2042-2068` |
 | NPC name | `$NPC.knownname` | `$Host.people.{$Template}.name`. Lack of a captured actor is not proof that the contextual name is unavailable. | `scriptproperties.xml:52,2049` |
 | Race | `$NPC.race.name` | `$Host.people.{$Template}.race.name`. | `scriptproperties.xml:1369,1884,2050` |
 | Sector name | `$NPC.sector.name` | `$Host.sector.name` is only a host-derived location candidate when onboard presence is established. Do not assert it as actual NPC location during transit or from assignment alone. | `scriptproperties.xml:40,50,394-398,1253,1309,2055` |
@@ -53,6 +53,27 @@ Source locations below refer to the installed X4 9.00 reference.
   discovered component; do not invent that getter on a raw template/pseudo-entry.
 - Keep discovery provenance, available representations and ownership evidence
   in each profile. Do not force actor creation merely to obtain a crew name.
+
+## Save code, component ID and seed
+
+An owner-supplied NPC save component contains both an AAA-123-format `code`
+attribute and a bracketed hexadecimal `id` attribute. This is evidence that the
+specific saved NPC has a code; missing MD getter documentation or an unavailable
+recorded `.idcode` read must not be described as proof NPC codes do not exist.
+The private example's name and actual identifiers are intentionally not copied.
+
+Component `.debugname` (`scriptproperties.xml:54`) is documented as combining
+knownname, idcode and ID. NPC actors inherit it through entity/component. Record
+its complete raw value as an additional candidate observation rather than
+assuming a delimiter, parsing a permanent ID, or promising it exposes every NPC
+code in practice. Actual output and any standalone getter still need validation.
+
+The bracketed hex save ID resembles a component reference, not an established
+encoding of the seed. Converting hex to decimal only changes notation; it does
+not prove that value equals `.seed`. Preserve saved code, component reference,
+raw debugname and the separately requested actor seed as distinct evidence.
+The reviewed corpus has not established save-ID/runtime-reference equivalence
+or lifetime across all lifecycle operations.
 
 ## Identity, availability and validation
 

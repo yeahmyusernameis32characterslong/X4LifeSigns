@@ -35,7 +35,7 @@ Source locations refer to the installed X4 9.00 reference, not files in this rep
 | Station type | `$Station.primarypurpose.name` | Functional classification. `$Station.macro.name` is a separate model/design display label; retain both if needed. An exact UI station-type equivalent is not yet verified. | `scriptproperties.xml:30,184,2072,2312-2313` |
 | Sector name | `$Station.sector.name` | Resolve the sector reference and its display name. Sector inherits component name via space. | `scriptproperties.xml:40,50,1253,1309` |
 | Manager seed | `$Manager.seed` | Read directly from the assigned manager actor; a missing manager is an explicit missing relationship, not a fabricated seed. | `scriptproperties.xml:48,315,1358`; `common.xsd:3567` |
-| Manager idcode | No documented NPC idcode getter established | Keep the requested field explicitly unavailable/unsupported. Do not substitute station idcode, actor reference or seed as though it were the same field. | `scriptproperties.xml:198,1358,1427-1429` |
+| Manager idcode | Standalone NPC getter unverified; `$Manager.debugname` is an additional raw observation candidate | NPC save evidence confirms stored codes can exist. Inherited debugname is documented to include idcode, but its output and standalone-code extraction require validation. Do not substitute station idcode, actor reference or seed. | `scriptproperties.xml:54,198,1358,1427-1429` |
 
 ## Read and identity rules
 
