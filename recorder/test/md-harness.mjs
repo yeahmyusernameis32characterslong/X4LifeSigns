@@ -31,6 +31,7 @@ const show = value => value == null ? 'null' : value.__type === 'datatype' ? `da
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
 export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1 } = {}) {
   const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+  let randomCounter = 0;
   function walk(node, parentCue) { if (node.tag === 'library') libraries.set(node.attrs.name, node); if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; } node.children.forEach(child => walk(child, parentCue)); }
   walk(tree);
   const player = { age, entity: { __type: 'component', exists: true }, galaxy: true, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
@@ -128,7 +129,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
         if (!branch && (n.tag === 'do_else' || ev(a.value))) { branch = true; const flow = execute(n.children, local); if (flow) return flow; } continue;
       }
       branch = false;
-      if (n.tag === 'set_value') { const exact = a.exact === undefined ? Number(a.min) : ev(a.exact); assign(a.name, a.operation === 'add' ? ev(a.name) + exact : exact, local); }
+      if (n.tag === 'set_value') { const exact = a.exact === undefined ? Number(a.min) + randomCounter++ : ev(a.exact); assign(a.name, a.operation === 'add' ? ev(a.name) + exact : exact, local); }
       else if (n.tag === 'return') return { return: ev(a.value) };
       else if (n.tag === 'break') return { break: true };
       else if (n.tag === 'run_actions') { const args = Object.fromEntries(n.children.map(p => [p.attrs.name, ev(p.attrs.value)])); const result = call(a.ref, args); if (a.result) assign(a.result, result, local); }
@@ -169,6 +170,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     return execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
   }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
-  function start() { cue('Bootstrap'); }
-  return { md, player, output, notifications, callCounts, call, cue, start, tree };
+  function load() { cue('RunBoundary'); cue('Bootstrap'); }
+  function start() { load(); }
+  return { md, player, output, notifications, callCounts, call, cue, start, load, tree };
 }

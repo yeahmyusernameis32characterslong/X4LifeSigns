@@ -58,7 +58,7 @@ export async function inspectLog(file, { expectedRun, maxLineBytes = 1048576 } =
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   if (!['--profiles', '--events'].includes(args[0]) || !args[1] || (args.length !== 2 && !(args.length === 4 && args[2] === '--run'))) {
-    console.error('Usage: node recorder/check-log.mjs --profiles <native profiles.log> [--run <expected run marker>]');
+    console.error('Usage: node recorder/check-log.mjs --profiles <run-specific profile log> [--run <expected run marker>]');
     process.exitCode = 2;
   } else {
     try { console.log(JSON.stringify(await inspectLog(args[1], { expectedRun: args[3] }), null, 2)); }

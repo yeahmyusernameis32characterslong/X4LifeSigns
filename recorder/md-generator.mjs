@@ -1,4 +1,4 @@
-// Snapshot-only MD compiler. No native/UI/lifecycle event subscriptions.
+// Snapshot-only MD compiler. One universe lifecycle hook; no gameplay/UI capture.
 const xml = v => String(v).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const tag = (name, attrs = {}, body) => `<${name}${Object.entries(attrs).map(([k,v]) => ` ${k}="${xml(v)}"`).join('')}${body === undefined ? ' />' : `>${body}</${name}>`}`;
 const set = (name, exact) => tag('set_value', {name, exact});
@@ -35,8 +35,8 @@ export function generateRecorder(config) {
     set('$Session',"'UNAVAILABLE'")+
     iff('md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?',iff("md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''",set('$Session','md.$LifeSignsProductionSessionKey')))+
     set('$Line',"'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]")+
-    iff('$Diagnostic',add('md.$LSPDiagnosticRows')+tag('debug_to_file',{name:"'profile-diagnostics.log'",directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+
-    otherwise(add('md.$LSPRows')+tag('debug_to_file',{name:"'profiles.log'",directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+ret('true'));
+    iff('$Diagnostic',add('md.$LSPDiagnosticRows')+tag('debug_to_file',{name:'md.$LSPDiagnosticFile',directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+
+    otherwise(add('md.$LSPRows')+tag('debug_to_file',{name:'md.$LSPProfileFile',directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+ret('true'));
   const val=lib('Value',{Field:null,Value:null,Available:'true',State:"'AUTO'"},
     iff('md.$LSPStopped',ret('false'))+
     iff('md.$LSPRemaining le 0',iff('not md.$LSPValueLimit',set('md.$LSPValueLimit','true')+set('md.$LSPProfilePartial','true')+write("'PROFILE_LIMIT|reason=VALUE_BUDGET'"))+ret('false'))+
@@ -194,21 +194,31 @@ export function generateRecorder(config) {
       iff('not md.$LSPStopped',iff('md.$LSPSnapshotPartial',notify('Snapshot completed (partial data).'))+otherwise(notify('Snapshot completed.')))+
       set('md.$LSPActive','false')+
       ['Stations','Ships','Hosts','Candidates'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+set('md.$LSPActors','table[]')+set('md.$LSPContexts','table[]')+ret('true'))+ret('false'));
-  const initialize=lib('Initialize',{Reason:"'CLOCK_REGRESSION'"},
-    iff('md.$LSPReady? and md.$LSPReady',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=%s'.[$Reason]")))+
-    set('md.$LSPReady','false')+set('$Nonce','0')+tag('set_value',{name:'$Nonce',min:'0',max:'2147483647'})+
-    set('md.$LSPRun',"'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]")+
+  const queueRun=lib('QueueRun',{},
+    // A restored save is not permission to append retrospective rows to its old files.
+    set('md.$LSPReady','false')+set('md.$LSPActive','false')+set('md.$LSPStopped','true')+
+    set('md.$LSPPendingLoadedAt',"player.systemtime.{'%Y-%m-%d_%H-%M-%S'}")+
+    tag('set_value',{name:'$NonceA',min:'0',max:'2147483647'})+tag('set_value',{name:'$NonceB',min:'0',max:'2147483647'})+
+    set('md.$LSPPendingRun',"'session-%s-%s-loaded-%s'.[$NonceA, $NonceB, md.$LSPPendingLoadedAt]")+
+    set('md.$LSPPending','true')+tag('reset_cue',{cue:'Bootstrap'})+ret('true'));
+  const initialize=lib('Initialize',{},
+    iff('not md.$LSPPending',ret('false'))+
+    set('md.$LSPRun','md.$LSPPendingRun')+set('md.$LSPLoadedAt','md.$LSPPendingLoadedAt')+
+    set('md.$LSPProfileFile',"'profiles-%s.log'.[md.$LSPRun]")+
+    set('md.$LSPDiagnosticFile',"'profile-diagnostics-%s.log'.[md.$LSPRun]")+set('md.$LSPPending','false')+
     ['Seq','Rows','DiagnosticRows','Profile'].map(k=>set(`md.$LSP${k}`,'0L')).join('')+set('md.$LSPStopped','false')+set('md.$LSPActive','false')+set('md.$LSPLevel',String(levels.indexOf(c.diagnostics)))+
     set('md.$LSPLastAge','player.age')+set('md.$LSPSnapshotStarted','false')+set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+set('md.$LSPReady','true')+
     set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
-    set('md.$LSPPersonnelVersion','2')+set('md.$LSPNextAssetTick','player.age')+
+    set('md.$LSPPersonnelVersion','3')+set('md.$LSPNextAssetTick','player.age')+
     set('md.$LSPDiscoveryStage',"'HOST'")+set('md.$LSPEntry','1')+set('md.$LSPTypeEscapes','table[]')+
-    write("'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'")+ret('true'));
+    write("'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]")+
+    run('Write',{Diagnostic:'true',Body:"'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]"})+ret('true'));
   const tick=lib('Tick',{},
     iff('not md.$LSPReady',ret('false'))+
-    iff('not md.$LSPPersonnelVersion?',run('Initialize',{Reason:"'PERSONNEL_COLLECTOR_UPDATE'"})+ret('true'))+
-    iff('md.$LSPPersonnelVersion != 2',run('Initialize',{Reason:"'PERSONNEL_COLLECTOR_UPDATE'"})+ret('true'))+
-    iff('player.age lt md.$LSPLastAge',run('Initialize')+ret('false'))+set('md.$LSPLastAge','player.age')+
+    iff('not md.$LSPPersonnelVersion?',ret('false'))+
+    iff('md.$LSPPersonnelVersion != 3',ret('false'))+
+    iff('player.age lt md.$LSPLastAge',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'"))+
+      set('md.$LSPActive','false')+set('md.$LSPStopped','true')+set('md.$LSPReady','false')+ret('false'))+set('md.$LSPLastAge','player.age')+
     iff('md.$LSPStopped',ret('false'))+
     iff("(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick",ret('false'))+
     iff("not md.$LSPActive or md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
@@ -226,8 +236,9 @@ export function generateRecorder(config) {
       tag('do_elseif',{value:"md.$LSPPass == 'SHIPS'"},iff('md.$LSPIndex le md.$LSPShips.count',run('ShipProfile',{Ship:'md.$LSPShips.{md.$LSPIndex}'})+add('md.$LSPIndex'))+otherwise(run('Advance')))+
       tag('do_elseif',{value:"md.$LSPPass == 'NPCS'"},iff('md.$LSPIndex le md.$LSPReadyCandidates',run('NpcProfile',{Candidate:'md.$LSPCandidates.{md.$LSPIndex}'})+add('md.$LSPIndex')+add('md.$LSPNpcProfiles'))+otherwise(iff('md.$LSPDiscoveryDone',run('Advance'))+otherwise(tag('break'))))+
       otherwise(tag('break')))+
-    iff('player.age ge md.$LSPNextHeartbeat',set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'HEALTH|collector=OBJECT_PROFILES|listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]"})))+ret('true'));
-  const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
-    tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:`${c.npcTickSeconds}s`},tag('conditions',{},tag('check_value',{value:'md.$LSPReady'}))+tag('actions',{},run('Tick')))));
-  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${polling}${escape}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${initialize}${tick}</cues></mdscript>\n`.replaceAll('><','>\n<');
+    iff('player.age ge md.$LSPNextHeartbeat',set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]"})))+ret('true'));
+  const lifecycle=tag('cue',{name:'RunBoundary',instantiate:'true'},tag('conditions',{},tag('event_universe_generated'))+tag('actions',{},run('QueueRun')));
+  const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
+    tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:`${c.npcTickSeconds}s`},tag('conditions',{},tag('check_value',{value:'md.$LSPReady and (not md.$LSPSnapshotStarted or md.$LSPActive)'}))+tag('actions',{},run('Tick')))));
+  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${lifecycle}${polling}${escape}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${initialize}${tick}</cues></mdscript>\n`.replaceAll('><','>\n<');
 }

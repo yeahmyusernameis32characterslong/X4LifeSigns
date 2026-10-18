@@ -38,13 +38,14 @@ function profiles(h) {
   return result;
 }
 
-test('generated snapshot-only artifact has no event listeners or actor creation', () => {
+test('generated snapshot-only artifact has exactly one lifecycle hook and no gameplay capture', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
-  assert.doesNotMatch(xml, /<event_|event\.(?:object|param)|<create_npc|roleentity\.\{/);
+  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated']);
+  assert.doesNotMatch(xml, /event\.(?:object|param)|<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);
-  assert.match(xml, /listeners=0/);
+  assert.match(xml, /gameplay_listeners=0/);
   assert.throws(() => validateConfig({ ...config, eventValueItems: 1 }));
   assert.throws(() => validateConfig({ ...config, profileValueItems: 16385 }));
   assert.throws(() => validateConfig({ ...config, profilesPerTick: 0 }));
@@ -189,7 +190,7 @@ test('stale references and missing contextual fields are explicit without pseudo
   const ship = host('ship', 'SHIP'), t = crew(ship); delete ship.people.get(t).name;
   const h = setup({ ships: [ship] }); finish(h);
   assert.equal(profiles(h).find(x => x.kind === 'NPC').fields.name.state, 'UNAVAILABLE');
-  h.call('Initialize'); ship.exists = false; finish(h);
+  h.load(); ship.exists = false; finish(h);
   assert.equal(profiles(h).at(-1).fields.reference.state, 'UNAVAILABLE_REFERENCE');
 });
 
@@ -227,11 +228,48 @@ test('readiness polling takes one initial snapshot and never schedules another',
   assert.equal(waiting.output.length, 0);
 });
 
-test('clock regression explicitly interrupts active snapshot and starts a new run', () => {
+test('each load gets separate timestamped session files even at the same game age and second', () => {
+  const h=setup({stations:[host('station','FIRST')]}); finish(h);
+  const oldFile=h.md.$LSPProfileFile, before=[...h.output], firstRun=h.md.$LSPRun;
+  h.load(); finish(h);
+  assert.notEqual(h.md.$LSPRun, firstRun);
+  assert.notEqual(h.md.$LSPProfileFile,oldFile);
+  assert.match(h.md.$LSPProfileFile,/^profiles-session-\d+-\d+-loaded-2000-01-01_00-00-00\.log$/);
+  assert.match(h.md.$LSPDiagnosticFile,/^profile-diagnostics-session-\d+-\d+-loaded-2000-01-01_00-00-00\.log$/);
+  assert.deepEqual(h.output.slice(0,before.length),before);
+  assert.equal(h.output.slice(before.length).some(o=>o.name===oldFile),false);
+  const starts=rows(h).filter(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profiles-'));
+  assert.equal(starts.length,2); assert.equal(starts[1].fields.snapshot_schedule,'INITIAL_ONLY');
+  assert.equal(starts[1].fields.max_rows,'NONE');
+  assert.equal(starts[1].fields.loaded_at,'2000-01-01_00-00-00');
+  assert.equal(rows(h).filter(r=>r.kind==='SNAPSHOT_END').length,2);
+  const completed=h.output.length;
+  h.player.age+=86400; h.cue('ProcessingTick'); h.call('Tick');
+  assert.equal(h.output.length,completed,'No recurring snapshots or diagnostic growth after completion');
+});
+
+test('load boundary blocks restored in-flight work until playable readiness without writing to old files', () => {
+  const h=setup({ships:[host('ship','SHIP')]},{profilesPerTick:1}); h.call('Tick');
+  const oldFile=h.md.$LSPProfileFile,before=h.output.length;
+  h.player.galaxy=null; h.load();
+  assert.equal(h.md.$LSPReady,false); assert.equal(h.md.$LSPPending,true);
+  h.call('Tick'); h.cue('ProcessingTick'); assert.equal(h.output.length,before);
+  h.player.systemtime['%Y-%m-%d_%H-%M-%S']='2000-01-01_00-02-00';
+  h.player.galaxy=true; h.cue('Bootstrap'); finish(h);
+  assert.equal(h.output.slice(before).some(o=>o.name===oldFile),false);
+  assert.match(h.md.$LSPProfileFile,/loaded-2000-01-01_00-00-00/,'Timestamp is boundary observation, not delayed readiness');
+  assert.equal(rows(h).filter(r=>r.kind==='SNAPSHOT_INTERRUPTED').length,0,'Do not fabricate old-file interruption on reload');
+  assert.equal(rows(h).filter(r=>r.kind==='SNAPSHOT_END').length,1);
+});
+
+test('unexplained clock regression interrupts active work and waits for a real lifecycle boundary', () => {
   const h = setup({ ships: [host('ship','SHIP')] }, { profilesPerTick: 1 }); h.call('Tick');
   h.player.age = 0; h.call('Tick');
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_INTERRUPTED').length, 1);
-  assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN').length, 2);
+  assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN' && x.file.startsWith('profiles-')).length, 1);
+  assert.equal(h.md.$LSPReady, false);
+  h.load(); finish(h);
+  assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN' && x.file.startsWith('profiles-')).length, 2);
 });
 
 test('contextual scalar aliases reuse one observation without changing fields or escaping', () => {
@@ -315,14 +353,16 @@ test('raw and diagnostic counters beyond the former ceiling do not stop collecti
   assert.equal(rows(h).some(r => r.kind === 'LIMIT'), false);
 });
 
-test('old persisted discovery state is interrupted before new progress fields are read', () => {
+test('old persisted discovery state waits for lifecycle reset without touching old log files', () => {
   const h = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 }); h.call('Tick');
   h.md.$LSPPass = 'NPC_DISCOVERY'; h.md.$LSPPersonnelVersion = 1;
   delete h.md.$LSPHostsVisited; delete h.md.$LSPNpcProfiles; delete h.md.$LSPDiscoveryDone;
-  h.call('Tick');
-  const interruption = rows(h).find(r => r.kind === 'SNAPSHOT_INTERRUPTED');
-  assert.equal(interruption.fields.reason, 'PERSONNEL_COLLECTOR_UPDATE');
-  assert.equal(h.md.$LSPPersonnelVersion, 2); assert.equal(h.md.$LSPActive, false);
+  const before=h.output.length, oldFile=h.md.$LSPProfileFile;
+  h.call('Tick'); assert.equal(h.output.length, before);
+  h.load();
+  assert.equal(h.md.$LSPPersonnelVersion, 3); assert.equal(h.md.$LSPActive, false);
+  assert.notEqual(h.md.$LSPProfileFile, oldFile);
+  assert.equal(h.output.slice(before).some(r=>r.name===oldFile), false);
   finish(h);
   assert.equal(rows(h).filter(r => r.kind === 'SNAPSHOT_END').length, 1);
   assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);
@@ -371,9 +411,9 @@ test('production session correlation is read-only and optional', () => {
 test('uncapped collection completes beyond old test thresholds and OFF suppresses diagnostics', () => {
   const h = setup({ ships: Array.from({ length: 100 }, (_,i) => host('ship',`SHIP-${i}`)) }, { diagnostics: 'OFF' });
   finish(h); h.call('Tick'); h.player.age += 1000; h.call('Tick');
-  const raw = rows(h).filter(x => x.file === 'profiles.log'); assert.ok(raw.length > 1000);
+  const raw = rows(h).filter(x => x.file.startsWith('profiles-')); assert.ok(raw.length > 1000);
   assert.equal(raw.at(-1).kind, 'SNAPSHOT_END'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 0);
-  assert.equal(rows(h).filter(x => x.file === 'profile-diagnostics.log').length, 0);
+  assert.equal(rows(h).filter(x => x.file.startsWith('profile-diagnostics-')).length, 0);
   assert.equal(h.md.$LSPStopped, false);
   assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed (partial data).']);
 });

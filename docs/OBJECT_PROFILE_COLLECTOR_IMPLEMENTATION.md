@@ -8,15 +8,40 @@ template counts remain. Derive an NPC code offline from its parenthesised
 debugname value when available; absence leaves it unknown. These fields and
 their reference tables supersede the historical initial plan below.
 
-The collector now takes one initial snapshot per initialized run and never
+The collector takes one initial snapshot per loaded gameplay run and never
 reschedules after completion. There is no aggregate raw or diagnostic row cap;
 `periodSeconds` and `maxRowsPerRun` are removed from configuration. Per-profile,
-roster, candidate, host and per-tick limits remain unchanged. Separate
-session/load-time files and reliable load initialization are the next increment.
+roster, candidate, host and per-tick limits remain unchanged.
+
+One root `event_universe_generated` lifecycle hook queues a new recorder-local
+session at game start or save load. It resets polling and waits for playable
+readiness, then starts one station/ship/NPC collection. There are **no gameplay
+or UI event subscriptions**. This narrow lifecycle hook replaces the older
+zero-listener polling design to meet the owner's per-load requirement.
+
+Output uses `profiles-session-<nonceA>-<nonceB>-loaded-<YYYY-MM-DD_HH-MM-SS>.log`
+and the corresponding `profile-diagnostics-session-...log`. The timestamp is
+local system time observed by the universe-generated callback, not a measured
+load-complete instant. The recorder session token is independent of optional,
+read-only production-session correlation in each row. Only generated numeric
+nonces/time enter filenames; private asset labels and external session strings
+do not. Two random nonces distinguish rapid same-second loads probabilistically,
+not with an absolute uniqueness guarantee. Append mode preserves any existing
+file on a rare collision; no previous run files are truncated or deleted.
+
+Restored work is abandoned at the lifecycle boundary without appending invented
+interruption rows to an old run file. A prior unfinished file stays visibly
+unfinished. An unexplained clock regression during active work emits an
+interruption in the current file and stops until a genuine load/start boundary.
+Version 3 rejects older processing state until that lifecycle reset. Native
+saved-cue migration and callback scheduling still require an approved X4 test.
+Diagnostics stop growing when collection completes; OFF creates no diagnostic
+file. Start/completed/partial-data notifications are retained.
+
 No deployment or new gameplay is included. Historical periodic/cap descriptions
 below record earlier versions and are superseded by this section.
 
-## Authorised implementation task, 2026-10-18
+## Historical initial implementation task, 2026-10-18
 
 Owner requested replacement of snapshot generation with independent station,
 ship and NPC profiles, and explicitly excluded event listening until snapshots
@@ -55,7 +80,7 @@ X4 launch, gameplay test or merge is authorised by this implementation request.
 
 ## Status and delivery
 
-### Performance work, owner-authorised 2026-10-18
+### Historical performance work, owner-authorised 2026-10-18
 
 Starting at `4b0a1ca`, reduce duplicate NPC reads/text processing, then refine
 batching. No deployment or native benchmark is included. Contextual-only primary
@@ -120,9 +145,10 @@ relationship/session checks. PR19 remains draft and unmerged. This replaces
 the experimental event recorder in the source tree. The previously deployed
 recorder is unchanged; this version has not been deployed or tested in X4.
 
-The generated MD contains **zero event conditions**: no gameplay, lifecycle,
-UI, hotkey or NPC-creation listener. The former event catalogue and its obsolete
-event-specific tests were removed; Git history preserves that implementation.
+That initial snapshot-only version contained zero event conditions. The current
+per-load version adds only the universe-generated lifecycle boundary, with no
+gameplay/UI subscriptions or NPC creation. The former gameplay event catalogue
+and obsolete event-specific tests remain preserved in Git history.
 The existing package/build/optional-extension paths are retained for tooling
 continuity. The extension display name is now Life Signs Object Profile Collector.
 
@@ -141,10 +167,10 @@ it does not establish complete NPC discovery or confirmed disk writes.
 Each notification requests five seconds at normal priority (1), with X4's default
 generic notification sound. Higher-priority game messages can replace the ticker;
 on-screen delivery/timing has not been verified in X4. Notifications are requested
-once per transition, including periodic collections, independently of diagnostic
-verbosity. A row-limit stop or interrupted snapshot does not request completion.
-No listeners, interactive prompts, mission records or explicit logbook writes
-are added. An unfinished NPC discovery pass therefore leaves only the start
+once per transition of the single initial collection, independently of diagnostic
+verbosity. An interrupted snapshot does not request completion. Notifications
+add no listeners, interactive prompts, mission records or explicit logbook writes.
+An unfinished NPC discovery pass therefore leaves only the start
 notification. The Personnel List correction preserves these notification actions.
 
 Source: installed X4 9.00 `libraries/common.xsd:36951` defines
@@ -267,20 +293,20 @@ diagnostic row ceiling. Disk writes and native getter errors are not
 confirmed by these counters. The value guard stops terminal value evaluation
 when its budget is exhausted; each new profile starts with a fresh budget.
 
-With no lifecycle events, this version cannot guarantee a new run or an initial
-snapshot on every save load. Saved polling state, progress, counters and schedule
-may resume; replay/duplicate history is possible. Observed game-clock regression
-interrupts the active snapshot and reinitialises the run, but is not a complete
-load detector. Old recorder cue restoration/migration and removal of saved
-event subscriptions have not been tested. A later approved deployment/native
-test must establish these behaviours; source listener count is not proof about
-restored engine state. No permanent identity or save compatibility is claimed.
+One root universe-generated lifecycle hook resets queued work on game start or
+save load; playable readiness is polled before the one initial collection.
+Completion never queues another snapshot. Saved-cue restoration/migration and
+event-versus-poll ordering remain native test gates; schema validation and the
+synthetic action harness do not prove engine scheduling. The other independent
+discovery/value limits still emit explicit markers when reached in a large save.
 
 ## Output and offline inspection
 
 Native output requires the owner's `-scriptlogfiles` prerequisite. New files in
-the native `lifesigns-event-recorder` output directory are `profiles.log` and
-`profile-diagnostics.log`; old event/diagnostic files are not rewritten.
+the native `lifesigns-event-recorder` output directory are
+`profiles-session-<nonceA>-<nonceB>-loaded-<timestamp>.log` and
+`profile-diagnostics-session-<nonceA>-<nonceB>-loaded-<timestamp>.log`.
+Previous fixed-name profile logs and old event/diagnostic files are not rewritten.
 LSEV1 framing is retained, with run, optional read-only production-session
 correlation (otherwise UNAVAILABLE), snapshot sequence and game age. No Node
 reader is needed during collection.
@@ -299,6 +325,12 @@ node recorder/check-log.mjs --profiles <preserved-profiles.log>
 The historical `--events` input alias and legacy batch parsing remain available
 for preserved old captures; they do not enable native event listeners.
 
+The offline checker streams the selected file and bounds its line buffer; it
+does not require loading a large capture into memory. It is explicitly offline
+and is not started automatically. Select the run-specific file after X4 exits;
+older fixed-file historical-prefix subtraction is unnecessary for a new file.
+No automatic log deletion, rollover, archive service or disk-byte cap is added.
+
 ## Source support and verification
 
 Installed X4 9.00 references: `common.xsd:27987-28017` documents component
@@ -312,6 +344,15 @@ dependencies. Rejected draft claims that trueowner on component search filters
 the host, that future periodic scans cannot see newly added NPCs, and that
 spacesuit inheritance was unsupported. The first tool conversation ended
 without a conclusion; a focused follow-up reused its evidence. No new grant.
+
+For per-load output, Qwen researched the existing authorised schema corpus;
+Codex verified `common.xsd:16506-16515,17280-17290,26000-26042`,
+`scriptproperties.xml:2410` and `md.xsd:4584-4600`. The universe-generated event
+documents new-game/save-load coverage; debug_to_file name/directory are
+expressions, `.log` is allowed and append defaults true. These facts support
+the design, not runtime acceptance or absolute token uniqueness. Repeated
+off-target searches were stopped and concluded from the retrieved schema.
+No new corpus access or model access was granted.
 
 Checks on Windows / Node.js v24.21.0:
 

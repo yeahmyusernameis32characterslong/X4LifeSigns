@@ -2,9 +2,18 @@
 <!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->
 <mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
 <cues>
+<cue name="RunBoundary" instantiate="true">
+<conditions>
+<event_universe_generated />
+</conditions>
+<actions>
+<run_actions ref="QueueRun">
+</run_actions>
+</actions>
+</cue>
 <cue name="Bootstrap" checkinterval="1s">
 <conditions>
-<check_value value="player.entity.exists and player.galaxy" />
+<check_value value="md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy" />
 </conditions>
 <actions>
 <run_actions ref="Initialize">
@@ -13,7 +22,7 @@
 <cues>
 <cue name="ProcessingTick" instantiate="true" checkinterval="0.1s">
 <conditions>
-<check_value value="md.$LSPReady" />
+<check_value value="md.$LSPReady and (not md.$LSPSnapshotStarted or md.$LSPActive)" />
 </conditions>
 <actions>
 <run_actions ref="Tick">
@@ -67,11 +76,11 @@
 <set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]" />
 <do_if value="$Diagnostic">
 <set_value name="md.$LSPDiagnosticRows" exact="1L" operation="add" />
-<debug_to_file name="'profile-diagnostics.log'" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
+<debug_to_file name="md.$LSPDiagnosticFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
 </do_if>
 <do_else>
 <set_value name="md.$LSPRows" exact="1L" operation="add" />
-<debug_to_file name="'profiles.log'" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
+<debug_to_file name="md.$LSPProfileFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
 </do_else>
 <return value="true" />
 </actions>
@@ -2822,22 +2831,34 @@
 <return value="false" />
 </actions>
 </library>
-<library name="Initialize" purpose="run_actions">
+<library name="QueueRun" purpose="run_actions">
 <params>
-<param name="Reason" default="'CLOCK_REGRESSION'" />
 </params>
 <actions>
-<do_if value="md.$LSPReady? and md.$LSPReady">
-<do_if value="md.$LSPActive">
-<run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_INTERRUPTED|reason=%s'.[$Reason]" />
-</run_actions>
-</do_if>
-</do_if>
 <set_value name="md.$LSPReady" exact="false" />
-<set_value name="$Nonce" exact="0" />
-<set_value name="$Nonce" min="0" max="2147483647" />
-<set_value name="md.$LSPRun" exact="'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]" />
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<set_value name="md.$LSPPendingLoadedAt" exact="player.systemtime.{'%Y-%m-%d_%H-%M-%S'}" />
+<set_value name="$NonceA" min="0" max="2147483647" />
+<set_value name="$NonceB" min="0" max="2147483647" />
+<set_value name="md.$LSPPendingRun" exact="'session-%s-%s-loaded-%s'.[$NonceA, $NonceB, md.$LSPPendingLoadedAt]" />
+<set_value name="md.$LSPPending" exact="true" />
+<reset_cue cue="Bootstrap" />
+<return value="true" />
+</actions>
+</library>
+<library name="Initialize" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not md.$LSPPending">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPRun" exact="md.$LSPPendingRun" />
+<set_value name="md.$LSPLoadedAt" exact="md.$LSPPendingLoadedAt" />
+<set_value name="md.$LSPProfileFile" exact="'profiles-%s.log'.[md.$LSPRun]" />
+<set_value name="md.$LSPDiagnosticFile" exact="'profile-diagnostics-%s.log'.[md.$LSPRun]" />
+<set_value name="md.$LSPPending" exact="false" />
 <set_value name="md.$LSPSeq" exact="0L" />
 <set_value name="md.$LSPRows" exact="0L" />
 <set_value name="md.$LSPDiagnosticRows" exact="0L" />
@@ -2855,13 +2876,17 @@
 <set_value name="md.$LSPHostCount" exact="0" />
 <set_value name="md.$LSPNpcProfiles" exact="0" />
 <set_value name="md.$LSPCandidates" exact="[]" />
-<set_value name="md.$LSPPersonnelVersion" exact="2" />
+<set_value name="md.$LSPPersonnelVersion" exact="3" />
 <set_value name="md.$LSPNextAssetTick" exact="player.age" />
 <set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
 <set_value name="md.$LSPEntry" exact="1" />
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]" />
+</run_actions>
+<run_actions ref="Write">
+<param name="Diagnostic" value="true" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]" />
 </run_actions>
 <return value="true" />
 </actions>
@@ -2874,20 +2899,20 @@
 <return value="false" />
 </do_if>
 <do_if value="not md.$LSPPersonnelVersion?">
-<run_actions ref="Initialize">
-<param name="Reason" value="'PERSONNEL_COLLECTOR_UPDATE'" />
-</run_actions>
-<return value="true" />
+<return value="false" />
 </do_if>
-<do_if value="md.$LSPPersonnelVersion != 2">
-<run_actions ref="Initialize">
-<param name="Reason" value="'PERSONNEL_COLLECTOR_UPDATE'" />
-</run_actions>
-<return value="true" />
+<do_if value="md.$LSPPersonnelVersion != 3">
+<return value="false" />
 </do_if>
 <do_if value="player.age lt md.$LSPLastAge">
-<run_actions ref="Initialize">
+<do_if value="md.$LSPActive">
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'" />
 </run_actions>
+</do_if>
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<set_value name="md.$LSPReady" exact="false" />
 <return value="false" />
 </do_if>
 <set_value name="md.$LSPLastAge" exact="player.age" />
@@ -2982,7 +3007,7 @@
 <do_if value="md.$LSPLevel ge 3">
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
 </do_if>

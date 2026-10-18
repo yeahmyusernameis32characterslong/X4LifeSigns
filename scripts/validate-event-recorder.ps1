@@ -26,6 +26,6 @@ try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 
 [xml]$generated = Get-Content -LiteralPath $file
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
-if ($listeners.Count -ne 0) { throw 'Snapshot-only collector must contain zero event listeners (including UI and lifecycle).' }
+if ($listeners.Count -ne 1 -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[0].ParentNode.ParentNode.LocalName -ne 'cue' -or $listeners[0].ParentNode.ParentNode.GetAttribute('name') -ne 'RunBoundary') { throw 'Snapshot collector permits only its single universe lifecycle boundary; no gameplay/UI listeners.' }
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }
-Write-Output 'Validated generated snapshot-only MD against hash-checked installed X4 9.00 schemas; zero event listeners and no NPC creation actions. This is not runtime verification.'
+Write-Output 'Validated generated snapshot-only MD against hash-checked installed X4 9.00 schemas; one universe lifecycle hook, no gameplay/UI listeners or NPC creation actions. This is not runtime verification.'
