@@ -2555,12 +2555,13 @@
 </library>
 <library name="Initialize" purpose="run_actions">
 <params>
+<param name="Reason" default="'CLOCK_REGRESSION'" />
 </params>
 <actions>
 <do_if value="md.$LSPReady? and md.$LSPReady">
 <do_if value="md.$LSPActive">
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'" />
+<param name="Body" value="'SNAPSHOT_INTERRUPTED|reason=%s'.[$Reason]" />
 </run_actions>
 </do_if>
 </do_if>
@@ -2585,6 +2586,7 @@
 <set_value name="md.$LSPHostCount" exact="0" />
 <set_value name="md.$LSPNpcProfiles" exact="0" />
 <set_value name="md.$LSPCandidates" exact="[]" />
+<set_value name="md.$LSPPersonnelVersion" exact="1" />
 <run_actions ref="Write">
 <param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=2000000|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'" />
 </run_actions>
@@ -2597,6 +2599,18 @@
 <actions>
 <do_if value="not md.$LSPReady">
 <return value="false" />
+</do_if>
+<do_if value="not md.$LSPPersonnelVersion?">
+<run_actions ref="Initialize">
+<param name="Reason" value="'PERSONNEL_COLLECTOR_UPDATE'" />
+</run_actions>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPPersonnelVersion != 1">
+<run_actions ref="Initialize">
+<param name="Reason" value="'PERSONNEL_COLLECTOR_UPDATE'" />
+</run_actions>
+<return value="true" />
 </do_if>
 <do_if value="player.age lt md.$LSPLastAge">
 <run_actions ref="Initialize">

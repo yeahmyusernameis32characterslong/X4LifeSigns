@@ -168,16 +168,19 @@ export function generateRecorder(config) {
       iff('not md.$LSPStopped',iff('md.$LSPSnapshotPartial',notify('Snapshot completed (partial data).'))+otherwise(notify('Snapshot completed.')))+
       set('md.$LSPActive','false')+set('md.$LSPNextSnapshot',`player.age + ${c.periodSeconds}s`)+
       ['Stations','Ships','Hosts','Candidates'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+set('md.$LSPActors','table[]')+set('md.$LSPContexts','table[]')+ret('true'))+ret('false'));
-  const initialize=lib('Initialize',{},
-    iff('md.$LSPReady? and md.$LSPReady',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'")))+
+  const initialize=lib('Initialize',{Reason:"'CLOCK_REGRESSION'"},
+    iff('md.$LSPReady? and md.$LSPReady',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=%s'.[$Reason]")))+
     set('md.$LSPReady','false')+set('$Nonce','0')+tag('set_value',{name:'$Nonce',min:'0',max:'2147483647'})+
     set('md.$LSPRun',"'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]")+
     ['Seq','Rows','DiagnosticRows','Profile'].map(k=>set(`md.$LSP${k}`,'0L')).join('')+set('md.$LSPStopped','false')+set('md.$LSPActive','false')+set('md.$LSPLevel',String(levels.indexOf(c.diagnostics)))+
     set('md.$LSPLastAge','player.age')+set('md.$LSPNextSnapshot','player.age')+set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+set('md.$LSPReady','true')+
     set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
+    set('md.$LSPPersonnelVersion','1')+
     write(`'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=${c.maxRowsPerRun}|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'`)+ret('true'));
   const tick=lib('Tick',{},
     iff('not md.$LSPReady',ret('false'))+
+    iff('not md.$LSPPersonnelVersion?',run('Initialize',{Reason:"'PERSONNEL_COLLECTOR_UPDATE'"})+ret('true'))+
+    iff('md.$LSPPersonnelVersion != 1',run('Initialize',{Reason:"'PERSONNEL_COLLECTOR_UPDATE'"})+ret('true'))+
     iff('player.age lt md.$LSPLastAge',run('Initialize')+ret('false'))+set('md.$LSPLastAge','player.age')+
     iff('md.$LSPStopped',ret('false'))+
     iff('not md.$LSPActive and player.age ge md.$LSPNextSnapshot',run('BeginSnapshot'))+

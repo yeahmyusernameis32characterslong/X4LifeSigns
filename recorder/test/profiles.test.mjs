@@ -230,6 +230,19 @@ test('clock regression explicitly interrupts active snapshot and starts a new ru
   assert.equal(rows(h).filter(x => x.kind === 'RUN_BEGIN').length, 2);
 });
 
+test('old persisted discovery state is interrupted before new progress fields are read', () => {
+  const h = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 }); h.call('Tick');
+  h.md.$LSPPass = 'NPC_DISCOVERY'; delete h.md.$LSPPersonnelVersion;
+  delete h.md.$LSPHostsVisited; delete h.md.$LSPNpcProfiles; delete h.md.$LSPDiscoveryDone;
+  h.call('Tick');
+  const interruption = rows(h).find(r => r.kind === 'SNAPSHOT_INTERRUPTED');
+  assert.equal(interruption.fields.reason, 'PERSONNEL_COLLECTOR_UPDATE');
+  assert.equal(h.md.$LSPPersonnelVersion, 1); assert.equal(h.md.$LSPActive, false);
+  finish(h);
+  assert.equal(rows(h).filter(r => r.kind === 'SNAPSHOT_END').length, 1);
+  assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);
+});
+
 test('ticker notifications bracket the whole snapshot once, including each scheduled snapshot', () => {
   const h = setup({}, { profilesPerTick: 1, discoveryPerTick: 1 });
   h.call('Tick');

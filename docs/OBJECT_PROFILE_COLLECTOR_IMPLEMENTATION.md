@@ -51,6 +51,12 @@ spacesuits, skipped ownership changes, incremental output, progress, identity
 aliases, budgets and existing notification behavior. Deployment and native
 testing require separate approval.
 
+A recorder-state version guard interrupts an observed older active collection
+with `PERSONNEL_COLLECTOR_UPDATE` and initialises new progress fields before
+continuing. It prevents reuse of the old `NPC_DISCOVERY` phase when this Tick
+code runs. Native loading of changed saved cues remains unverified; the guard
+does not establish a new-run-on-every-load guarantee.
+
 This correction is implemented with synthetic/static checks, **not verified in
 X4**. Qwen researched the Personnel List source and Codex verified the MD getter
 equivalents. The UI's Lua/native calls are not copied as MD actions. The prior
