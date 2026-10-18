@@ -2163,8 +2163,10 @@
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
 <set_value name="$Seq" exact="md.$LSERSeq" />
 <set_value name="$Budget" exact="table[$remaining=1024, $reported=false, $limited=false]" />
+<set_value name="$Light" exact="['event_object_shield_damaged', 'event_object_hull_damaged', 'event_object_attacked', 'event_object_attacked_object', 'event_player_owned_attacked', 'event_player_owned_attacked_object'].indexof.{$Name} gt 0" />
+<set_value name="$Policy" exact="if $Light then 'LIGHT_CONTEXT' else 'RICH_DISTINCT'" />
 <run_actions ref="Write">
-<param name="Body" value="'EVENT_BEGIN|event=%s|scope=%s|observed_age=%s'.[$Name, $Scope, $Age]" />
+<param name="Body" value="'EVENT_BEGIN|event=%s|scope=%s|observed_age=%s|asset_policy=%s'.[$Name, $Scope, $Age, $Policy]" />
 <param name="Seq" value="$Seq" />
 </run_actions>
 <do_all exact="4" counter="$Index">
@@ -2177,24 +2179,43 @@
 <param name="Enrich" value="true" />
 </run_actions>
 </do_all>
+<set_value name="$RichSeen" exact="[]" />
+<set_value name="$RichPaths" exact="[]" />
+<do_if value="not $Light">
 <do_all exact="4" counter="$Index">
+<do_if value="md.$LSERStopped">
+<break />
+</do_if>
 <set_value name="$Object" exact="$Values.{$Index}" />
 <do_if value="typeof $Object == datatype.component">
 <do_if value="$Object.exists and ($Object.isclass.ship or $Object.isclass.station)">
 <do_if value="$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0">
+<set_value name="$SeenIndex" exact="$RichSeen.indexof.{$Object}" />
+<set_value name="$RichPath" exact="'affected.' + $Index" />
+<do_if value="$SeenIndex == 0">
+<append_to_list name="$RichSeen" exact="$Object" />
+<append_to_list name="$RichPaths" exact="$RichPath" />
 <run_actions ref="Asset" result="$Partial">
 <param name="Asset" value="$Object" />
 <param name="Seq" value="$Seq" />
 <param name="Trigger" value="'EVENT'" />
-<param name="Path" value="'affected.' + $Index" />
+<param name="Path" value="$RichPath" />
 </run_actions>
 <do_if value="$Partial">
 <set_value name="$Budget.$reported" exact="true" />
 </do_if>
 </do_if>
+<do_else>
+<run_actions ref="Write">
+<param name="Body" value="'ASSET_ALIAS|field=%s|target=%s|reason=SAME_COMPONENT_WITHIN_EVENT'.[$RichPath, $RichPaths.{$SeenIndex}]" />
+<param name="Seq" value="$Seq" />
+</run_actions>
+</do_else>
+</do_if>
 </do_if>
 </do_if>
 </do_all>
+</do_if>
 <run_actions ref="Write">
 <param name="Body" value="'EVENT_END|event=%s|partial=%s'.[$Name, $Budget.$reported]" />
 <param name="Seq" value="$Seq" />

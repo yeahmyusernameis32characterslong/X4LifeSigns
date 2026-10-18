@@ -89,7 +89,7 @@ test('unavailable collections, counts and assets retain explicit states instead 
 
 test('event parameter exhaustion leaves the larger affected-asset budget intact', () => {
   const a = crew(ship('EVENT'), 20, 20), h = create({ eventValueItems: 16 }, [a]);
-  h.call('Capture', { Name: 'event_object_attacked', Scope: 'assets', Values: [a, Array.from({ length: 50 }, (_, i) => i), null, null], Available: [true, true, true, true], Age: 1 });
+  h.call('Capture', { Name: 'event_object_changed_owner', Scope: 'assets', Values: [a, Array.from({ length: 50 }, (_, i) => i), null, null], Available: [true, true, true, true], Age: 1 });
   const r = rows(h), start = r.findIndex(x => x.kind === 'ASSET_BEGIN');
   assert.equal(r.slice(0, start).filter(x => x.kind === 'VALUE').length, 16);
   assert.ok(r.slice(0, start).some(x => x.kind === 'PAYLOAD_LIMIT'));

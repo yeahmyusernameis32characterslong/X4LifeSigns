@@ -1,4 +1,4 @@
-import { catalog, levels } from './catalog.mjs';
+import { catalog, levels, lightEvents } from './catalog.mjs';
 
 const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const tag = (name, attrs = {}, body) => `<${name}${Object.entries(attrs).map(([k, v]) => ` ${k}="${xml(v)}"`).join('')}${body === undefined ? ' />' : `>${body}</${name}>`}`;
@@ -133,9 +133,17 @@ export function generateRecorder(config) {
     iff("['event_object_changed_owner', 'event_object_changed_true_owner', 'event_player_owned_claimed_object', 'event_object_built_ship', 'event_object_built_station'].indexof.{$Name} gt 0", set('md.$LSERNextReconcile', 'player.age')) +
     set('$Key', "'$' + $Name") + iff('not md.$LSERFamilies.{$Key}?', set('md.$LSERFamilies.{$Key}', '0L')) + add('md.$LSERFamilies.{$Key}') +
     iff('md.$LSERStopped', add('md.$LSERDroppedEvents') + ret('false')) + add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + set('$Budget', `table[$remaining=${c.eventValueItems}, $reported=false, $limited=false]`) +
-    write("'EVENT_BEGIN|event=%s|scope=%s|observed_age=%s'.[$Name, $Scope, $Age]") +
+    set('$Light', `[${lightEvents.map(name => `'${name}'`).join(', ')}].indexof.{$Name} gt 0`) +
+    set('$Policy', "if $Light then 'LIGHT_CONTEXT' else 'RICH_DISTINCT'") +
+    write("'EVENT_BEGIN|event=%s|scope=%s|observed_age=%s|asset_policy=%s'.[$Name, $Scope, $Age, $Policy]") +
     tag('do_all', { exact: '4', counter: '$Index' }, run('Value', { Path: "['object', 'param', 'param2', 'param3'].{$Index}", Value: '$Values.{$Index}', Available: '$Available.{$Index}', Seq: '$Seq', Budget: '$Budget', Enrich: 'true' })) +
-    tag('do_all', { exact: '4', counter: '$Index' }, set('$Object', '$Values.{$Index}') + iff('typeof $Object == datatype.component', iff('$Object.exists and ($Object.isclass.ship or $Object.isclass.station)', iff('$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0', run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: "'affected.' + $Index" }, '$Partial') + iff('$Partial', set('$Budget.$reported', 'true')))))) +
+    set('$RichSeen', '[]') + set('$RichPaths', '[]') +
+    iff('not $Light', tag('do_all', { exact: '4', counter: '$Index' }, iff('md.$LSERStopped', tag('break')) + set('$Object', '$Values.{$Index}') +
+      iff('typeof $Object == datatype.component', iff('$Object.exists and ($Object.isclass.ship or $Object.isclass.station)', iff('$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0',
+        set('$SeenIndex', '$RichSeen.indexof.{$Object}') + set('$RichPath', "'affected.' + $Index") +
+        iff('$SeenIndex == 0', tag('append_to_list', { name: '$RichSeen', exact: '$Object' }) + tag('append_to_list', { name: '$RichPaths', exact: '$RichPath' }) +
+          run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: '$RichPath' }, '$Partial') + iff('$Partial', set('$Budget.$reported', 'true'))) +
+        tag('do_else', {}, write("'ASSET_ALIAS|field=%s|target=%s|reason=SAME_COMPONENT_WITHIN_EVENT'.[$RichPath, $RichPaths.{$SeenIndex}]"))))))) +
     write("'EVENT_END|event=%s|partial=%s'.[$Name, $Budget.$reported]") + ret('true'));
 
   const healthActions = iff('player.age ge md.$LSERNextHeartbeat', set('md.$LSERNextHeartbeat', `player.age + ${c.heartbeatSeconds}s`) +

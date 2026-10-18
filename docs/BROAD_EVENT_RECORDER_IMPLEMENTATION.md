@@ -69,10 +69,28 @@ Every listener copies event values and lookup availability into its own
 namespace before calling shared action libraries. Raw repeated/overlapping
 occurrences are retained. Available component context includes references,
 ID codes, names, class, owner/true owner, sector/container and entity role/post
-where supported. Current owned or cached affected assets get EVENT snapshots;
+where supported. Each EVENT_BEGIN declares its asset capture policy.
+`LIGHT_CONTEXT` applies to `event_object_shield_damaged`,
+`event_object_hull_damaged`, `event_object_attacked`,
+`event_object_attacked_object`, `event_player_owned_attacked`, and
+`event_player_owned_attacked_object`: every typed occurrence/context remains,
+but full assigned-control/personnel enrichment is omitted for these families.
+All other selected events use `RICH_DISTINCT`. Current owned or cached affected assets get EVENT snapshots;
 the recorder performs no whole-galaxy lookup per event. Ownership/claim/build
 events request membership reconciliation on the next processing tick; other
 acquisition paths can remain uncovered until scheduled reconciliation.
+
+Within one rich event, equal actual component references are traversed once.
+`ASSET_ALIAS` links each repeated `affected.N` path to its first rich path in
+the same run/sequence; raw object/param values remain independently recorded.
+Names, ID codes, rendered reference text and previous events are not dedup keys.
+Destruction, ownership, assignment and control-entity changes retain immediate
+typed context and eligible rich asset detail. No general deferred/coalesced
+snapshot system or event sampling is introduced. PERIODIC/requested rich
+checkpoints remain independent. This policy reduces repeated rich work but
+can omit short-lived roster state during frequent hits; later checkpoints
+must not be interpreted as exact earlier event-time state. CPU/FPS benefit
+has not been measured.
 
 PERIODIC and accepted ON_DEMAND_HOTKEY requests produce faction-wide snapshots
 over several processing ticks. The snapshot keeps its own sequence while

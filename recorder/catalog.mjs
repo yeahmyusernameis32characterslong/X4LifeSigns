@@ -33,3 +33,9 @@ export const catalog = Object.freeze([
   { event: 'event_object_destroyed', scope: 'observed_personnel' }
 ].map(Object.freeze));
 export const levels = Object.freeze(['OFF', 'ERROR', 'WARNING', 'INFO', 'DEBUG']);
+// Preserve every native occurrence and typed context; omit rich crew scans only.
+export const lightEvents = Object.freeze([
+  'event_object_shield_damaged', 'event_object_hull_damaged',
+  'event_object_attacked', 'event_object_attacked_object',
+  'event_player_owned_attacked', 'event_player_owned_attacked_object'
+]);
