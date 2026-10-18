@@ -34,10 +34,13 @@ gameplay testing and merge require separate approval.
 
 ## Status
 
-**Implemented, unverified in X4.** The first recorder increment is on separate
+**Corrections implemented, unverified in X4.** The recorder is on separate
 draft [PR #19](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/19),
-stacked on documentation PR #18. PR #18 remains documentation-only. No live
-deployment or gameplay validation has occurred. The independently optional
+stacked on documentation PR #18. PR #18 remains documentation-only. An earlier
+owner-run experimental capture exposed personnel getter errors, interrupted
+startup and owner-reported performance problems. These corrections have only
+automated/static validation; they have not been deployed or tested in gameplay.
+The independently optional
 Hotkeys extension is **not implemented**: keyboard registration is unresolved.
 The recorder-side M1–M5 signal handlers are implemented and tested synthetically.
 
@@ -57,13 +60,30 @@ events. It is an initial broad implementation, not exhaustive coverage. The
 generator and schema gate reject unsupported names/selectors; discovery can
 continue without replacing the recorder with a fixture-specific probe.
 
-On playable-universe readiness, the recorder creates a run marker, rebuilds
+Only a delivered root `event_universe_generated` creates a recorder epoch and
+permits the child bootstrap to wait for playable-universe readiness. A restored
+polling flag cannot bootstrap a new run. The recorder creates a run marker, rebuilds
 all current player-owned ships/stations in the galaxy and enables listeners
 only after their source groups exist. Ship enumeration includes contained
 ships; station enumeration uses its separately supported selector syntax.
-Load/universe-generation callbacks invalidate and reset the recorder tree.
-The next bootstrap discards restored recorder counters, queues and membership.
-Actual callback ordering and save compatibility still need owner-run X4 checks.
+`event_game_loaded` invalidates and resets the recorder tree; generation starts
+the next epoch. Bootstrap is idempotent within an epoch; equal game ages do not
+deduplicate legitimate reloads. Listeners and processing ticks retain their
+parent epoch; capture, asset and queue libraries reject stale epochs. Queues
+and staged scans are cleared on invalidation and rebuilt on bootstrap.
+Before discarding an open run, best-effort `RUN_INTERRUPTED` and, if needed,
+`SNAPSHOT_INTERRUPTED` markers use its old run/sequence, source callback and
+`ACTIVE_OR_RESTORED_UNKNOWN` provenance. They do not assert that restored
+saved state was still actively collecting. Row stops/native write failures
+can prevent these markers; the offline checker still reports open batches.
+It counts an explicit snapshot interruption once as incomplete, never complete.
+
+If `game_loaded` unexpectedly arrives after generation/bootstrap, the recorder
+fails closed until another generation event. No arbitrary delay or production
+session key is used to infer readiness. Native callback ordering, descendant
+reset/parent-epoch semantics and save compatibility remain owner-run X4 gates.
+Adding/enabling the extension mid-session without a delivered generation event
+does not start capture; use a later separately approved load/start.
 
 Every listener copies event values and lookup availability into its own
 namespace before calling shared action libraries. Raw repeated/overlapping
@@ -227,6 +247,10 @@ Health counts delivered listener entries, per-family entries, prepared rows,
 write attempts, observable recorder limits/faults and controlled drops. It
 reports confirmed writes and exact per-frame metrics as UNAVAILABLE. An
 undelivered engine event or native disk failure may be entirely invisible.
+`native_getter_errors=UNAVAILABLE` explicitly separates engine errors from
+observable recorder failures. A zero recorder failure counter is not a clean
+engine-error report; ordinary contextual unavailability marks partial capture
+without being promoted to a fabricated native engine failure.
 
 ## Optional input protocol and remaining Hotkeys work
 
@@ -258,11 +282,16 @@ npm.cmd --prefix bridge test
 
 The schema check pins the inspected installed 9.00 MD/common SHA-256 values,
 validates the generated XML and verifies every listener's source attributes.
-The 20 synthetic tests execute the actual generated action libraries through
+The 28 synthetic tests execute the actual generated action libraries through
 a limited interpreter and test offline framing/readback. The interpreter
 cannot prove X4 scheduling, event-expression lifetime, native getter effects,
 same-frame atomicity, disk durability, performance or hotkey delivery.
 The unchanged bridge regression suite passed **112/112** on Node.js v24.21.0.
+The correction tests include unsupported pseudo-storage, terminal false/zero/
+null/unavailable states, same-reference versus identical-label traversal,
+all six light families, rich critical events, generation/reload epochs,
+interrupted/stale jobs, stopped/budgeted getter work and an injected exact
+2,000,000-row boundary. No two-million-row fixture is generated.
 
 After a later approved capture and X4 exit, optional read-only inspection is:
 
@@ -281,6 +310,9 @@ this tool; tests use invented temporary captures only.
 Agent review is needed before requesting deployment or gameplay acceptance.
 The separate hotkey input mechanism, native file readiness/retention, callback
 ordering, reference/getter semantics, broad membership coverage and measured
-performance remain open. Further event families and subobject scopes can be
-added progressively after source validity checks. No live deployment, gameplay
-test, production change or merge has occurred.
+performance remain open. The first owner test is historical evidence for the
+older build, not acceptance of these corrections. Quiet personnel/lifecycle
+verification should precede performance conclusions from any later approved
+capture. Further event families and subobject scopes can be added progressively
+after source validity checks. This correction task performed no deployment,
+live gameplay, production change or merge.

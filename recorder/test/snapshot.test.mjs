@@ -7,7 +7,7 @@ import { harness } from './md-harness.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../config.json', import.meta.url)));
 const ship = id => ({ __type: 'component', ref: `{${id}}`, exists: true, class: 'ship', idcode: id, isplayerowned: true, people: { list: [] }, roleentities: [] });
-const create = (overrides = {}, ships = []) => { const h = harness(generateRecorder({ ...config, ...overrides }), { ships }); h.cue('Runtime'); return h; };
+const create = (overrides = {}, ships = []) => { const h = harness(generateRecorder({ ...config, ...overrides }), { ships }); h.start(); return h; };
 const rows = h => h.output.map(x => parseRecord(x.line));
 const asset = (h, a, seq, trigger = 'EVENT') => h.call('Asset', { Asset: a, Seq: seq, Trigger: trigger, Path: `assets.${seq}` });
 function crew(a, contextual, instantiated) {

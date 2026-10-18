@@ -28,3 +28,11 @@ test('missing output, truncated batches and oversized rows remain explicit', asy
   assert.equal(r.oversizedRows, 1); assert.equal(r.malformedRows, 1); assert.equal(r.incompleteBatches, 1);
   assert.equal(r.writeConfirmation, 'UNAVAILABLE'); assert.equal(r.launchFlag, 'UNAVAILABLE');
 });
+
+test('explicit lifecycle interruption remains incomplete and is counted only once', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'lifesigns-recorder-')); t.after(() => rm(dir, { recursive: true }));
+  const file = join(dir, 'events.log');
+  await writeFile(file, row(0, 'RUN_BEGIN') + row(1, 'SNAPSHOT_BEGIN') + row(1, 'SNAPSHOT_INTERRUPTED', '|provenance=ACTIVE_OR_RESTORED_UNKNOWN'));
+  const result = await inspectLog(file);
+  assert.equal(result.interruptedBatches, 1); assert.equal(result.incompleteBatches, 1);
+});

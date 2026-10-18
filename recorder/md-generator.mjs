@@ -27,7 +27,7 @@ export function generateRecorder(config) {
     const attrs = scope === 'player' ? {} : { group: scope === 'assets' ? 'md.$LSERAssets' : 'md.$LSERActors' };
     // Copy all event expressions before invoking helpers. No delayed event expressions.
     const copies = ['object', 'param', 'param2', 'param3'].map((field, j) => set(`$V${j}`, `@event.${field}`) + set(`$A${j}`, `event.${field}?`)).join('');
-    return tag('cue', { name: `Listen${i + 1}`, instantiate: 'true', namespace: 'this' }, tag('conditions', {}, tag(event, attrs)) + tag('actions', {}, copies + set('$Name', 'event.name') + set('$Age', 'player.age') + run('Capture', { Name: '$Name', Values: '[$V0, $V1, $V2, $V3]', Available: '[$A0, $A1, $A2, $A3]', Age: '$Age', Scope: `'${scope}'` })));
+    return tag('cue', { name: `Listen${i + 1}`, instantiate: 'true', namespace: 'this' }, tag('conditions', {}, tag(event, attrs) + tag('check_value', { value: 'md.$LSERReady and parent.$Epoch == md.$LSEREpoch' })) + tag('actions', {}, copies + set('$Name', 'event.name') + set('$Age', 'player.age') + run('Capture', { Name: '$Name', Values: '[$V0, $V1, $V2, $V3]', Available: '[$A0, $A1, $A2, $A3]', Age: '$Age', Scope: `'${scope}'`, Epoch: 'parent.$Epoch' })));
   }).join('');
 
   const escape = lib('Escape', { Value: null }, set('$Text', "'%s'.[$Value]") +
@@ -65,7 +65,7 @@ export function generateRecorder(config) {
     iff('$Available and (typeof $Value == datatype.list or typeof $Value == datatype.table)',
       iff(`$Depth ge ${c.valueDepth}`, set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'PAYLOAD_LIMIT|field=%s|reason=DEPTH'.[$Field]") + ret('false')) +
       set('$Items', 'if typeof $Value == datatype.list then $Value else $Value.keys.list') + set('$Index', '0') +
-      each('$Item', '$Items', iff('$Budget.$remaining le 0', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'PAYLOAD_LIMIT|field=%s|reason=ITEMS|remaining=%s'.[$Field, $Items.count - $Index]") + tag('break')) + add('$Index', '1') +
+      each('$Item', '$Items', iff('md.$LSERStopped', tag('break')) + iff('$Budget.$remaining le 0', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'PAYLOAD_LIMIT|field=%s|reason=ITEMS|remaining=%s'.[$Field, $Items.count - $Index]") + tag('break')) + add('$Index', '1') +
         iff('typeof $Value == datatype.table', run('Value', { Path: "$Path + '.entry' + $Index + '.key'", Value: '$Item', Seq: '$Seq', Budget: '$Budget', Depth: '$Depth + 1' }) + run('Value', { Path: "$Path + '.entry' + $Index + '.value'", Value: '$Value.{$Item}', Seq: '$Seq', Budget: '$Budget', Depth: '$Depth + 1' })) +
         tag('do_else', {}, run('Value', { Path: "$Path + '.' + $Index", Value: '$Item', Seq: '$Seq', Budget: '$Budget', Depth: '$Depth + 1', Enrich: '$Enrich' })))) +
     iff('$Available and $Enrich and typeof $Value == datatype.component', iff('$Value.exists and ($Value.isclass.ship or $Value.isclass.station or $Value.isclass.entity)', context)) + ret('true'));
@@ -96,8 +96,8 @@ export function generateRecorder(config) {
         iff(`md.$LSERActorsSeen.count lt ${c.actorReferences}`, tag('append_to_list', { name: 'md.$LSERActorsSeen', exact: '$Actor' }) + tag('add_to_group', { groupname: 'md.$LSERActors', object: '$Actor' })) +
         tag('do_else', {}, set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'MEMBERSHIP_LIMIT|kind=personnel'"))))) +
     iff('$ActorsCount gt $ActorCount', set('$Budget.$reported', 'true') + add('md.$LSERIncomplete') + write("'ROSTER_LIMIT|field=%s.instances|omitted=%s'.[$Path, $ActorsCount - $ActorCount]")));
-  const snapshot = lib('Asset', { Asset: null, Seq: null, Trigger: null, Path: "'asset'" },
-    iff('md.$LSERStopped', ret('true')) +
+  const snapshot = lib('Asset', { Asset: null, Seq: null, Trigger: null, Path: "'asset'", Epoch: 'md.$LSEREpoch' },
+    iff('not md.$LSERReady or $Epoch != md.$LSEREpoch or md.$LSERStopped', ret('true')) +
     set('$Budget', `table[$remaining=${c.snapshotValueItems}, $reported=false, $limited=false]`) + write("'ASSET_BEGIN|trigger=%s|field=%s|atomic=false'.[$Trigger, $Path]") + availability +
     value('$Path', '$Asset', 'true', 'true') +
     iff('typeof $Asset == datatype.component', iff('$Asset.exists and ($Asset.isclass.ship or $Asset.isclass.station)',
@@ -123,13 +123,14 @@ export function generateRecorder(config) {
     set('md.$LSERAssetList', '$Ships.clone') + each('$Station', '$Stations', tag('append_to_list', { name: 'md.$LSERAssetList', exact: '$Station' })) +
     tag('add_to_group', { groupname: 'md.$LSERAssets', list: 'md.$LSERAssetList', replace: 'true' }) + set('md.$LSERNextReconcile', `player.age + ${c.reconcileSeconds}s`));
 
-  const queue = lib('QueueSnapshot', { Trigger: null, Requested: null, Cause: '0L' },
+  const queue = lib('QueueSnapshot', { Trigger: null, Requested: null, Cause: '0L', Epoch: 'md.$LSEREpoch' },
+    iff('not md.$LSERReady or $Epoch != md.$LSEREpoch', ret('false')) +
     iff('md.$LSERStopped', add('md.$LSERDroppedSnapshots') + ret('false')) +
     iff(`md.$LSERRequests.count ge ${c.snapshotQueue}`, add('md.$LSERDroppedSnapshots') + write("'SNAPSHOT_GAP|reason=QUEUE_FULL|trigger=%s|requested=%s'.[$Trigger, $Requested]", 'md.$LSERSeq') + run('Write', { Seq: 'md.$LSERSeq', Diagnostic: 'true', Level: '2', Body: "'WARNING|reason=SNAPSHOT_QUEUE_FULL'" }) + ret('false')) +
-    tag('append_to_list', { name: 'md.$LSERRequests', exact: '[$Trigger, $Requested, $Cause]' }) + ret('true'));
+    tag('append_to_list', { name: 'md.$LSERRequests', exact: '[$Trigger, $Requested, $Cause, $Epoch]' }) + ret('true'));
 
-  const captureLib = lib('Capture', { Name: null, Values: null, Available: null, Age: null, Scope: null },
-    iff('not md.$LSERReady', ret('false')) + add('md.$LSERReceived') +
+  const captureLib = lib('Capture', { Name: null, Values: null, Available: null, Age: null, Scope: null, Epoch: 'md.$LSEREpoch' },
+    iff('not md.$LSERReady or $Epoch != md.$LSEREpoch', ret('false')) + add('md.$LSERReceived') +
     iff("['event_object_changed_owner', 'event_object_changed_true_owner', 'event_player_owned_claimed_object', 'event_object_built_ship', 'event_object_built_station'].indexof.{$Name} gt 0", set('md.$LSERNextReconcile', 'player.age')) +
     set('$Key', "'$' + $Name") + iff('not md.$LSERFamilies.{$Key}?', set('md.$LSERFamilies.{$Key}', '0L')) + add('md.$LSERFamilies.{$Key}') +
     iff('md.$LSERStopped', add('md.$LSERDroppedEvents') + ret('false')) + add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + set('$Budget', `table[$remaining=${c.eventValueItems}, $reported=false, $limited=false]`) +
@@ -142,37 +143,49 @@ export function generateRecorder(config) {
       iff('typeof $Object == datatype.component', iff('$Object.exists and ($Object.isclass.ship or $Object.isclass.station)', iff('$Object.isplayerowned or md.$LSERAssetList.indexof.{$Object} gt 0',
         set('$SeenIndex', '$RichSeen.indexof.{$Object}') + set('$RichPath', "'affected.' + $Index") +
         iff('$SeenIndex == 0', tag('append_to_list', { name: '$RichSeen', exact: '$Object' }) + tag('append_to_list', { name: '$RichPaths', exact: '$RichPath' }) +
-          run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: '$RichPath' }, '$Partial') + iff('$Partial', set('$Budget.$reported', 'true'))) +
+          run('Asset', { Asset: '$Object', Seq: '$Seq', Trigger: "'EVENT'", Path: '$RichPath', Epoch: '$Epoch' }, '$Partial') + iff('$Partial', set('$Budget.$reported', 'true'))) +
         tag('do_else', {}, write("'ASSET_ALIAS|field=%s|target=%s|reason=SAME_COMPONENT_WITHIN_EVENT'.[$RichPath, $RichPaths.{$SeenIndex}]"))))))) +
     write("'EVENT_END|event=%s|partial=%s'.[$Name, $Budget.$reported]") + ret('true'));
 
   const healthActions = iff('player.age ge md.$LSERNextHeartbeat', set('md.$LSERNextHeartbeat', `player.age + ${c.heartbeatSeconds}s`) +
-    iff('md.$LSERLevel ge 3', run('Write', { Seq: 'md.$LSERSeq', Diagnostic: 'true', Level: '3', Body: "'HEALTH|received=%s|prepared=%s|writes_attempted=%s|writes_confirmed=UNAVAILABLE|observable_failures=%s|dropped_events=%s|dropped_snapshots=%s|incomplete=%s|window=GAME_TIME|per_frame=UNAVAILABLE|status=OBSERVED_COUNTERS_ONLY'.[md.$LSERReceived, md.$LSERPrepared, md.$LSERWrites, md.$LSERFailures, md.$LSERDroppedEvents, md.$LSERDroppedSnapshots, md.$LSERIncomplete]" })) +
+    iff('md.$LSERLevel ge 3', run('Write', { Seq: 'md.$LSERSeq', Diagnostic: 'true', Level: '3', Body: "'HEALTH|received=%s|prepared=%s|writes_attempted=%s|writes_confirmed=UNAVAILABLE|observable_failures=%s|native_getter_errors=UNAVAILABLE|dropped_events=%s|dropped_snapshots=%s|incomplete=%s|window=GAME_TIME|per_frame=UNAVAILABLE|status=OBSERVED_COUNTERS_ONLY'.[md.$LSERReceived, md.$LSERPrepared, md.$LSERWrites, md.$LSERFailures, md.$LSERDroppedEvents, md.$LSERDroppedSnapshots, md.$LSERIncomplete]" })) +
     iff('md.$LSERLevel ge 4', each('$Family', 'md.$LSERFamilies.keys.list', run('Write', { Seq: 'md.$LSERSeq', Diagnostic: 'true', Level: '4', Body: "'FAMILY|key=%s|received=%s'.[$Family, md.$LSERFamilies.{$Family}]" }))));
   const health = lib('Health', {}, healthActions);
-  const tick = lib('Tick', {},
+  const tick = lib('Tick', { Epoch: 'md.$LSEREpoch' },
+    iff('not md.$LSERReady or $Epoch != md.$LSEREpoch', ret('false')) +
     iff('md.$LSERStopped', run('Health') + ret('false')) +
     iff('player.age ge md.$LSERNextReconcile', run('Reconcile')) +
     iff('player.age ge md.$LSERNextPeriodic', set('md.$LSERNextPeriodic', `player.age + ${c.periodSeconds}s`) + run('QueueSnapshot', { Trigger: "'PERIODIC'", Requested: 'player.age' })) +
     iff('not md.$LSERSnapshotActive and md.$LSERRequests.count gt 0',
       set('$Request', 'md.$LSERRequests.{1}') + tag('remove_value', { name: 'md.$LSERRequests.{1}' }) +
-      run('Reconcile') + set('md.$LSERSnapshotAssets', 'md.$LSERAssetList.clone') + set('md.$LSERSnapshotIndex', '1') + set('md.$LSERSnapshotTrigger', '$Request.{1}') + set('md.$LSERSnapshotPartial', 'false') + add('md.$LSERSeq') + set('md.$LSERSnapshotSeq', 'md.$LSERSeq') + set('md.$LSERSnapshotActive', 'true') +
+      iff('$Request.{4} != $Epoch', add('md.$LSERDroppedSnapshots') + write("'SNAPSHOT_GAP|reason=STALE_EPOCH'", 'md.$LSERSeq') + ret('false')) +
+      run('Reconcile') + set('md.$LSERSnapshotEpoch', '$Epoch') + set('md.$LSERSnapshotAssets', 'md.$LSERAssetList.clone') + set('md.$LSERSnapshotIndex', '1') + set('md.$LSERSnapshotTrigger', '$Request.{1}') + set('md.$LSERSnapshotPartial', 'false') + add('md.$LSERSeq') + set('md.$LSERSnapshotSeq', 'md.$LSERSeq') + set('md.$LSERSnapshotActive', 'true') +
       write("'SNAPSHOT_BEGIN|trigger=%s|requested=%s|actual=%s|assets=%s|atomic=false|cause_seq=%s'.[$Request.{1}, $Request.{2}, player.age, md.$LSERSnapshotAssets.count, $Request.{3}]", 'md.$LSERSnapshotSeq')) +
+    iff('md.$LSERSnapshotActive and md.$LSERSnapshotEpoch != $Epoch', set('md.$LSERSnapshotActive', 'false') + add('md.$LSERDroppedSnapshots') + write("'SNAPSHOT_GAP|reason=STALE_EPOCH'", 'md.$LSERSeq')) +
     iff('md.$LSERSnapshotActive', tag('do_all', { exact: String(c.assetsPerTick) },
-      iff('md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', tag('break')) +
-      run('Asset', { Asset: 'md.$LSERSnapshotAssets.{md.$LSERSnapshotIndex}', Seq: 'md.$LSERSnapshotSeq', Trigger: 'md.$LSERSnapshotTrigger', Path: "'assets.' + md.$LSERSnapshotIndex" }, '$Partial') + iff('$Partial', set('md.$LSERSnapshotPartial', 'true')) + add('md.$LSERSnapshotIndex', '1')) +
+      iff('md.$LSERStopped or $Epoch != md.$LSEREpoch or md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', tag('break')) +
+      run('Asset', { Asset: 'md.$LSERSnapshotAssets.{md.$LSERSnapshotIndex}', Seq: 'md.$LSERSnapshotSeq', Trigger: 'md.$LSERSnapshotTrigger', Path: "'assets.' + md.$LSERSnapshotIndex", Epoch: '$Epoch' }, '$Partial') + iff('$Partial', set('md.$LSERSnapshotPartial', 'true')) + add('md.$LSERSnapshotIndex', '1')) +
       iff('md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count', write("'SNAPSHOT_END|trigger=%s|assets=%s|atomic=false|partial=%s'.[md.$LSERSnapshotTrigger, md.$LSERSnapshotAssets.count, md.$LSERSnapshotPartial]", 'md.$LSERSnapshotSeq') + set('md.$LSERSnapshotActive', 'false') + set('md.$LSERSnapshotAssets', '[]'))) +
     run('Health') + ret('true'));
 
-  const initial = [set('md.$LSERReady', 'false'), set('$Nonce', '0'), tag('set_value', { name: '$Nonce', min: '0', max: '2147483647' }), set('md.$LSERRun', "'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]"), set('md.$LSERLevel', String(levels.indexOf(c.diagnostics))), ...['Seq', 'Received', 'Prepared', 'Writes', 'DiagnosticWrites', 'DroppedEvents', 'DroppedSnapshots', 'RowsSuppressed', 'Incomplete', 'Failures'].map(k => set(`md.$LSER${k}`, '0L')), set('md.$LSERStopped', 'false'), set('md.$LSERSnapshotActive', 'false'), set('md.$LSERRequests', '[]'), set('md.$LSERActorsSeen', '[]'), set('md.$LSERFamilies', 'table[]'), tag('create_group', { groupname: 'md.$LSERActors' }), tag('add_to_group', { groupname: 'md.$LSERActors', list: '[]', replace: 'true' }), run('Reconcile'), set('md.$LSERNextPeriodic', `player.age + ${c.periodSeconds}s`), set('md.$LSERNextHeartbeat', `player.age + ${c.heartbeatSeconds}s`), set('md.$LSERReady', 'true'), write(`'RUN_BEGIN|protocol=1|listeners=${catalog.length}|baseline=6553cf9|write_confirmation=UNAVAILABLE|rebuild=true|diagnostics=${c.diagnostics}|max_rows=${c.maxRowsPerRun}'`, '0'), run('QueueSnapshot', { Trigger: "'PERIODIC'", Requested: 'player.age' })].join('');
+  const lifecycle = lib('Lifecycle', { Source: null },
+    set('md.$LSERReady', 'false') +
+    iff('md.$LSERRun? and md.$LSERSeq? and md.$LSERStopped? and (not md.$LSERRunOpen? or md.$LSERRunOpen)',
+      iff('md.$LSERSnapshotActive', write("'SNAPSHOT_INTERRUPTED|reason=LIFECYCLE_RESET|source=%s|provenance=ACTIVE_OR_RESTORED_UNKNOWN'.[$Source]", 'md.$LSERSnapshotSeq')) +
+      write("'RUN_INTERRUPTED|reason=LIFECYCLE_RESET|source=%s|queued=%s|provenance=ACTIVE_OR_RESTORED_UNKNOWN'.[$Source, md.$LSERRequests.count]", 'md.$LSERSeq') + set('md.$LSERRunOpen', 'false')) +
+    iff('not md.$LSEREpoch?', set('md.$LSEREpoch', '0L')) + add('md.$LSEREpoch') +
+    set('md.$LSERSnapshotActive', 'false') + set('md.$LSERSnapshotAssets', '[]') + set('md.$LSERRequests', '[]') + ret('md.$LSEREpoch'));
+  const initial = [set('$Epoch', 'parent.$Epoch'), set('md.$LSERRunEpoch', '$Epoch'), set('$Nonce', '0'), tag('set_value', { name: '$Nonce', min: '0', max: '2147483647' }), set('md.$LSERRun', "'%s-%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce, $Epoch]"), set('md.$LSERLevel', String(levels.indexOf(c.diagnostics))), ...['Seq', 'Received', 'Prepared', 'Writes', 'DiagnosticWrites', 'DroppedEvents', 'DroppedSnapshots', 'RowsSuppressed', 'Incomplete', 'Failures'].map(k => set(`md.$LSER${k}`, '0L')), set('md.$LSERStopped', 'false'), set('md.$LSERSnapshotActive', 'false'), set('md.$LSERRequests', '[]'), set('md.$LSERActorsSeen', '[]'), set('md.$LSERFamilies', 'table[]'), tag('create_group', { groupname: 'md.$LSERActors' }), tag('add_to_group', { groupname: 'md.$LSERActors', list: '[]', replace: 'true' }), run('Reconcile'), set('md.$LSERNextPeriodic', `player.age + ${c.periodSeconds}s`), set('md.$LSERNextHeartbeat', `player.age + ${c.heartbeatSeconds}s`), set('md.$LSERReady', 'true'), write(`'RUN_BEGIN|protocol=1|listeners=${catalog.length}|baseline=6553cf9|write_confirmation=UNAVAILABLE|rebuild=true|diagnostics=${c.diagnostics}|max_rows=${c.maxRowsPerRun}|epoch=%s'.[$Epoch]`, '0'), run('QueueSnapshot', { Trigger: "'PERIODIC'", Requested: 'player.age', Epoch: '$Epoch' })].join('');
 
   const controls = ['DIAGNOSTICS_ERROR', 'DIAGNOSTICS_WARNING', 'DIAGNOSTICS_INFO', 'DIAGNOSTICS_DEBUG', 'SNAPSHOT_REQUESTED'].map((command, i) => tag('cue', { name: `Input${i + 1}`, instantiate: 'true', namespace: 'this' },
-    tag('conditions', {}, tag('event_ui_triggered', { screen: "'LifeSigns.Hotkeys'", control: `'${command}'` })) + tag('actions', {},
+    tag('conditions', {}, tag('event_ui_triggered', { screen: "'LifeSigns.Hotkeys'", control: `'${command}'` }) + tag('check_value', { value: 'md.$LSERReady and parent.$Epoch == md.$LSEREpoch' })) + tag('actions', {},
       add('md.$LSERSeq') + set('$Seq', 'md.$LSERSeq') + write(`'INPUT_REQUEST|event=event_ui_triggered|screen=LifeSigns.Hotkeys|control=${command}'`) +
       (i < 4 ? set('md.$LSERLevel', String(i + 1)) + write(`'CONFIG_CHANGED|diagnostics=${levels[i + 1]}'`) : run('QueueSnapshot', { Trigger: "'ON_DEMAND_HOTKEY'", Requested: 'player.age', Cause: '$Seq' }))))).join('');
-  const reset = ['event_game_loaded', 'event_universe_generated'].map((event, i) => tag('cue', { name: `Invalidate${i}`, instantiate: 'true', namespace: 'this' }, tag('conditions', {}, tag(event)) + tag('actions', {}, set('md.$LSERReady', 'false') + tag('reset_cue', { cue: 'Runtime' })))).join('');
-  const ready = tag('cue', { name: 'ListenersReady', checkinterval: '1s' }, tag('conditions', {}, tag('check_value', { value: 'md.$LSERReady? and md.$LSERReady and md.$LSERAssets? and md.$LSERActors?' })) + tag('cues', {}, capture + controls + tag('cue', { name: 'ProcessingTick', instantiate: 'true', namespace: 'this', checkinterval: '1s' }, tag('conditions', {}, tag('check_value', { value: 'md.$LSERReady' })) + tag('actions', {}, run('Tick')))));
-  const runtime = tag('cue', { name: 'Runtime', checkinterval: '1s', namespace: 'this' }, tag('conditions', {}, tag('check_value', { value: 'player.entity.exists and player.galaxy' })) + tag('actions', {}, initial) + tag('cues', {}, ready));
-  const source = `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated by scripts/build-event-recorder.mjs. Edit recorder sources, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${reset}${runtime}${escape}${writer}${val}${snapshot}${reconcile}${queue}${captureLib}${health}${tick}</cues></mdscript>\n`;
+  const reset = tag('cue', { name: 'Invalidate0', instantiate: 'true', namespace: 'this' }, tag('conditions', {}, tag('event_game_loaded')) + tag('actions', {}, run('Lifecycle', { Source: "'event_game_loaded'" }) + tag('reset_cue', { cue: 'Runtime' })));
+  const ready = tag('cue', { name: 'ListenersReady', checkinterval: '1s', namespace: 'this' }, tag('conditions', {}, tag('check_value', { value: 'md.$LSERReady? and md.$LSERReady and md.$LSERAssets? and md.$LSERActors? and parent.$Epoch == md.$LSEREpoch' })) + tag('actions', {}, set('$Epoch', 'parent.$Epoch')) + tag('cues', {}, capture + controls + tag('cue', { name: 'ProcessingTick', instantiate: 'true', namespace: 'this', checkinterval: '1s' }, tag('conditions', {}, tag('check_value', { value: 'md.$LSERReady and parent.$Epoch == md.$LSEREpoch' })) + tag('actions', {}, run('Tick', { Epoch: 'parent.$Epoch' })))));
+  const bootstrap = tag('cue', { name: 'Bootstrap', checkinterval: '1s', namespace: 'this' }, tag('conditions', {}, tag('check_value', { value: 'parent.$Epoch? and player.entity.exists and player.galaxy and parent.$Epoch == md.$LSEREpoch' })) + tag('actions', {}, iff('not md.$LSERReady or not md.$LSERRunEpoch? or md.$LSERRunEpoch != parent.$Epoch', initial + set('md.$LSERRunOpen', 'true'))) + tag('cues', {}, ready));
+  // A restored polling flag cannot start a run: a delivered generation event is required.
+  const runtime = tag('cue', { name: 'Runtime', instantiate: 'true', namespace: 'this' }, tag('conditions', {}, tag('event_universe_generated')) + tag('actions', {}, run('Lifecycle', { Source: "'event_universe_generated'" }, '$Epoch')) + tag('cues', {}, bootstrap));
+  const source = `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated by scripts/build-event-recorder.mjs. Edit recorder sources, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${reset}${runtime}${escape}${writer}${val}${snapshot}${reconcile}${queue}${captureLib}${health}${tick}${lifecycle}</cues></mdscript>\n`;
   return source.replaceAll('><', '>\n<');
 }

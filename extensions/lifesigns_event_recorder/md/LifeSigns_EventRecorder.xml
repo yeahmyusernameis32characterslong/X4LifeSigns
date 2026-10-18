@@ -7,28 +7,33 @@
 <event_game_loaded />
 </conditions>
 <actions>
-<set_value name="md.$LSERReady" exact="false" />
+<run_actions ref="Lifecycle">
+<param name="Source" value="'event_game_loaded'" />
+</run_actions>
 <reset_cue cue="Runtime" />
 </actions>
 </cue>
-<cue name="Invalidate1" instantiate="true" namespace="this">
+<cue name="Runtime" instantiate="true" namespace="this">
 <conditions>
 <event_universe_generated />
 </conditions>
 <actions>
-<set_value name="md.$LSERReady" exact="false" />
-<reset_cue cue="Runtime" />
+<run_actions ref="Lifecycle" result="$Epoch">
+<param name="Source" value="'event_universe_generated'" />
+</run_actions>
 </actions>
-</cue>
-<cue name="Runtime" checkinterval="1s" namespace="this">
+<cues>
+<cue name="Bootstrap" checkinterval="1s" namespace="this">
 <conditions>
-<check_value value="player.entity.exists and player.galaxy" />
+<check_value value="parent.$Epoch? and player.entity.exists and player.galaxy and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
-<set_value name="md.$LSERReady" exact="false" />
+<do_if value="not md.$LSERReady or not md.$LSERRunEpoch? or md.$LSERRunEpoch != parent.$Epoch">
+<set_value name="$Epoch" exact="parent.$Epoch" />
+<set_value name="md.$LSERRunEpoch" exact="$Epoch" />
 <set_value name="$Nonce" exact="0" />
 <set_value name="$Nonce" min="0" max="2147483647" />
-<set_value name="md.$LSERRun" exact="'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]" />
+<set_value name="md.$LSERRun" exact="'%s-%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce, $Epoch]" />
 <set_value name="md.$LSERLevel" exact="4" />
 <set_value name="md.$LSERSeq" exact="0L" />
 <set_value name="md.$LSERReceived" exact="0L" />
@@ -53,23 +58,30 @@
 <set_value name="md.$LSERNextHeartbeat" exact="player.age + 60s" />
 <set_value name="md.$LSERReady" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|protocol=1|listeners=52|baseline=6553cf9|write_confirmation=UNAVAILABLE|rebuild=true|diagnostics=DEBUG|max_rows=2000000'" />
+<param name="Body" value="'RUN_BEGIN|protocol=1|listeners=52|baseline=6553cf9|write_confirmation=UNAVAILABLE|rebuild=true|diagnostics=DEBUG|max_rows=2000000|epoch=%s'.[$Epoch]" />
 <param name="Seq" value="0" />
 </run_actions>
 <run_actions ref="QueueSnapshot">
 <param name="Trigger" value="'PERIODIC'" />
 <param name="Requested" value="player.age" />
+<param name="Epoch" value="$Epoch" />
 </run_actions>
+<set_value name="md.$LSERRunOpen" exact="true" />
+</do_if>
 </actions>
 <cues>
-<cue name="ListenersReady" checkinterval="1s">
+<cue name="ListenersReady" checkinterval="1s" namespace="this">
 <conditions>
-<check_value value="md.$LSERReady? and md.$LSERReady and md.$LSERAssets? and md.$LSERActors?" />
+<check_value value="md.$LSERReady? and md.$LSERReady and md.$LSERAssets? and md.$LSERActors? and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
+<actions>
+<set_value name="$Epoch" exact="parent.$Epoch" />
+</actions>
 <cues>
 <cue name="Listen1" instantiate="true" namespace="this">
 <conditions>
 <event_object_attacked group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -88,12 +100,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen2" instantiate="true" namespace="this">
 <conditions>
 <event_object_attacked_object group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -112,12 +126,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen3" instantiate="true" namespace="this">
 <conditions>
 <event_object_shield_damaged group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -136,12 +152,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen4" instantiate="true" namespace="this">
 <conditions>
 <event_object_hull_damaged group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -160,12 +178,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen5" instantiate="true" namespace="this">
 <conditions>
 <event_object_hull_repaired group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -184,12 +204,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen6" instantiate="true" namespace="this">
 <conditions>
 <event_object_abandoned group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -208,12 +230,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen7" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_attention group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -232,12 +256,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen8" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_cluster group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -256,12 +282,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen9" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_owner group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -280,12 +308,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen10" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_true_owner group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -304,12 +334,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen11" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_sector group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -328,12 +360,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen12" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_zone group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -352,12 +386,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen13" instantiate="true" namespace="this">
 <conditions>
 <event_object_collected_ware group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -376,12 +412,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen14" instantiate="true" namespace="this">
 <conditions>
 <event_object_commander_set group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -400,12 +438,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen15" instantiate="true" namespace="this">
 <conditions>
 <event_object_destroyed group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -424,12 +464,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen16" instantiate="true" namespace="this">
 <conditions>
 <event_object_docked group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -448,12 +490,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen17" instantiate="true" namespace="this">
 <conditions>
 <event_object_docking_started group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -472,12 +516,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen18" instantiate="true" namespace="this">
 <conditions>
 <event_object_undocked group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -496,12 +542,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen19" instantiate="true" namespace="this">
 <conditions>
 <event_object_undocking_started group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -520,12 +568,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen20" instantiate="true" namespace="this">
 <conditions>
 <event_object_killed_object group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -544,12 +594,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen21" instantiate="true" namespace="this">
 <conditions>
 <event_object_subordinate_added group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -568,12 +620,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen22" instantiate="true" namespace="this">
 <conditions>
 <event_object_subordinate_removed group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -592,12 +646,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen23" instantiate="true" namespace="this">
 <conditions>
 <event_object_subordinate_promoted group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -616,12 +672,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen24" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_ready group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -640,12 +698,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen25" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_cancelled group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -664,12 +724,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen26" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_finished group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -688,12 +750,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen27" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_param_edited group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -712,12 +776,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen28" instantiate="true" namespace="this">
 <conditions>
 <event_object_production_started group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -736,12 +802,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen29" instantiate="true" namespace="this">
 <conditions>
 <event_object_production_finished group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -760,12 +828,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen30" instantiate="true" namespace="this">
 <conditions>
 <event_object_production_cancelled group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -784,12 +854,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen31" instantiate="true" namespace="this">
 <conditions>
 <event_object_built_ship group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -808,12 +880,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen32" instantiate="true" namespace="this">
 <conditions>
 <event_object_built_station group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -832,12 +906,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen33" instantiate="true" namespace="this">
 <conditions>
 <event_control_entity_added group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -856,12 +932,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen34" instantiate="true" namespace="this">
 <conditions>
 <event_control_entity_removed group="md.$LSERAssets" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -880,12 +958,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'assets'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen35" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_attacked />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -904,12 +984,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen36" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_attacked_object />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -928,12 +1010,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen37" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_claimed_object />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -952,12 +1036,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen38" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_dropped_objects />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -976,12 +1062,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen39" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_collected_resource />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1000,12 +1088,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen40" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_destroyed />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1024,12 +1114,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen41" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_killed_object />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1048,12 +1140,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen42" instantiate="true" namespace="this">
 <conditions>
 <event_player_owned_money_updated />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1072,12 +1166,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen43" instantiate="true" namespace="this">
 <conditions>
 <event_player_production_started />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1096,12 +1192,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen44" instantiate="true" namespace="this">
 <conditions>
 <event_player_production_finished />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1120,12 +1218,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen45" instantiate="true" namespace="this">
 <conditions>
 <event_player_production_cancelled />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1144,12 +1244,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen46" instantiate="true" namespace="this">
 <conditions>
 <event_player_trade_started />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1168,12 +1270,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen47" instantiate="true" namespace="this">
 <conditions>
 <event_player_trade_completed />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1192,12 +1296,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen48" instantiate="true" namespace="this">
 <conditions>
 <event_player_trade_cancelled />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1216,12 +1322,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen49" instantiate="true" namespace="this">
 <conditions>
 <event_player_assigned_hired_actor />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1240,12 +1348,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen50" instantiate="true" namespace="this">
 <conditions>
 <event_player_relation_changed />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1264,12 +1374,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen51" instantiate="true" namespace="this">
 <conditions>
 <event_player_money_updated />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1288,12 +1400,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'player'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Listen52" instantiate="true" namespace="this">
 <conditions>
 <event_object_destroyed group="md.$LSERActors" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="$V0" exact="@event.object" />
@@ -1312,12 +1426,14 @@
 <param name="Available" value="[$A0, $A1, $A2, $A3]" />
 <param name="Age" value="$Age" />
 <param name="Scope" value="'observed_personnel'" />
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
 </cue>
 <cue name="Input1" instantiate="true" namespace="this">
 <conditions>
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_ERROR'" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
@@ -1336,6 +1452,7 @@
 <cue name="Input2" instantiate="true" namespace="this">
 <conditions>
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_WARNING'" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
@@ -1354,6 +1471,7 @@
 <cue name="Input3" instantiate="true" namespace="this">
 <conditions>
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_INFO'" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
@@ -1372,6 +1490,7 @@
 <cue name="Input4" instantiate="true" namespace="this">
 <conditions>
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'DIAGNOSTICS_DEBUG'" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
@@ -1390,6 +1509,7 @@
 <cue name="Input5" instantiate="true" namespace="this">
 <conditions>
 <event_ui_triggered screen="'LifeSigns.Hotkeys'" control="'SNAPSHOT_REQUESTED'" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <set_value name="md.$LSERSeq" exact="1L" operation="add" />
@@ -1407,12 +1527,15 @@
 </cue>
 <cue name="ProcessingTick" instantiate="true" namespace="this" checkinterval="1s">
 <conditions>
-<check_value value="md.$LSERReady" />
+<check_value value="md.$LSERReady and parent.$Epoch == md.$LSEREpoch" />
 </conditions>
 <actions>
 <run_actions ref="Tick">
+<param name="Epoch" value="parent.$Epoch" />
 </run_actions>
 </actions>
+</cue>
+</cues>
 </cue>
 </cues>
 </cue>
@@ -1572,6 +1695,9 @@
 <set_value name="$Items" exact="if typeof $Value == datatype.list then $Value else $Value.keys.list" />
 <set_value name="$Index" exact="0" />
 <do_for_each name="$Item" in="$Items">
+<do_if value="md.$LSERStopped">
+<break />
+</do_if>
 <do_if value="$Budget.$remaining le 0">
 <set_value name="$Budget.$reported" exact="true" />
 <set_value name="md.$LSERIncomplete" exact="1L" operation="add" />
@@ -1733,9 +1859,10 @@
 <param name="Seq" />
 <param name="Trigger" />
 <param name="Path" default="'asset'" />
+<param name="Epoch" default="md.$LSEREpoch" />
 </params>
 <actions>
-<do_if value="md.$LSERStopped">
+<do_if value="not md.$LSERReady or $Epoch != md.$LSEREpoch or md.$LSERStopped">
 <return value="true" />
 </do_if>
 <set_value name="$Budget" exact="table[$remaining=16384, $reported=false, $limited=false]" />
@@ -2111,8 +2238,12 @@
 <param name="Trigger" />
 <param name="Requested" />
 <param name="Cause" default="0L" />
+<param name="Epoch" default="md.$LSEREpoch" />
 </params>
 <actions>
+<do_if value="not md.$LSERReady or $Epoch != md.$LSEREpoch">
+<return value="false" />
+</do_if>
 <do_if value="md.$LSERStopped">
 <set_value name="md.$LSERDroppedSnapshots" exact="1L" operation="add" />
 <return value="false" />
@@ -2131,7 +2262,7 @@
 </run_actions>
 <return value="false" />
 </do_if>
-<append_to_list name="md.$LSERRequests" exact="[$Trigger, $Requested, $Cause]" />
+<append_to_list name="md.$LSERRequests" exact="[$Trigger, $Requested, $Cause, $Epoch]" />
 <return value="true" />
 </actions>
 </library>
@@ -2142,9 +2273,10 @@
 <param name="Available" />
 <param name="Age" />
 <param name="Scope" />
+<param name="Epoch" default="md.$LSEREpoch" />
 </params>
 <actions>
-<do_if value="not md.$LSERReady">
+<do_if value="not md.$LSERReady or $Epoch != md.$LSEREpoch">
 <return value="false" />
 </do_if>
 <set_value name="md.$LSERReceived" exact="1L" operation="add" />
@@ -2200,6 +2332,7 @@
 <param name="Seq" value="$Seq" />
 <param name="Trigger" value="'EVENT'" />
 <param name="Path" value="$RichPath" />
+<param name="Epoch" value="$Epoch" />
 </run_actions>
 <do_if value="$Partial">
 <set_value name="$Budget.$reported" exact="true" />
@@ -2234,7 +2367,7 @@
 <param name="Seq" value="md.$LSERSeq" />
 <param name="Diagnostic" value="true" />
 <param name="Level" value="3" />
-<param name="Body" value="'HEALTH|received=%s|prepared=%s|writes_attempted=%s|writes_confirmed=UNAVAILABLE|observable_failures=%s|dropped_events=%s|dropped_snapshots=%s|incomplete=%s|window=GAME_TIME|per_frame=UNAVAILABLE|status=OBSERVED_COUNTERS_ONLY'.[md.$LSERReceived, md.$LSERPrepared, md.$LSERWrites, md.$LSERFailures, md.$LSERDroppedEvents, md.$LSERDroppedSnapshots, md.$LSERIncomplete]" />
+<param name="Body" value="'HEALTH|received=%s|prepared=%s|writes_attempted=%s|writes_confirmed=UNAVAILABLE|observable_failures=%s|native_getter_errors=UNAVAILABLE|dropped_events=%s|dropped_snapshots=%s|incomplete=%s|window=GAME_TIME|per_frame=UNAVAILABLE|status=OBSERVED_COUNTERS_ONLY'.[md.$LSERReceived, md.$LSERPrepared, md.$LSERWrites, md.$LSERFailures, md.$LSERDroppedEvents, md.$LSERDroppedSnapshots, md.$LSERIncomplete]" />
 </run_actions>
 </do_if>
 <do_if value="md.$LSERLevel ge 4">
@@ -2252,8 +2385,12 @@
 </library>
 <library name="Tick" purpose="run_actions">
 <params>
+<param name="Epoch" default="md.$LSEREpoch" />
 </params>
 <actions>
+<do_if value="not md.$LSERReady or $Epoch != md.$LSEREpoch">
+<return value="false" />
+</do_if>
 <do_if value="md.$LSERStopped">
 <run_actions ref="Health">
 </run_actions>
@@ -2273,8 +2410,17 @@
 <do_if value="not md.$LSERSnapshotActive and md.$LSERRequests.count gt 0">
 <set_value name="$Request" exact="md.$LSERRequests.{1}" />
 <remove_value name="md.$LSERRequests.{1}" />
+<do_if value="$Request.{4} != $Epoch">
+<set_value name="md.$LSERDroppedSnapshots" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_GAP|reason=STALE_EPOCH'" />
+<param name="Seq" value="md.$LSERSeq" />
+</run_actions>
+<return value="false" />
+</do_if>
 <run_actions ref="Reconcile">
 </run_actions>
+<set_value name="md.$LSERSnapshotEpoch" exact="$Epoch" />
 <set_value name="md.$LSERSnapshotAssets" exact="md.$LSERAssetList.clone" />
 <set_value name="md.$LSERSnapshotIndex" exact="1" />
 <set_value name="md.$LSERSnapshotTrigger" exact="$Request.{1}" />
@@ -2287,9 +2433,17 @@
 <param name="Seq" value="md.$LSERSnapshotSeq" />
 </run_actions>
 </do_if>
+<do_if value="md.$LSERSnapshotActive and md.$LSERSnapshotEpoch != $Epoch">
+<set_value name="md.$LSERSnapshotActive" exact="false" />
+<set_value name="md.$LSERDroppedSnapshots" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_GAP|reason=STALE_EPOCH'" />
+<param name="Seq" value="md.$LSERSeq" />
+</run_actions>
+</do_if>
 <do_if value="md.$LSERSnapshotActive">
 <do_all exact="8">
-<do_if value="md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count">
+<do_if value="md.$LSERStopped or $Epoch != md.$LSEREpoch or md.$LSERSnapshotIndex gt md.$LSERSnapshotAssets.count">
 <break />
 </do_if>
 <run_actions ref="Asset" result="$Partial">
@@ -2297,6 +2451,7 @@
 <param name="Seq" value="md.$LSERSnapshotSeq" />
 <param name="Trigger" value="md.$LSERSnapshotTrigger" />
 <param name="Path" value="'assets.' + md.$LSERSnapshotIndex" />
+<param name="Epoch" value="$Epoch" />
 </run_actions>
 <do_if value="$Partial">
 <set_value name="md.$LSERSnapshotPartial" exact="true" />
@@ -2315,6 +2470,35 @@
 <run_actions ref="Health">
 </run_actions>
 <return value="true" />
+</actions>
+</library>
+<library name="Lifecycle" purpose="run_actions">
+<params>
+<param name="Source" />
+</params>
+<actions>
+<set_value name="md.$LSERReady" exact="false" />
+<do_if value="md.$LSERRun? and md.$LSERSeq? and md.$LSERStopped? and (not md.$LSERRunOpen? or md.$LSERRunOpen)">
+<do_if value="md.$LSERSnapshotActive">
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_INTERRUPTED|reason=LIFECYCLE_RESET|source=%s|provenance=ACTIVE_OR_RESTORED_UNKNOWN'.[$Source]" />
+<param name="Seq" value="md.$LSERSnapshotSeq" />
+</run_actions>
+</do_if>
+<run_actions ref="Write">
+<param name="Body" value="'RUN_INTERRUPTED|reason=LIFECYCLE_RESET|source=%s|queued=%s|provenance=ACTIVE_OR_RESTORED_UNKNOWN'.[$Source, md.$LSERRequests.count]" />
+<param name="Seq" value="md.$LSERSeq" />
+</run_actions>
+<set_value name="md.$LSERRunOpen" exact="false" />
+</do_if>
+<do_if value="not md.$LSEREpoch?">
+<set_value name="md.$LSEREpoch" exact="0L" />
+</do_if>
+<set_value name="md.$LSEREpoch" exact="1L" operation="add" />
+<set_value name="md.$LSERSnapshotActive" exact="false" />
+<set_value name="md.$LSERSnapshotAssets" exact="[]" />
+<set_value name="md.$LSERRequests" exact="[]" />
+<return value="md.$LSEREpoch" />
 </actions>
 </library>
 </cues>

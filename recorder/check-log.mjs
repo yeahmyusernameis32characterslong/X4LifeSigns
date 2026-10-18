@@ -10,7 +10,7 @@ export async function inspectLog(file, { expectedRun, maxLineBytes = 1048576 } =
   try { stat = await lstat(file); } catch (error) { if (error.code === 'ENOENT') return { readiness: 'NO_FILE', launchFlag: 'UNAVAILABLE', writeConfirmation: 'UNAVAILABLE' }; throw error; }
   if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Input must be an ordinary single-link file');
   const hash = createHash('sha256'), runs = new Set(), open = new Set();
-  const result = { readiness: 'NO_VALID_RUN', bytes: 0, validRows: 0, malformedRows: 0, oversizedRows: 0, incompleteBatches: 0, captureLimitMarkers: 0, lastRun: null, trackingLimited: false, launchFlag: 'UNAVAILABLE', writeConfirmation: 'UNAVAILABLE' };
+  const result = { readiness: 'NO_VALID_RUN', bytes: 0, validRows: 0, malformedRows: 0, oversizedRows: 0, incompleteBatches: 0, interruptedBatches: 0, captureLimitMarkers: 0, lastRun: null, trackingLimited: false, launchFlag: 'UNAVAILABLE', writeConfirmation: 'UNAVAILABLE' };
   let pending = Buffer.alloc(0), skipping = false;
   function line(bytes) {
     let r;
@@ -18,6 +18,10 @@ export async function inspectLog(file, { expectedRun, maxLineBytes = 1048576 } =
     result.validRows++;
     if (r.kind === 'RUN_BEGIN') { result.lastRun = r.run; if (runs.size < 4096) runs.add(r.run); else result.trackingLimited = true; }
     if (r.kind === 'LIMIT') result.captureLimitMarkers++;
+    if (r.kind === 'SNAPSHOT_INTERRUPTED') {
+      open.delete(`${r.run}/${r.seq}/SNAPSHOT`);
+      result.interruptedBatches++; result.incompleteBatches++;
+    }
     const match = r.kind.match(/^(EVENT|SNAPSHOT)_(BEGIN|END)$/);
     if (match) {
       const key = `${r.run}/${r.seq}/${match[1]}`;

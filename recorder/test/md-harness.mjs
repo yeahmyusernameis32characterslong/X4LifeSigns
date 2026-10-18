@@ -30,8 +30,8 @@ const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : 
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
 export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
-  const tree = parseXml(source), md = {}, output = [], libraries = new Map(), cues = new Map();
-  function walk(node) { if (node.tag === 'library') libraries.set(node.attrs.name, node); if (node.tag === 'cue') cues.set(node.attrs.name, node); node.children.forEach(walk); }
+  const tree = parseXml(source), md = {}, output = [], libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+  function walk(node, parentCue) { if (node.tag === 'library') libraries.set(node.attrs.name, node); if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; } node.children.forEach(child => walk(child, parentCue)); }
   walk(tree);
   const player = { age, entity: { __type: 'component', exists: true }, galaxy: true, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
   function get(value, key) {
@@ -153,6 +153,14 @@ export function harness(source, { ships = [], stations = [], age = 1 } = {}) {
     }
     return execute(library.children.find(x => x.tag === 'actions').children, local)?.return;
   }
-  function cue(name) { return execute(cues.get(name).children.find(x => x.tag === 'actions').children, {}); }
-  return { md, player, output, call, cue, tree };
+  function context(name) { if (!contexts.has(name)) contexts.set(name, { parent: parents.get(name) ? context(parents.get(name)) : {} }); return contexts.get(name); }
+  function cue(name) {
+    const node = cues.get(name), local = context(name);
+    const checks = node.children.find(x => x.tag === 'conditions')?.children.filter(x => x.tag === 'check_value') || [];
+    if (!checks.every(x => evalx(x.attrs.value, local))) return false;
+    return execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
+  }
+  // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
+  function start() { cue('Runtime'); cue('Bootstrap'); cue('ListenersReady'); }
+  return { md, player, output, call, cue, start, tree };
 }

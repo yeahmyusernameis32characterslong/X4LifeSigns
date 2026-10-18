@@ -8,7 +8,7 @@ import { harness } from './md-harness.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../config.json', import.meta.url)));
 const ship = (id = 'TEST-1') => ({ __type: 'component', ref: `{${id}}`, exists: true, class: 'ship', idcode: id, knownname: 'Test | ship\nName', owner: 'player', trueowner: 'player', isplayerowned: true, sector: null, container: null, people: { list: [] }, roleentities: [] });
-const create = (overrides = {}, env = {}) => { const h = harness(generateRecorder({ ...config, ...overrides }), env); h.cue('Runtime'); return h; };
+const create = (overrides = {}, env = {}) => { const h = harness(generateRecorder({ ...config, ...overrides }), env); h.start(); return h; };
 const rows = h => h.output.map(x => ({ name: x.name, ...parseRecord(x.line) }));
 const capture = (h, values = [null, null, null, null], available = [true, true, true, true]) => h.call('Capture', { Name: 'event_object_attacked', Scope: 'assets', Values: values, Available: available, Age: h.player.age });
 
@@ -19,7 +19,10 @@ test('generated artifact is deterministic and includes broad isolated subscripti
   function walk(n) { if (/^Listen\d+$/.test(n.attrs.name || '')) nodes.push(n); n.children.forEach(walk); } walk(h.tree);
   assert.equal(nodes.length, catalog.length);
   const runtime = h.tree.children[0].children[0].children.find(x => x.attrs.name === 'Runtime');
-  const gate = runtime.children.find(x => x.tag === 'cues').children[0];
+  const bootstrap = runtime.children.find(x => x.tag === 'cues').children[0];
+  assert.equal(bootstrap.attrs.name, 'Bootstrap');
+  assert.equal(runtime.children.find(x => x.tag === 'conditions').children[0].tag, 'event_universe_generated');
+  const gate = bootstrap.children.find(x => x.tag === 'cues').children[0];
   assert.equal(gate.attrs.name, 'ListenersReady');
   assert.match(gate.children.find(x => x.tag === 'conditions').children[0].attrs.value, /md\.\$LSERAssets\? and md\.\$LSERActors\?/);
   for (const node of nodes) {
@@ -39,7 +42,7 @@ test('starts independently, rebuilds all owned assets and never assigns producti
   assert.equal(rows(h)[0].session, 'UNAVAILABLE');
   assert.equal(Object.keys(h.md).some(k => k.startsWith('$LifeSignsProduction')), false);
   h.md.$LSERActors.push(ship('OLD'));
-  h.cue('Runtime');
+  h.start();
   assert.equal(h.md.$LSERActors.length, 0);
   assert.equal(h.md.$LSERReceived, 0);
 });
