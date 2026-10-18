@@ -12,7 +12,7 @@ const host = (className, ref, owned = true) => ({ __type: 'component', ref, clas
   primarypurpose: { name: 'Synthetic purpose' }, macro: { name: 'Synthetic model' },
   people: Object.assign(new Map(), { list: [] }), availablepeople: Object.assign(new Map(), { count: 0 }),
   controlposts: { all: ['aipilot', 'manager'] }, assignedcontrolentity: { aipilot: null, manager: null }, assignedpilot: null,
-  componentNpcs: [], commander: null, assignment: null });
+  roleentities: [], assignedaipilot: null, tradenpc: null, shiptrader: null, commander: null, assignment: null });
 const actor = (ref, home, role = null) => ({ __type: 'component', ref, class: 'npc', exists: true, isplayerowned: true,
   seed: 9223372036854775801n, knownname: 'Synthetic actor', debugname: 'Synthetic actor SYN-001 [0x123]', sector,
   race: { name: 'Synthetic race' }, owner: 'player', trueowner: 'player', role, controlpost: null,
@@ -42,6 +42,7 @@ test('generated snapshot-only artifact has no event listeners or actor creation'
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
   assert.doesNotMatch(xml, /<event_|event\.(?:object|param)|<create_npc|roleentity\.\{/);
+  assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);
   assert.match(xml, /listeners=0/);
   assert.throws(() => validateConfig({ ...config, eventValueItems: 1 }));
@@ -52,9 +53,9 @@ test('generated snapshot-only artifact has no event listeners or actor creation'
 test('station then ship then independent NPC profiles collect identities without nesting', () => {
   const station = host('station', 'STATION-1'), ship = host('ship', 'SHIP-1');
   const manager = actor('manager', station); manager.controlpost = { name: 'Manager' }; manager.assignedcontrolled = station;
-  station.assignedcontrolentity.manager = manager; station.componentNpcs = [manager];
+  station.assignedcontrolentity.manager = manager; station.roleentities = [manager];
   const captain = actor('captain', ship); captain.controlpost = { name: 'Captain' }; captain.assignedcontrolled = ship;
-  ship.assignedcontrolentity.aipilot = captain; ship.assignedpilot = captain; ship.componentNpcs = [captain];
+  ship.assignedcontrolentity.aipilot = captain; ship.assignedpilot = captain; ship.roleentities = [captain];
   ship.commander = station; ship.assignment = { name: 'Defend Commander' };
   crew(ship);
   const h = setup({ stations: [station], ships: [ship] }); finish(h);
@@ -86,19 +87,67 @@ test('station then ship then independent NPC profiles collect identities without
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_END').length, 1);
 });
 
-test('NPC discovery includes player actors on foreign hosts and spacesuits', () => {
-  const station = host('station', 'FOREIGN', false), suit = host('spacesuit', 'SUIT', false);
-  const a = actor('foreign-host-player-npc', station), b = actor('spacesuit-npc', suit), foreign = actor('foreign-npc', station);
-  foreign.isplayerowned = false; station.componentNpcs = [a, foreign]; suit.componentNpcs = [b];
-  const h = setup({ allStations: [station], allShips: [suit] }); finish(h);
-  assert.deepEqual(profiles(h).map(x => x.fields.actor_reference.value).sort(), [a.ref, b.ref].sort());
+test('Personnel List discovery includes owned spacesuits and never scans foreign hosts', () => {
+  const station = host('station', 'FOREIGN', false), suit = host('spacesuit', 'SUIT');
+  const a = actor('foreign-host-player-npc', station), b = actor('spacesuit-npc', suit);
+  Object.defineProperty(station, 'people', { get() { throw Error('Must not inspect foreign host'); } });
+  station.roleentities = [a]; suit.assignedaipilot = b;
+  const h = setup({ ships: [suit], allStations: [station], allShips: [suit] }); finish(h);
+  assert.deepEqual(profiles(h).filter(p => p.kind === 'NPC').map(x => x.fields.actor_reference.value), [b.ref]);
+  assert.equal(rows(h).find(x => x.kind === 'DISCOVERY_BEGIN').fields.scope, 'PLAYER_OWNED_PERSONNEL_LIST');
   assert.equal(rows(h).find(x => x.kind === 'DISCOVERY_END').fields.complete, 'UNVERIFIED');
+});
+
+test('Personnel List scalar getters supply pilot, manager and ship trader without component searches', () => {
+  const ship = host('ship', 'SHIP'), station = host('station', 'STATION');
+  ship.assignedaipilot = actor('pilot', ship); ship.assignedaipilot.controlpost = { name: 'Captain' };
+  station.tradenpc = actor('manager', station); station.tradenpc.controlpost = { name: 'Manager' };
+  station.shiptrader = actor('shiptrader', station); station.shiptrader.controlpost = { name: 'Ship Trader' };
+  const h = setup({ ships: [ship], stations: [station] }); finish(h);
+  const npcs = profiles(h).filter(p => p.kind === 'NPC');
+  assert.deepEqual(npcs.map(p => [p.fields.actor_reference.value, p.fields.controlpost_name.value]),
+    [['manager', 'Manager'], ['shiptrader', 'Ship Trader'], ['pilot', 'Captain']]);
+  assert.equal(npcs[0].fields.discovery_origin.value, 'PERSONNEL_MANAGER');
+  assert.equal(npcs[0].fields.seed.value, station.tradenpc.seed.toString());
+});
+
+test('NPC profiles stream before the personnel inventory finishes and progress distinguishes empty hosts', () => {
+  const ships = Array.from({ length: 4 }, (_, i) => host('ship', `SHIP-${i}`));
+  crew(ships[0], 'crew', 'Crewman'); crew(ships[2], 'marine', 'Marine');
+  const h = setup({ ships }, { discoveryPerTick: 1, profilesPerTick: 64 });
+  h.call('Tick'); h.call('Tick');
+  assert.equal(profiles(h).filter(p => p.kind === 'NPC').length, 1);
+  assert.equal(rows(h).some(r => r.kind === 'DISCOVERY_END'), false);
+  assert.equal(rows(h).some(r => r.kind === 'SNAPSHOT_END'), false);
+  assert.equal(h.notifications.length, 1);
+  h.player.age += config.heartbeatSeconds; h.call('Tick');
+  const empty = rows(h).find(r => r.kind === 'DISCOVERY_HOST' && r.fields.host_reference === 'SHIP-1' && r.fields.state === 'END');
+  assert.equal(empty.fields.templates_found, '0'); assert.equal(empty.fields.candidates_added, '0');
+  const health = rows(h).find(r => r.kind === 'HEALTH');
+  assert.equal(health.fields.phase, 'NPCS'); assert.equal(health.fields.hosts_visited, '2');
+  assert.equal(health.fields.npc_profiles_attempted, '1');
+  finish(h);
+  assert.equal(profiles(h).filter(p => p.kind === 'NPC').length, 2);
+  assert.equal(rows(h).find(r => r.kind === 'DISCOVERY_END').fields.hosts_visited, '4');
+  assert.equal(h.notifications.length, 2);
+});
+
+test('ownership changes skip personnel reads and report the exact host', () => {
+  const ship = host('ship', 'CHANGED');
+  const h = setup({ ships: [ship] }, { profilesPerTick: 64 }); h.call('Tick');
+  ship.isplayerowned = false;
+  Object.defineProperty(ship, 'people', { get() { throw Error('Must not read after ownership change'); } });
+  finish(h);
+  const gap = rows(h).find(r => r.kind === 'DISCOVERY_GAP');
+  assert.equal(gap.fields.reason, 'HOST_NOT_PLAYER_OWNED'); assert.equal(gap.fields.host_reference, 'CHANGED');
+  assert.equal(rows(h).find(r => r.kind === 'DISCOVERY_END').fields.hosts_skipped, '1');
+  assert.equal(profiles(h).filter(p => p.kind === 'NPC').length, 0);
 });
 
 test('actual aliases merge only with exact host/template association, never seed equality', () => {
   const ship = host('ship', 'SHIP'), t = crew(ship, 'marine', 'Marine'), a = actor('marine-actor', ship, { name: 'Marine' });
-  a.npctemplate = t; ship.componentNpcs = [a, a]; ship.assignedpilot = a; ship.assignedcontrolentity.aipilot = a;
-  const b = actor('same-seed-different-component', ship); b.seed = a.seed; ship.componentNpcs.push(b);
+  a.npctemplate = t; ship.roleentities = [a, a]; ship.assignedpilot = a; ship.assignedcontrolentity.aipilot = a;
+  const b = actor('same-seed-different-component', ship); b.seed = a.seed; ship.roleentities.push(b);
   const h = setup({ ships: [ship] }); finish(h);
   const p = profiles(h).filter(x => x.kind === 'NPC'); assert.equal(p.length, 2);
   const linked = p.find(x => x.fields.actor_reference.value === a.ref);
@@ -116,7 +165,7 @@ test('same template text in distinct hosts does not collapse context identities'
 
 test('conflicting actor assignment evidence is preserved instead of choosing a ship', () => {
   const home = host('ship', 'HOME'), other = host('ship', 'OTHER');
-  const a = actor('conflicted-actor', home, { name: 'Crewman' }); a.assignedcontrolled = other; home.componentNpcs = [a];
+  const a = actor('conflicted-actor', home, { name: 'Crewman' }); a.assignedcontrolled = other; home.roleentities = [a];
   const h = setup({ ships: [home, other] }); finish(h);
   const p = profiles(h).find(x => x.kind === 'NPC');
   assert.equal(p.fields.role_ship_idcode.value, 'HOME'); assert.equal(p.fields.controlled_ship_idcode.value, 'OTHER');
@@ -148,12 +197,12 @@ test('candidate, host and roster limits produce explicit discovery markers', () 
   assert.ok(rows(h).some(x => x.kind === 'DISCOVERY_LIMIT' && x.fields.reason === 'NPC_CANDIDATES'));
   const r = setup({ ships: [ship] }, { personnelPerHost: 1 }); finish(r);
   assert.ok(rows(r).some(x => x.kind === 'DISCOVERY_LIMIT' && x.fields.reason === 'CONTEXTUAL_ROSTER'));
-  const k = setup({ allShips: [ship, host('ship','SECOND')] }, { maxDiscoveryHosts: 1 }); finish(k);
+  const k = setup({ ships: [ship, host('ship','SECOND')] }, { maxDiscoveryHosts: 1 }); finish(k);
   assert.ok(rows(k).some(x => x.kind === 'DISCOVERY_LIMIT' && x.fields.reason === 'HOSTS'));
 });
 
 test('profile budget is fresh per profile and stops getters after exhaustion', () => {
-  const ship = host('ship', 'SHIP'), a = actor('actor', ship); ship.componentNpcs = [a];
+  const ship = host('ship', 'SHIP'), a = actor('actor', ship); ship.roleentities = [a];
   let reads = 0; Object.defineProperty(a, 'roleobject', { get() { reads++; throw Error('Must not read after budget exhausted'); } });
   const h = setup({ ships: [ship] }, { profileValueItems: 16 }); finish(h);
   const p = profiles(h); assert.equal(reads, 0);
@@ -198,7 +247,7 @@ test('ticker notifications bracket the whole snapshot once, including each sched
 
 test('finished partial snapshots say partial data and interrupted snapshots never say completed', () => {
   const stale = host('ship', 'STALE'); stale.exists = false;
-  const partial = setup({ allShips: [stale] }); finish(partial);
+  const partial = setup({ ships: [stale] }); finish(partial);
   assert.equal(partial.notifications.at(-1).text, 'Life Signs: Snapshot completed (partial data).');
   assert.equal(rows(partial).find(r => r.kind === 'SNAPSHOT_END').fields.partial, 'true');
   const interrupted = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 });

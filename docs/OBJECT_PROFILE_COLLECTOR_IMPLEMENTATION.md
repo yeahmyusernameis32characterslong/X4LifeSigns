@@ -39,6 +39,24 @@ X4 launch, gameplay test or merge is authorised by this implementation request.
 
 ## Status and delivery
 
+### Personnel List NPC correction, 2026-10-18
+
+Owner authorised this correction from notification baseline `868d00d`, using the
+verified Personnel List access research. Scope: replace NPC discovery with an
+owned-asset employee inventory and stream standalone NPC profiles while it
+progresses. Station/ship profile libraries, notification actions, configuration,
+production components and installed extensions remain unchanged. Acceptance
+checks cover UI-equivalent scalar access, raw-template contextual fields, owned
+spacesuits, skipped ownership changes, incremental output, progress, identity
+aliases, budgets and existing notification behavior. Deployment and native
+testing require separate approval.
+
+This correction is implemented with synthetic/static checks, **not verified in
+X4**. Qwen researched the Personnel List source and Codex verified the MD getter
+equivalents. The UI's Lua/native calls are not copied as MD actions. The prior
+owner-run capture finished station/ship passes but did not produce NPC profiles;
+it is not acceptance evidence for this corrected NPC pass.
+
 **Implemented, native behaviour unverified.** Plan commit `846d9ae`; first
 implementation/checkpoint `cebb4cb`, followed by the documentation and final
 relationship/session checks. PR19 remains draft and unmerged. This replaces
@@ -70,7 +88,7 @@ once per transition, including periodic collections, independently of diagnostic
 verbosity. A row-limit stop or interrupted snapshot does not request completion.
 No listeners, interactive prompts, mission records or explicit logbook writes
 are added. An unfinished NPC discovery pass therefore leaves only the start
-notification. The Personnel List replacement remains a separate pending change.
+notification. The Personnel List correction preserves these notification actions.
 
 Source: installed X4 9.00 `libraries/common.xsd:36951` defines
 `show_notification`, its required `text`, timeout, priority and default sound;
@@ -87,15 +105,23 @@ ticks then perform ordered work:
 
 1. Enumerate player-true-owned stations and emit station profiles.
 2. Enumerate player-true-owned ships and emit ship profiles.
-3. Independently discover NPC candidates, then emit NPC profiles. No station or
-   ship profile contains nested personnel profiles.
+3. Build an NPC employee inventory and emit standalone NPC profiles in bounded
+   batches while discovery proceeds. No station or ship profile contains nested
+   personnel profiles. Finish only after discovery and all queued profiles end.
 
-NPC discovery uses all enumerated ship/station hosts, including non-player
-hosts, as search contexts. `find_object_component` searches for player-true-owned
-NPC components; returned actors are also checked for actual component existence,
-NPC class and player ownership. Assigned control entities/pilots supplement
-the search. Spacesuit is a documented ship subtype, so it is a discovery-host
-candidate; actual search coverage must still be checked in X4.
+NPC discovery follows the owner-approved Personnel List route. It reuses the
+already enumerated player-owned station/ship references as personnel contexts,
+rechecking existence and ownership before reading them. It does not enumerate
+foreign assets or call `find_object_component`. Owned spacesuits remain ship
+candidates without copying the UI's display/ware filters; actual suit pilot and
+crew availability remains a native test question.
+
+`people.list` supplies raw templates, and `Host.people.{Template}` supplies the
+documented contextual name, seed, race and role. Existing `roleentities` provides
+passive actor aliases. The Personnel List's pilot, manager and ship-trader access
+paths use `assignedaipilot`, `tradenpc` and `shiptrader`, with assigned control
+entities/pilots supplementing them. Actor existence, NPC class and player
+ownership are checked. No actor is created and no menu needs to be opened.
 
 For player-owned hosts, contextual personnel lists supply candidates with
 host/template provenance. This is explicitly an **owned-host proxy**, not proof
@@ -105,11 +131,28 @@ merge only by exact host/template association. Equal seeds or names do not
 merge profiles. Template lookup never stores a pseudo-entry or forces an actor.
 
 Discovery has bounded host/candidate/detail traversal and explicit limit/gap
-markers. The engine searches themselves can return large lists before traversal
-limits apply; this is not a native performance or memory bound. There is no
-verified global NPC registry, and NPCs outside the enumerated host graph may be
-missed. Every collection records `discovery_complete=UNVERIFIED`, even without
+markers. The owned asset enumeration and personnel getters can return lists
+before traversal limits apply; this is not a native performance/memory bound.
+There is no verified global NPC registry. Coverage of NPCs outside the owned
+personnel graph, transfers and exact UI/MD inventory equivalence remain native
+questions. Every collection records `discovery_complete=UNVERIFIED`, even without
 limit markers. The collector does not claim comprehensive NPC enumeration.
+
+`DISCOVERY_BEGIN` records owned host availability and the traversal ceiling.
+Each host emits `DISCOVERY_HOST` begin/end with its reference, list counts and
+new candidate count. Empty lists report zero; unavailable lists remain explicit.
+Skipped hosts report their index/reference and reason. `DISCOVERY_END` reports
+visited/skipped hosts and candidate count. INFO/DEBUG health includes phase,
+host progress, buffered candidates and attempted NPC profiles, independently of
+confirmed writes. These observations help distinguish empty from unfinished
+discovery; they do not establish engine getter timing or output durability.
+
+Source mapping: shipped `ui/addons/ego_detailmonitor/menu_playerinfo.lua:3717`
+builds the employee list; `:3744` supplies pilots, `:3751-3777` contextual crew,
+and `:3787-3796` station managers/traders. Installed
+`libraries/scriptproperties.xml:301-318,373-398,841,2045-2067` documents the MD
+actor/personnel getters, spacesuit subtype and contextual fields. Component
+references and actor/contextual seeds remain separate observations.
 
 ## Profile fields and evidence states
 

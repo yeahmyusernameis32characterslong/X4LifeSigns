@@ -12,9 +12,12 @@ for the output fields, current checks and remaining native gates.
 The owner-directed passes are [stations](OBJECT_PROFILE_STATIONS.md),
 [ships](OBJECT_PROFILE_SHIPS.md), then NPCs. Each NPC receives an independent
 profile; it is not subordinate output nested within a ship's profile.
-Discovering a candidate through a personnel list is distinct from deciding when
-and how to build its profile. Complete independent NPC discovery remains open,
-including NPCs outside ships/stations and those associated with spacesuits.
+Owner approved the Personnel List route: player-owned asset contexts supply
+crew templates and pilot/manager/ship-trader actors. Profiles are emitted in
+batches during this separate NPC pass, without waiting for a galaxy-wide scan.
+Owned spacesuits remain ship candidates. Exact UI/MD coverage, transfers and
+native suit personnel availability remain unverified. See the collector guide
+for progress markers and limits; no global NPC registry is claimed.
 
 Do not infer engine non-instantiation, missing generated identity information or
 role-based exclusion from an incomplete recorder. The former recorder omitted
@@ -43,8 +46,8 @@ Source locations below refer to the installed X4 9.00 reference.
 
 ## Discovery and ownership questions
 
-- Comprehensive NPC enumeration has not been verified. Investigate appropriate
-  discovery mechanisms instead of assuming personnel lists are the only option.
+- Comprehensive NPC enumeration has not been verified. The owner accepts the
+  Personnel List approach; it is not a claim that other mechanisms cannot exist.
 - A literal MD `player.owned` collection was not found in the reviewed
   script-property reference. This is not proof that no equivalent API exists.
   Check exact syntax, API layer, returned types and coverage before rejecting

@@ -119,33 +119,48 @@ export function generateRecorder(config) {
     tag('append_to_list',{name:'md.$LSPCandidates',exact:'table[$actor=$Actor, $host=$Host, $template=$Template, $origin=$Origin]'})+
     set('md.$LSPActors.{$Actor}','md.$LSPCandidates.count')+ret('true'));
   const discover=lib('DiscoverHost',{Host:null},
-    iff('md.$LSPStopped',ret('false'))+iff(`not (${valid('$Host')})`,set('md.$LSPSnapshotPartial','true')+write("'DISCOVERY_GAP|reason=HOST_UNAVAILABLE'")+ret('false'))+
+    iff('md.$LSPStopped',ret('false'))+
+    write("'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=BEGIN'.[md.$LSPHostIndex, $Host]")+
+    iff(`not (${valid('$Host')})`,add('md.$LSPHostsSkipped')+set('md.$LSPSnapshotPartial','true')+write("'DISCOVERY_GAP|reason=HOST_UNAVAILABLE|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, $Host]")+ret('false'))+
+    iff('not $Host.isplayerowned',add('md.$LSPHostsSkipped')+set('md.$LSPSnapshotPartial','true')+write("'DISCOVERY_GAP|reason=HOST_NOT_PLAYER_OWNED|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, $Host]")+ret('false'))+
+    set('$Before','md.$LSPCandidates.count')+set('$PeopleCount',"'UNAVAILABLE'")+set('$ActorCount',"'UNAVAILABLE'")+
     iff('$Host.isplayerowned',set('$People','@$Host.people.list')+
-      iff('typeof $People == datatype.list',set('$Count',`[$People.count, ${c.personnelPerHost}].min`)+
+      iff('typeof $People == datatype.list',set('$PeopleCount','$People.count')+set('$Count',`[$People.count, ${c.personnelPerHost}].min`)+
         tag('do_all',{exact:'$Count',counter:'$Index'},iff('md.$LSPStopped or md.$LSPCandidateLimit',tag('break'))+run('AddContext',{Host:'$Host',Template:'$People.{$Index}'}))+
         iff('$People.count gt $Count',limited('CONTEXTUAL_ROSTER')))+otherwise(set('md.$LSPSnapshotPartial','true')+write("'DISCOVERY_GAP|reason=CONTEXTUAL_COLLECTION_UNAVAILABLE'")))+
-    // Passive component search also finds player actors on non-player discovery hosts.
-    tag('find_object_component',{name:'$Actors',object:'$Host',class:'class.npc',trueowner:'faction.player',multiple:'true',recursive:'true',checkoperational:'false'})+
-    iff('typeof $Actors == datatype.list',set('$Count',`[$Actors.count, ${c.personnelPerHost}].min`)+
-      tag('do_all',{exact:'$Count',counter:'$Index'},iff('md.$LSPStopped or md.$LSPCandidateLimit',tag('break'))+run('AddActor',{Actor:'$Actors.{$Index}',Host:'$Host',Origin:"'COMPONENT_SEARCH'"}))+
+    iff('md.$LSPStopped or md.$LSPCandidateLimit',ret('false'))+
+    // Read existing roster actors only; never instantiate a person or search foreign hosts.
+    set('$Actors','@$Host.roleentities')+
+    iff('typeof $Actors == datatype.list',set('$ActorCount','$Actors.count')+set('$Count',`[$Actors.count, ${c.personnelPerHost}].min`)+
+      tag('do_all',{exact:'$Count',counter:'$Index'},iff('md.$LSPStopped or md.$LSPCandidateLimit',tag('break'))+run('AddActor',{Actor:'$Actors.{$Index}',Host:'$Host',Origin:"'PERSONNEL_ROSTER_ACTOR'"}))+
       iff('$Actors.count gt $Count',limited('ACTOR_RESULTS')))+otherwise(set('md.$LSPSnapshotPartial','true')+write("'DISCOVERY_GAP|reason=ACTOR_COLLECTION_UNAVAILABLE'"))+
+    iff('md.$LSPStopped or md.$LSPCandidateLimit',ret('false'))+
+    run('AddActor',{Actor:'@$Host.assignedaipilot',Host:'$Host',Origin:"'PERSONNEL_PILOT'"})+
+    iff('md.$LSPStopped or md.$LSPCandidateLimit',ret('false'))+
+    iff('$Host.isclass.station',run('AddActor',{Actor:'@$Host.tradenpc',Host:'$Host',Origin:"'PERSONNEL_MANAGER'"})+
+      iff('md.$LSPStopped or md.$LSPCandidateLimit',ret('false'))+
+      run('AddActor',{Actor:'@$Host.shiptrader',Host:'$Host',Origin:"'PERSONNEL_SHIPTRADER'"}))+
+    iff('md.$LSPStopped or md.$LSPCandidateLimit',ret('false'))+
     // Scalar assignment references supplement search results; deduplicate by actual component.
     set('$Posts','@$Host.controlposts.all')+
     iff('typeof $Posts == datatype.list',set('$Count',`[$Posts.count, ${c.personnelPerHost}].min`)+
       tag('do_all',{exact:'$Count',counter:'$Index'},iff('md.$LSPStopped or md.$LSPCandidateLimit',tag('break'))+run('AddActor',{Actor:'@$Host.assignedcontrolentity.{$Posts.{$Index}}',Host:'$Host',Origin:"'CONTROL_ASSIGNMENT'"}))+
       iff('$Posts.count gt $Count',limited('CONTROL_POSTS')))+otherwise(set('md.$LSPSnapshotPartial','true')+write("'DISCOVERY_GAP|reason=CONTROL_POST_COLLECTION_UNAVAILABLE'"))+
-    run('AddActor',{Actor:'@$Host.assignedpilot',Host:'$Host',Origin:"'PILOT_ASSIGNMENT'"})+ret('true'));
+    iff('md.$LSPStopped or md.$LSPCandidateLimit',ret('false'))+
+    run('AddActor',{Actor:'@$Host.assignedpilot',Host:'$Host',Origin:"'PILOT_ASSIGNMENT'"})+
+    write("'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=END|templates_found=%s|roster_actors_found=%s|candidates_added=%s|candidates_total=%s'.[md.$LSPHostIndex, $Host, $PeopleCount, $ActorCount, md.$LSPCandidates.count - $Before, md.$LSPCandidates.count]")+ret('true'));
   const find=(kind,name,owned)=>tag(`find_${kind}`,{name,space:'player.galaxy',...(owned?{trueowner:'faction.player'}:{}),multiple:'true',...(kind === 'ship' ? {recursive:'true'} : {}),checkoperational:'false'});
   const begin=lib('BeginSnapshot',{},add('md.$LSPSeq')+set('md.$LSPProfile','0L')+set('md.$LSPSnapshotPartial','false')+set('md.$LSPActive','true')+set('md.$LSPPass',"'STATIONS'")+set('md.$LSPIndex','1')+
     find('station','md.$LSPStations',true)+find('ship','md.$LSPShips',true)+
     write("'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'")+
     iff('not md.$LSPStopped',notify('Snapshot begun.'))+
     write("'PASS_BEGIN|kind=STATIONS'"));
-  const startNpc= find('station','$AllStations',false)+find('ship','$AllShips',false)+set('md.$LSPHosts','$AllStations.clone')+
-    each('$Host','$AllShips',iff('md.$LSPHosts.indexof.{$Host} == 0',tag('append_to_list',{name:'md.$LSPHosts',exact:'$Host'})))+
+  const startNpc= set('md.$LSPHosts','md.$LSPStations.clone')+
+    each('$Host','md.$LSPShips',iff('md.$LSPHosts.indexof.{$Host} == 0',tag('append_to_list',{name:'md.$LSPHosts',exact:'$Host'})))+
     set('md.$LSPHostCount',`[md.$LSPHosts.count, ${c.maxDiscoveryHosts}].min`)+iff('md.$LSPHosts.count gt md.$LSPHostCount',limited('HOSTS'))+
-    set('md.$LSPHostIndex','1')+set('md.$LSPCandidates','[]')+set('md.$LSPContexts','table[]')+set('md.$LSPActors','table[]')+set('md.$LSPCandidateLimit','false')+
-    set('md.$LSPPass',"'NPC_DISCOVERY'")+write("'DISCOVERY_BEGIN|scope=ALL_ENUMERATED_SHIP_STATION_HOSTS|actor_filter=PLAYER_TRUEOWNER|context_filter=OWNED_HOST_PROXY|global_registry=UNAVAILABLE|spacesuits=SHIP_SUBCLASS'");
+    set('md.$LSPHostIndex','1')+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPNpcProfiles','0')+
+    set('md.$LSPIndex','1')+set('md.$LSPDiscoveryDone','false')+set('md.$LSPCandidates','[]')+set('md.$LSPContexts','table[]')+set('md.$LSPActors','table[]')+set('md.$LSPCandidateLimit','false')+
+    set('md.$LSPPass',"'NPCS'")+write("'DISCOVERY_BEGIN|scope=PLAYER_OWNED_PERSONNEL_LIST|actor_filter=PLAYER_TRUEOWNER|context_filter=OWNED_HOST_PROXY|hosts_available=%s|hosts_limit=%s|global_registry=UNAVAILABLE|spacesuits=SHIP_SUBCLASS'.[md.$LSPHosts.count, md.$LSPHostCount]");
   const advance=lib('Advance',{},
     iff("md.$LSPPass == 'STATIONS'",write("'PASS_END|kind=STATIONS'")+set('md.$LSPPass',"'SHIPS'")+set('md.$LSPIndex','1')+write("'PASS_BEGIN|kind=SHIPS'")+ret('true'))+
     iff("md.$LSPPass == 'SHIPS'",write("'PASS_END|kind=SHIPS'")+write("'PASS_BEGIN|kind=NPCS'")+startNpc+ret('true'))+
@@ -159,22 +174,23 @@ export function generateRecorder(config) {
     set('md.$LSPRun',"'%s-%s'.[player.systemtime.{'%Y-%m-%d_%H-%M-%S'}, $Nonce]")+
     ['Seq','Rows','DiagnosticRows','Profile'].map(k=>set(`md.$LSP${k}`,'0L')).join('')+set('md.$LSPStopped','false')+set('md.$LSPActive','false')+set('md.$LSPLevel',String(levels.indexOf(c.diagnostics)))+
     set('md.$LSPLastAge','player.age')+set('md.$LSPNextSnapshot','player.age')+set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+set('md.$LSPReady','true')+
+    set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
     write(`'RUN_BEGIN|collector=OBJECT_PROFILES|listeners=0|max_rows=${c.maxRowsPerRun}|write_confirmation=UNAVAILABLE|load_boundary=UNVERIFIED'`)+ret('true'));
   const tick=lib('Tick',{},
     iff('not md.$LSPReady',ret('false'))+
     iff('player.age lt md.$LSPLastAge',run('Initialize')+ret('false'))+set('md.$LSPLastAge','player.age')+
     iff('md.$LSPStopped',ret('false'))+
     iff('not md.$LSPActive and player.age ge md.$LSPNextSnapshot',run('BeginSnapshot'))+
-    iff("md.$LSPPass == 'NPC_DISCOVERY' and md.$LSPActive",
+    iff("md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone",
       tag('do_all',{exact:String(c.discoveryPerTick)},iff('md.$LSPStopped or md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit',tag('break'))+
-        run('DiscoverHost',{Host:'md.$LSPHosts.{md.$LSPHostIndex}'})+add('md.$LSPHostIndex'))+
-      iff('md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit',write("'DISCOVERY_END|candidates=%s|complete=UNVERIFIED'.[md.$LSPCandidates.count]")+set('md.$LSPPass',"'NPCS'")+set('md.$LSPIndex','1')))+
+        run('DiscoverHost',{Host:'md.$LSPHosts.{md.$LSPHostIndex}'})+add('md.$LSPHostIndex')+add('md.$LSPHostsVisited'))+
+      iff('md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit',write("'DISCOVERY_END|hosts_visited=%s|hosts_skipped=%s|candidates=%s|complete=UNVERIFIED'.[md.$LSPHostsVisited, md.$LSPHostsSkipped, md.$LSPCandidates.count]")+set('md.$LSPDiscoveryDone','true')))+
     tag('do_all',{exact:String(c.profilesPerTick)},iff('md.$LSPStopped or not md.$LSPActive',tag('break'))+
       iff("md.$LSPPass == 'STATIONS'",iff('md.$LSPIndex le md.$LSPStations.count',run('StationProfile',{Station:'md.$LSPStations.{md.$LSPIndex}'})+add('md.$LSPIndex'))+otherwise(run('Advance')))+
       tag('do_elseif',{value:"md.$LSPPass == 'SHIPS'"},iff('md.$LSPIndex le md.$LSPShips.count',run('ShipProfile',{Ship:'md.$LSPShips.{md.$LSPIndex}'})+add('md.$LSPIndex'))+otherwise(run('Advance')))+
-      tag('do_elseif',{value:"md.$LSPPass == 'NPCS'"},iff('md.$LSPIndex le md.$LSPCandidates.count',run('NpcProfile',{Candidate:'md.$LSPCandidates.{md.$LSPIndex}'})+add('md.$LSPIndex'))+otherwise(run('Advance')))+
+      tag('do_elseif',{value:"md.$LSPPass == 'NPCS'"},iff('md.$LSPIndex le md.$LSPCandidates.count',run('NpcProfile',{Candidate:'md.$LSPCandidates.{md.$LSPIndex}'})+add('md.$LSPIndex')+add('md.$LSPNpcProfiles'))+otherwise(iff('md.$LSPDiscoveryDone',run('Advance'))+otherwise(tag('break'))))+
       otherwise(tag('break')))+
-    iff('player.age ge md.$LSPNextHeartbeat',set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'HEALTH|collector=OBJECT_PROFILES|listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s'.[md.$LSPRows, md.$LSPActive]"})))+ret('true'));
+    iff('player.age ge md.$LSPNextHeartbeat',set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'HEALTH|collector=OBJECT_PROFILES|listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles]"})))+ret('true'));
   const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
     tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPReady'}))+tag('actions',{},run('Tick')))));
   return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${polling}${escape}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${discover}${begin}${advance}${initialize}${tick}</cues></mdscript>\n`.replaceAll('><','>\n<');
