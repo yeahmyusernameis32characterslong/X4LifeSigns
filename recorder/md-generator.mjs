@@ -31,7 +31,6 @@ export function validateConfig(c) {
 }
 export function generateRecorder(config) {
   const c=validateConfig(config);
-  const withSeed=(body,args=[])=>`'${body}|gamestart_seed=%s|gamestart_seed_state=%s|gamestart_seed_type=%s'.[${[...args,'md.$LSPGamestartSeedText','md.$LSPGamestartSeedState','md.$LSPGamestartSeedType'].join(', ')}]`;
   const escape=lib('Escape',{Value:null},set('$Text',"'%s'.[$Value]")+[['%','%25'],['|','%7C'],['\\n','%0A'],['\\r','%0D'],['\\t','%09']].map(([a,b])=>tag('substitute_text',{text:'$Text'},tag('replace',{string:`'${a}'`,with:`'${b}'`}))).join('')+ret('$Text'));
   const writer=lib('Write',{Body:null,Diagnostic:'false'},
     iff('$Diagnostic and md.$LSPLevel == 0',ret('false'))+
@@ -181,7 +180,7 @@ export function generateRecorder(config) {
   const find=(kind,name,owned)=>tag(`find_${kind}`,{name,space:'player.galaxy',...(owned?{trueowner:'faction.player'}:{}),multiple:'true',...(kind === 'ship' ? {recursive:'true'} : {}),checkoperational:'false'});
   const begin=lib('BeginSnapshot',{},iff('md.$LSPSnapshotStarted',ret('false'))+set('md.$LSPSnapshotStarted','true')+add('md.$LSPSeq')+set('md.$LSPProfile','0L')+set('md.$LSPSnapshotPartial','false')+set('md.$LSPActive','true')+set('md.$LSPPass',"'STATIONS'")+set('md.$LSPIndex','1')+
     find('station','md.$LSPStations',true)+find('ship','md.$LSPShips',true)+
-    write(withSeed('SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'))+
+    write("'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'")+
     iff('not md.$LSPStopped',notify('Snapshot begun.'))+
     write("'PASS_BEGIN|kind=STATIONS'"));
   const startNpc= set('md.$LSPHosts','md.$LSPStations.clone')+
@@ -215,13 +214,8 @@ export function generateRecorder(config) {
     set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
     set('md.$LSPPersonnelVersion','3')+set('md.$LSPNextAssetTick','player.age')+
     set('md.$LSPDiscoveryStage',"'HOST'")+set('md.$LSPEntry','1')+set('md.$LSPTypeEscapes','table[]')+
-    set('md.$LSPGamestartSeedText',"''")+set('md.$LSPGamestartSeedState',"'UNAVAILABLE'")+set('md.$LSPGamestartSeedType',"'UNAVAILABLE'")+
-    iff('gamestart.seed?',set('$GamestartSeed','@gamestart.seed')+
-      run('Escape',{Value:'typeof $GamestartSeed'},'md.$LSPGamestartSeedType')+
-      iff('typeof $GamestartSeed == datatype.largeint',set('md.$LSPGamestartSeedState',"'PRESENT'")+run('Escape',{Value:'$GamestartSeed'},'md.$LSPGamestartSeedText'))+
-      otherwise(iff('typeof $GamestartSeed == datatype.null',set('md.$LSPGamestartSeedState',"'NULL'"))+otherwise(set('md.$LSPGamestartSeedState',"'UNEXPECTED_TYPE'"))))+
-    write(withSeed('RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE',['md.$LSPLoadedAt']))+
-    run('Write',{Diagnostic:'true',Body:withSeed('RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s',['md.$LSPLoadedAt'])})+ret('true'));
+    write("'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]")+
+    run('Write',{Diagnostic:'true',Body:"'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]"})+ret('true'));
   const tick=lib('Tick',{},
     iff('not md.$LSPReady',ret('false'))+
     iff('not md.$LSPPersonnelVersion?',ret('false'))+

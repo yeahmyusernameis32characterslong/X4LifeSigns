@@ -1,34 +1,23 @@
 # Snapshot-only object profile collector
 
-## Startup seed/session observation, 2026-10-19
+## Startup identifiers, 2026-10-19
 
-The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN` (unless OFF), and
-`SNAPSHOT_BEGIN` now include `gamestart_seed`, `gamestart_seed_state` and
-`gamestart_seed_type`. Existing `run=` identifies the recorder run; `session=`
-is the optional read-only production session key, or UNAVAILABLE. These remain
-separate identifiers; the seed is not asserted to be a unique universe key.
+The recorder no longer reads or records `gamestart.seed`, at the owner's
+request. Existing `run=` identifies the recorder run; `session=` is the optional
+read-only production session key, or UNAVAILABLE. Their generation, filenames
+and session routing remain unchanged. Object/NPC identity seeds remain profile
+fields; they are distinct from the removed game-seed diagnostic.
 
-**Owner-run finding, 2026-10-19:** all four observed runs used the same
+**Historical owner-run finding:** all four observed runs used the same
 universe, and runs 3 and 4 loaded the same save file. All four startup seed
 values differed, including the same-save pair. Thus `gamestart.seed` is
 unsuitable as a stable universe identifier or a stable save-file identifier.
-This observation does not establish its full lifetime or reseeding mechanism,
-or guarantee a unique value on every load. Retain it as observed metadata;
-do not use it to group profiles into universes.
+Earlier logs retain those observations; no historical log is rewritten.
 
-After playable readiness, initialization resets the metadata and samples the
-documented `gamestart.seed` largeint through an availability probe and guarded
-value read. Engine-rendered seed text is escaped without JavaScript numeric
-conversion and reused for snapshot start; it is not read per asset. Absent,
-null and unexpected types produce UNAVAILABLE, NULL or UNEXPECTED_TYPE, with
-no invented value or reuse of an earlier run. The four owner-run tests recorded
-PRESENT seeds with engine-rendered type `largeint`; broader availability and
-lifetime guarantees remain unestablished.
-
-Session generation/correlation, filenames, profile fields, pacing and limits
-are unchanged. This only observes the property; it adds no RNG draw or seed
-advance and does not change current universe/session routing. Compare observed
-seed values across separately identified loads before interpreting continuity.
+The owner requests the save-header GUID for universe grouping. A runtime getter
+and automatic association of the loaded save have not been verified. The
+explicit save/log pairing versus runtime capture workflow is being resolved;
+no GUID is guessed from filenames, modification times or game age alone.
 
 ## Datatype-cache investigation, 2026-10-19
 
