@@ -11,7 +11,7 @@ const run = (ref, params = {}, result) => tag('run_actions', {ref, ...(result ? 
 const lib = (name, params, actions) => tag('library',{name,purpose:'run_actions'},tag('params',{},Object.entries(params).map(([name,value])=>tag('param',{name,...(value===null?{}:{default:value})})).join(''))+tag('actions',{},actions));
 const write = body => run('Write', {Body:body});
 const notify = text => tag('show_notification', {text:`'Life Signs: ${text}'`,timeout:'5s',priority:'1'});
-const completionPanel = text => tag('show_help', {custom:`'Life Signs: ${text}'`,allowclose:'true',timeout:'false',log:'false'});
+const completionPanel = text => tag('show_help', {custom:`'Life Signs: ${text}'`,position:'4',halign:"'center'",allowclose:'true',timeout:'false',log:'false'});
 const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => {
   if (!/^[a-z0-9_]+$/.test(field)) throw Error('Generated field name must be framing-safe');
   // @ suppresses unavailable property lookups; it is invalid before literals.

@@ -232,8 +232,14 @@ after all three passes and the snapshot end record:
 - **Life Signs: Snapshot completed — partial data.** when recorded gaps or
   partial profiles remain.
 
-Panels use custom text, `allowclose="true"`, `timeout="false"`, and `log="false"`.
-This enables the native close button and disables automatic expiry. No custom
+Panels use custom text, `position="4"`, `halign="'center'"`, `allowclose="true"`,
+`timeout="false"`, and `log="false"`. Installed X4 9.00
+`libraries/parameters.xml:1370-1381` defines position 4 at 50% screen width/height;
+shipped helptext.lua:405-418 subtracts half the panel dimensions to centre the
+frame there. Text alignment is separate. The former default position 0 was
+top-left, which explains the reported placement. Relevant installed DLC patches
+do not change this position table. This enables the close button and disables
+automatic expiry. No custom
 Lua, response listener, global help removal or explicit logbook write is added.
 The native UI handles dismissal. Exact appearance, help queue/menu interaction
 and on-screen delivery still require an owner-run X4 test; no automatic pause
