@@ -318,7 +318,7 @@ test('contextual scalar aliases reuse one observation without changing fields or
   const ship = host('ship', 'SHIP'), t = crew(ship), entry = ship.people.get(t);
   let reads = 0; const text = "Synthetic % | name\n船";
   Object.defineProperty(entry, 'name', { get() { reads++; return text; } });
-  const h = setup({ ships: [ship] }); const startupEscapes=h.callCounts.Escape; finish(h);
+  const h = setup({ ships: [ship] }); const startupEscapes=h.callCounts.Escape || 0; finish(h);
   const p = profiles(h).find(p => p.kind === 'NPC');
   assert.equal(reads, 2, 'One availability lookup and one value lookup, reused for both output fields');
   assert.equal(p.fields.name.value, text); assert.equal(p.fields.contextual_name.value, text);
@@ -452,41 +452,46 @@ test('production session correlation is read-only and optional', () => {
   assert.equal(rows(setup())[0].session, 'UNAVAILABLE');
 });
 
-test('startup and snapshot markers include exact seed text with separate run and production session identifiers', () => {
-  let seed=9223372036854775807n,reads=0;
-  const gamestart={}; Object.defineProperty(gamestart,'seed',{get(){reads++;return seed;}});
-  const h=harness(generateRecorder(config),{gamestart,ships:[host('ship','SHIP')]});
+test('experimental ID-code startup observations retain exact text, refresh per load and preserve sessions', () => {
+  const gamestart={}; Object.defineProperty(gamestart,'seed',{get(){throw Error('Game seed must not be read');}});
+  const xml=generateRecorder(config); assert.doesNotMatch(xml,/gamestart[._]seed|LSPGamestartSeed/);
+  const h=harness(xml,{gamestart,ships:[host('ship','SHIP')]});
+  let reads=0,galaxy='SYN|%\n?',entity='SYN-123';
+  Object.defineProperty(h.player.galaxy,'idcode',{get(){reads++;return galaxy;}});
+  Object.defineProperty(h.player.entity,'idcode',{get(){reads++;return entity;}});
   h.md.$LifeSignsProductionSessionReady=true; h.md.$LifeSignsProductionSessionKey='synthetic-production-session';
-  h.start(); assert.equal(reads,2,'One availability probe and one guarded value read per initialization');
+  h.start(); assert.equal(reads,4,'Availability probe plus one value read for each expression');
   const first=rows(h)[0]; assert.equal(first.kind,'RUN_BEGIN');
-  assert.equal(first.fields.gamestart_seed,'9223372036854775807');
-  assert.equal(first.fields.gamestart_seed_state,'PRESENT');
-  assert.equal(first.fields.gamestart_seed_type,'datatype.largeint');
+  assert.equal(first.fields.player_galaxy_idcode,galaxy); assert.equal(first.fields.player_entity_idcode,entity);
+  assert.equal(first.fields.player_galaxy_idcode_state,'PRESENT'); assert.equal(first.fields.player_entity_idcode_type,'datatype.string');
+  assert.equal(first.fields.identity_probe,'EXPERIMENTAL_IDCODE');
   assert.equal(first.session,'synthetic-production-session'); assert.equal(first.run,h.md.$LSPRun);
-  seed=-9223372036854775808n; finish(h);
-  assert.equal(reads,2,'Snapshot/profile work reuses the startup observation');
+  galaxy='CHANGED'; entity='NEW-456'; finish(h); assert.equal(reads,4,'No per-profile or snapshot-start reread');
   const begin=rows(h).find(r=>r.kind==='SNAPSHOT_BEGIN');
-  assert.equal(begin.fields.gamestart_seed,first.fields.gamestart_seed);
-  assert.equal(begin.session,first.session);
-  h.load(); finish(h); assert.equal(reads,4);
-  const starts=rows(h).filter(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profiles-'));
-  assert.equal(starts[1].fields.gamestart_seed,'-9223372036854775808');
-  assert.notEqual(starts[1].run,first.run);
+  assert.equal(begin.fields.player_galaxy_idcode,first.fields.player_galaxy_idcode);
+  assert.equal(begin.fields.player_entity_idcode,first.fields.player_entity_idcode);
   const diag=rows(h).find(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profile-diagnostics-'));
-  assert.equal(diag.fields.gamestart_seed,first.fields.gamestart_seed);
+  assert.equal(diag.fields.player_galaxy_idcode,first.fields.player_galaxy_idcode);
+  h.load(); finish(h); assert.equal(reads,8);
+  const starts=rows(h).filter(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profiles-'));
+  assert.equal(starts[1].fields.player_galaxy_idcode,'CHANGED'); assert.equal(starts[1].fields.player_entity_idcode,'NEW-456');
+  assert.notEqual(starts[1].run,first.run); assert.equal(starts[1].session,first.session);
   assert.equal(h.md.$LifeSignsProductionSessionKey,'synthetic-production-session');
 });
 
-test('missing null and unexpected seed types remain explicit and do not reuse an earlier run value', () => {
-  const gamestart={seed:1234567890123456789n};
-  const h=harness(generateRecorder(config),{gamestart}); h.start(); finish(h);
-  for(const [kind,expected] of [['missing','UNAVAILABLE'],['null','NULL'],['string','UNEXPECTED_TYPE']]){
-    if(kind==='missing')delete gamestart.seed;
-    else gamestart.seed=kind==='null'?null:'not-a-seed';
+test('ID-code probes distinguish missing, empty, null, unexpected type and unavailable parent without stale reuse', () => {
+  const h=harness(generateRecorder(config));
+  h.player.galaxy.idcode='FIRST'; h.player.entity.idcode='SECOND'; h.start(); finish(h);
+  for(const [kind,state] of [['missing','UNAVAILABLE'],['empty','EMPTY'],['null','NULL'],['number','UNEXPECTED_TYPE'],['parent','UNAVAILABLE_REFERENCE']]){
+    if(kind==='missing'){delete h.player.galaxy.idcode;delete h.player.entity.idcode;}
+    else {h.player.galaxy.idcode=kind==='empty'?'':kind==='null'?null:9223372036854775807n;h.player.entity.idcode=0;}
+    if(kind==='parent')h.player.galaxy.exists=false;
     h.load(); finish(h);
     const begin=rows(h).filter(r=>r.kind==='SNAPSHOT_BEGIN').at(-1);
-    assert.equal(begin.fields.gamestart_seed_state,expected);
-    assert.equal(begin.fields.gamestart_seed,'');
+    assert.equal(begin.fields.player_galaxy_idcode_state,state);
+    assert.equal(begin.fields.player_galaxy_idcode,kind==='number'?'9223372036854775807':'');
+    assert.equal(begin.fields.player_entity_idcode_state,kind==='missing'?'UNAVAILABLE':'UNEXPECTED_TYPE');
+    assert.equal(begin.fields.player_entity_idcode,kind==='missing'?'':'0');
     assert.equal(begin.session,'UNAVAILABLE');
   }
 });

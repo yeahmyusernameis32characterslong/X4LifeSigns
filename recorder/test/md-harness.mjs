@@ -29,7 +29,7 @@ function split(s, delimiter) {
 const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {seed:9223372036854775807n} } = {}) {
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {} } = {}) {
   const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   let randomCounter = 0;
   function walk(node, parentCue) {
@@ -40,7 +40,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     node.children.forEach(child => walk(child, parentCue));
   }
   walk(tree);
-  const player = { age, entity: { __type: 'component', exists: true }, galaxy: true, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
+  const player = { age, entity: { __type: 'component', exists: true }, galaxy: { __type: 'component', exists: true }, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
   function get(value, key) {
     if (value == null && key === 'exists') return false;
     if (value == null) throw new Error(`Unavailable ${key}`);

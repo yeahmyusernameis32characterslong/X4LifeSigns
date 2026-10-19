@@ -1,39 +1,33 @@
 # Snapshot-only object profile collector
 
-## Startup seed comparison and identifiers, 2026-10-19
+## Experimental startup ID-code probes, 2026-10-19
 
-The owner requests renewed in-game `gamestart.seed` observations for comparison.
-The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN` (unless OFF), and
-`SNAPSHOT_BEGIN` include `gamestart_seed`, `gamestart_seed_state` and
-`gamestart_seed_type`. Existing `run=` identifies the recorder run; `session=`
-is the optional read-only production session key, or UNAVAILABLE. Their
-creation, filenames and routing remain unchanged.
+The owner requests native observations of `player.galaxy.idcode` and
+`player.entity.idcode`. The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN`
+(unless OFF), and `SNAPSHOT_BEGIN` now include `player_galaxy_idcode` and
+`player_entity_idcode`, each with `_state` and `_type`, labelled
+`identity_probe=EXPERIMENTAL_IDCODE`. Existing `run=` and optional read-only
+production `session=` remain unchanged.
 
-After playable readiness, initialization resets metadata and samples the
-property through an availability probe and one guarded value read. A documented
-largeint is rendered/escaped by MD without JavaScript Number conversion, then
-reused at snapshot start. Missing/null/unexpected types remain explicit, without
-stale values. This adds no RNG draw or seed advancement. Object/NPC identity
-seeds remain separate profile fields.
+Initialize resets observations each run. It checks parent availability/existence,
+then probes property availability before a guarded value read. Escaped engine
+text is reused at snapshot start, with no per-profile reads or numeric conversion.
+States distinguish PRESENT nonempty strings, EMPTY strings, NULL, UNEXPECTED_TYPE
+(with rendered value for inspection), UNAVAILABLE property and
+UNAVAILABLE_REFERENCE parent. Missing values cannot inherit a prior run's ID.
+These are experimental observations, not validated identity keys or save GUIDs.
+No fallback to another object's context, debugname, seed or filename is used.
 
-**Owner-run finding:** all four observed runs used the same universe; runs 3
-and 4 loaded the same save. All four runtime `gamestart.seed` values differed,
-including the same-save pair. Thus the observation is retained as metadata,
-not a stable universe/save identifier. Existing logs are not rewritten.
+The reference declares idcode on object, outside the documented galaxy/entity
+inheritance chains. Native availability and stability require an owner-run test;
+static/schema/synthetic checks do not establish either getter succeeds.
 
-Do not conflate the runtime MD property, the save-header `game/@seed`, or the
-custom-start configuration's seed setting. Installed X4 9.00
-`ui/addons/ego_gameoptions/customgame.lua:607-618` defines a Universe-category
-`seed` string editbox using Get/SetCustomGameStartStringProperty, keyed by the
-selected start configuration. It does not document a loaded-universe seed
-getter or establish equality with `gamestart.seed`. The MD property reference
-at `libraries/scriptproperties.xml:2679-2681` defines a largeint session seed
-for random generation, not a specified uniform 32-bit distribution.
-
-The owner prefers in-game GUID capture. A runtime GUID getter remains
-unverified; no GUID is guessed from a saved template, filename, modification
-time, game age or seed. Explicit offline save/log pairing is not implemented.
-No pause changes are included in this comparison work.
+`gamestart.seed` collection and startup fields have been removed at the owner's
+request. Object/NPC identity seeds remain profile fields. Historical seed findings
+are retained: default same-universe runtime observations differed; an explicit
+custom input matched within-process reloads but changed after a fresh X4 launch.
+Neither observation is promoted into an engine lifetime guarantee. No historical
+logs are rewritten, and no RNG/routing/pacing/configuration changes are included.
 
 ## Datatype-cache investigation, 2026-10-19
 
