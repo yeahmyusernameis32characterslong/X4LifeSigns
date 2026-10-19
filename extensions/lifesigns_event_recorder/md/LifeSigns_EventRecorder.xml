@@ -2740,7 +2740,7 @@
 <find_station name="md.$LSPStations" space="player.galaxy" trueowner="faction.player" multiple="true" checkoperational="false" />
 <find_ship name="md.$LSPShips" space="player.galaxy" trueowner="faction.player" multiple="true" recursive="true" checkoperational="false" />
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'" />
+<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED|gamestart_seed=%s|gamestart_seed_state=%s|gamestart_seed_type=%s'.[md.$LSPGamestartSeedText, md.$LSPGamestartSeedState, md.$LSPGamestartSeedType]" />
 </run_actions>
 <do_if value="not md.$LSPStopped">
 <show_notification text="'Life Signs: Snapshot begun.'" timeout="5s" priority="1" />
@@ -2881,12 +2881,35 @@
 <set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
 <set_value name="md.$LSPEntry" exact="1" />
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
+<set_value name="md.$LSPGamestartSeedText" exact="''" />
+<set_value name="md.$LSPGamestartSeedState" exact="'UNAVAILABLE'" />
+<set_value name="md.$LSPGamestartSeedType" exact="'UNAVAILABLE'" />
+<do_if value="gamestart.seed?">
+<set_value name="$GamestartSeed" exact="@gamestart.seed" />
+<run_actions ref="Escape" result="md.$LSPGamestartSeedType">
+<param name="Value" value="typeof $GamestartSeed" />
+</run_actions>
+<do_if value="typeof $GamestartSeed == datatype.largeint">
+<set_value name="md.$LSPGamestartSeedState" exact="'PRESENT'" />
+<run_actions ref="Escape" result="md.$LSPGamestartSeedText">
+<param name="Value" value="$GamestartSeed" />
+</run_actions>
+</do_if>
+<do_else>
+<do_if value="typeof $GamestartSeed == datatype.null">
+<set_value name="md.$LSPGamestartSeedState" exact="'NULL'" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPGamestartSeedState" exact="'UNEXPECTED_TYPE'" />
+</do_else>
+</do_else>
+</do_if>
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|gamestart_seed=%s|gamestart_seed_state=%s|gamestart_seed_type=%s'.[md.$LSPLoadedAt, md.$LSPGamestartSeedText, md.$LSPGamestartSeedState, md.$LSPGamestartSeedType]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|gamestart_seed=%s|gamestart_seed_state=%s|gamestart_seed_type=%s'.[md.$LSPLoadedAt, md.$LSPGamestartSeedText, md.$LSPGamestartSeedState, md.$LSPGamestartSeedType]" />
 </run_actions>
 <return value="true" />
 </actions>

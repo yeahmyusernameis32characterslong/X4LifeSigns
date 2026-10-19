@@ -1,23 +1,39 @@
 # Snapshot-only object profile collector
 
-## Startup identifiers, 2026-10-19
+## Startup seed comparison and identifiers, 2026-10-19
 
-The recorder no longer reads or records `gamestart.seed`, at the owner's
-request. Existing `run=` identifies the recorder run; `session=` is the optional
-read-only production session key, or UNAVAILABLE. Their generation, filenames
-and session routing remain unchanged. Object/NPC identity seeds remain profile
-fields; they are distinct from the removed game-seed diagnostic.
+The owner requests renewed in-game `gamestart.seed` observations for comparison.
+The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN` (unless OFF), and
+`SNAPSHOT_BEGIN` include `gamestart_seed`, `gamestart_seed_state` and
+`gamestart_seed_type`. Existing `run=` identifies the recorder run; `session=`
+is the optional read-only production session key, or UNAVAILABLE. Their
+creation, filenames and routing remain unchanged.
 
-**Historical owner-run finding:** all four observed runs used the same
-universe, and runs 3 and 4 loaded the same save file. All four startup seed
-values differed, including the same-save pair. Thus `gamestart.seed` is
-unsuitable as a stable universe identifier or a stable save-file identifier.
-Earlier logs retain those observations; no historical log is rewritten.
+After playable readiness, initialization resets metadata and samples the
+property through an availability probe and one guarded value read. A documented
+largeint is rendered/escaped by MD without JavaScript Number conversion, then
+reused at snapshot start. Missing/null/unexpected types remain explicit, without
+stale values. This adds no RNG draw or seed advancement. Object/NPC identity
+seeds remain separate profile fields.
 
-The owner requests the save-header GUID for universe grouping. A runtime getter
-and automatic association of the loaded save have not been verified. The
-explicit save/log pairing versus runtime capture workflow is being resolved;
-no GUID is guessed from filenames, modification times or game age alone.
+**Owner-run finding:** all four observed runs used the same universe; runs 3
+and 4 loaded the same save. All four runtime `gamestart.seed` values differed,
+including the same-save pair. Thus the observation is retained as metadata,
+not a stable universe/save identifier. Existing logs are not rewritten.
+
+Do not conflate the runtime MD property, the save-header `game/@seed`, or the
+custom-start configuration's seed setting. Installed X4 9.00
+`ui/addons/ego_gameoptions/customgame.lua:607-618` defines a Universe-category
+`seed` string editbox using Get/SetCustomGameStartStringProperty, keyed by the
+selected start configuration. It does not document a loaded-universe seed
+getter or establish equality with `gamestart.seed`. The MD property reference
+at `libraries/scriptproperties.xml:2679-2681` defines a largeint session seed
+for random generation, not a specified uniform 32-bit distribution.
+
+The owner prefers in-game GUID capture. A runtime GUID getter remains
+unverified; no GUID is guessed from a saved template, filename, modification
+time, game age or seed. Explicit offline save/log pairing is not implemented.
+No pause changes are included in this comparison work.
 
 ## Datatype-cache investigation, 2026-10-19
 
