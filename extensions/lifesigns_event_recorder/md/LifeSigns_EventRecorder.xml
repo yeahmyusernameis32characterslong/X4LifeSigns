@@ -135,7 +135,7 @@
 <do_if value="not md.$LSPTypeEscapes?">
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
 </do_if>
-<set_value name="$TypeKey" exact="'%s'.[$Type]" />
+<set_value name="$TypeKey" exact="'$%s'.[$Type]" />
 <do_if value="md.$LSPTypeEscapes.{$TypeKey}?">
 <set_value name="$TypeText" exact="md.$LSPTypeEscapes.{$TypeKey}" />
 </do_if>

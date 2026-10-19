@@ -89,6 +89,30 @@ test('station then ship then independent NPC profiles collect identities without
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_END').length, 1);
 });
 
+test('datatype cache obeys native string-key rules and reuses labels without changing output', () => {
+  const xml=generateRecorder(config);
+  const fixed=`name="$TypeKey" exact="'$%s'.[$Type]"`;
+  assert.ok(xml.includes(fixed));
+  const broken=harness(xml.replace(fixed,()=>`name="$TypeKey" exact="'%s'.[$Type]"`),{stations:[host('station','STATION')]});
+  broken.start(); assert.throws(()=>broken.call('Tick'), /MD table string keys must start/);
+  const ship=host('ship','SHIP'); crew(ship);
+  const h=setup({ships:[ship]}); finish(h);
+  assert.ok([...h.md.$LSPTypeEscapes.keys()].every(k=>typeof k==='string'&&k.startsWith('$')));
+  const initialSize=h.md.$LSPTypeEscapes.size,beforeEscapes=h.callCounts.Escape;
+  h.md.$LSPRemaining=config.profileValueItems;
+  for(let i=0;i<3;i++)h.call('Value',{Field:'synthetic_label',Value:'Synthetic % | text\n船',Available:true});
+  h.call('Value',{Field:'synthetic_missing',Value:null,Available:false});
+  h.call('Value',{Field:'synthetic_null',Value:null,Available:true});
+  assert.equal(h.md.$LSPTypeEscapes.size,initialSize);
+  assert.equal(h.callCounts.Escape-beforeEscapes,5,'Repeated types escape only their dynamic values');
+  const last=rows(h).filter(r=>r.kind==='VALUE').slice(-5);
+  assert.equal(last[0].fields.value,'Synthetic % | text\n船');
+  assert.equal(last[0].fields.type,'datatype.string');
+  assert.equal(last[3].fields.state,'UNAVAILABLE');
+  assert.equal(last[4].fields.state,'NULL');
+  assert.equal(last[4].fields.type,'datatype.null');
+});
+
 test('Personnel List discovery includes owned spacesuits and never scans foreign hosts', () => {
   const station = host('station', 'FOREIGN', false), suit = host('spacesuit', 'SUIT');
   const a = actor('foreign-host-player-npc', station), b = actor('spacesuit-npc', suit);

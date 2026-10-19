@@ -122,7 +122,11 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     const key = part => part.startsWith('{') ? evalx(part.slice(1, -1), local) : part;
     while (parts.length > 1) owner = get(owner, key(parts.shift()));
     const last = key(parts[0]);
-    if (owner instanceof Map) { if (remove) owner.delete(last); else owner.set(last, value); }
+    if (owner instanceof Map) {
+      if (typeof last === 'string' && !last.startsWith('$')) throw Error('MD table string keys must start with $');
+      if (last == null) throw Error('Null is not an MD table key');
+      if (remove) owner.delete(last); else owner.set(last, value);
+    }
     else if (Array.isArray(owner)) { if (remove) owner.splice(Number(last) - 1, 1); else owner[Number(last) - 1] = value; }
     else if (remove) delete owner[last]; else owner[last] = value;
   }

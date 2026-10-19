@@ -49,7 +49,7 @@ export function generateRecorder(config) {
         iff('typeof $Value == datatype.component',iff('not $Value.exists',set('$State',"'UNAVAILABLE_REFERENCE'")))))+
     iff("$State == 'UNAVAILABLE' or $State == 'UNAVAILABLE_REFERENCE' or $State == 'UNVERIFIED' or $State == 'AMBIGUOUS_ASSIGNMENT'",set('md.$LSPProfilePartial','true'))+
     set('$FieldText','$Field')+run('Escape',{Value:'$Text'},'$Text')+
-    iff('not md.$LSPTypeEscapes?',set('md.$LSPTypeEscapes','table[]'))+set('$TypeKey',"'%s'.[$Type]")+
+    iff('not md.$LSPTypeEscapes?',set('md.$LSPTypeEscapes','table[]'))+set('$TypeKey',"'$%s'.[$Type]")+
     iff('md.$LSPTypeEscapes.{$TypeKey}?',set('$TypeText','md.$LSPTypeEscapes.{$TypeKey}'))+
     otherwise(run('Escape',{Value:'$Type'},'$TypeText')+set('md.$LSPTypeEscapes.{$TypeKey}','$TypeText'))+
     write("'VALUE|profile=%s|field=%s|type=%s|state=%s|render=ENGINE_TEXT_UNVERIFIED|value=%s'.[md.$LSPProfile, $FieldText, $TypeText, $State, $Text]")+ret('true'));
