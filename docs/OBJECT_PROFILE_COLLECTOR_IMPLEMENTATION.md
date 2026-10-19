@@ -1,5 +1,26 @@
 # Snapshot-only object profile collector
 
+## Startup seed/session observation, 2026-10-19
+
+The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN` (unless OFF), and
+`SNAPSHOT_BEGIN` now include `gamestart_seed`, `gamestart_seed_state` and
+`gamestart_seed_type`. Existing `run=` identifies the recorder run; `session=`
+is the optional read-only production session key, or UNAVAILABLE. These remain
+separate identifiers; the seed is not asserted to be a unique universe key.
+
+After playable readiness, initialization resets the metadata and samples the
+documented `gamestart.seed` largeint through an availability probe and guarded
+value read. Engine-rendered seed text is escaped without JavaScript numeric
+conversion and reused for snapshot start; it is not read per asset. Absent,
+null and unexpected types produce UNAVAILABLE, NULL or UNEXPECTED_TYPE, with
+no invented value or reuse of an earlier run. The engine's actual rendering
+and seed availability/lifetime still require the owner-run test.
+
+Session generation/correlation, filenames, profile fields, pacing and limits
+are unchanged. This only observes the property; it adds no RNG draw or seed
+advance and does not change current universe/session routing. Compare observed
+seed values across separately identified loads before interpreting continuity.
+
 ## Datatype-cache investigation, 2026-10-19
 
 **Correction implemented; native retest pending.** The cache renders

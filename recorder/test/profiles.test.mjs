@@ -318,7 +318,7 @@ test('contextual scalar aliases reuse one observation without changing fields or
   const ship = host('ship', 'SHIP'), t = crew(ship), entry = ship.people.get(t);
   let reads = 0; const text = "Synthetic % | name\n船";
   Object.defineProperty(entry, 'name', { get() { reads++; return text; } });
-  const h = setup({ ships: [ship] }); finish(h);
+  const h = setup({ ships: [ship] }); const startupEscapes=h.callCounts.Escape; finish(h);
   const p = profiles(h).find(p => p.kind === 'NPC');
   assert.equal(reads, 2, 'One availability lookup and one value lookup, reused for both output fields');
   assert.equal(p.fields.name.value, text); assert.equal(p.fields.contextual_name.value, text);
@@ -327,7 +327,7 @@ test('contextual scalar aliases reuse one observation without changing fields or
   assert.equal(p.fields.macro.value, p.fields.contextual_macro.value);
   assert.equal(p.fields.seed.type, 'datatype.largeint');
   assert.ok(h.md.$LSPTypeEscapes.size > 0);
-  assert.equal(h.callCounts.Escape, rows(h).filter(r => r.kind === 'VALUE').length + h.md.$LSPTypeEscapes.size);
+  assert.equal(h.callCounts.Escape, startupEscapes + rows(h).filter(r => r.kind === 'VALUE').length + h.md.$LSPTypeEscapes.size);
   const missingShip = host('ship', 'MISSING'), missingTemplate = crew(missingShip);
   delete missingShip.people.get(missingTemplate).name;
   const m = setup({ ships: [missingShip] }); finish(m);
@@ -448,6 +448,45 @@ test('production session correlation is read-only and optional', () => {
   assert.equal(rows(h).find(x => x.kind === 'SNAPSHOT_BEGIN').session, 'synthetic-session');
   assert.equal(h.md.$LifeSignsProductionSessionKey, 'synthetic-session');
   assert.equal(rows(setup())[0].session, 'UNAVAILABLE');
+});
+
+test('startup and snapshot markers include exact seed text with separate run and production session identifiers', () => {
+  let seed=9223372036854775807n,reads=0;
+  const gamestart={}; Object.defineProperty(gamestart,'seed',{get(){reads++;return seed;}});
+  const h=harness(generateRecorder(config),{gamestart,ships:[host('ship','SHIP')]});
+  h.md.$LifeSignsProductionSessionReady=true; h.md.$LifeSignsProductionSessionKey='synthetic-production-session';
+  h.start(); assert.equal(reads,2,'One availability probe and one guarded value read per initialization');
+  const first=rows(h)[0]; assert.equal(first.kind,'RUN_BEGIN');
+  assert.equal(first.fields.gamestart_seed,'9223372036854775807');
+  assert.equal(first.fields.gamestart_seed_state,'PRESENT');
+  assert.equal(first.fields.gamestart_seed_type,'datatype.largeint');
+  assert.equal(first.session,'synthetic-production-session'); assert.equal(first.run,h.md.$LSPRun);
+  seed=-9223372036854775808n; finish(h);
+  assert.equal(reads,2,'Snapshot/profile work reuses the startup observation');
+  const begin=rows(h).find(r=>r.kind==='SNAPSHOT_BEGIN');
+  assert.equal(begin.fields.gamestart_seed,first.fields.gamestart_seed);
+  assert.equal(begin.session,first.session);
+  h.load(); finish(h); assert.equal(reads,4);
+  const starts=rows(h).filter(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profiles-'));
+  assert.equal(starts[1].fields.gamestart_seed,'-9223372036854775808');
+  assert.notEqual(starts[1].run,first.run);
+  const diag=rows(h).find(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profile-diagnostics-'));
+  assert.equal(diag.fields.gamestart_seed,first.fields.gamestart_seed);
+  assert.equal(h.md.$LifeSignsProductionSessionKey,'synthetic-production-session');
+});
+
+test('missing null and unexpected seed types remain explicit and do not reuse an earlier run value', () => {
+  const gamestart={seed:1234567890123456789n};
+  const h=harness(generateRecorder(config),{gamestart}); h.start(); finish(h);
+  for(const [kind,expected] of [['missing','UNAVAILABLE'],['null','NULL'],['string','UNEXPECTED_TYPE']]){
+    if(kind==='missing')delete gamestart.seed;
+    else gamestart.seed=kind==='null'?null:'not-a-seed';
+    h.load(); finish(h);
+    const begin=rows(h).filter(r=>r.kind==='SNAPSHOT_BEGIN').at(-1);
+    assert.equal(begin.fields.gamestart_seed_state,expected);
+    assert.equal(begin.fields.gamestart_seed,'');
+    assert.equal(begin.session,'UNAVAILABLE');
+  }
 });
 
 test('uncapped collection completes beyond old test thresholds and OFF suppresses diagnostics', () => {

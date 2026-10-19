@@ -29,7 +29,7 @@ function split(s, delimiter) {
 const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1 } = {}) {
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {seed:9223372036854775807n} } = {}) {
   const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   let randomCounter = 0;
   function walk(node, parentCue) {
@@ -102,6 +102,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     else if (first.startsWith('(') && first.endsWith(')')) value = evalx(first.slice(1, -1), local);
     else if (first === 'md') value = md;
     else if (first === 'player') value = player;
+    else if (first === 'gamestart') value = gamestart;
     else if (first === 'faction') value = { player: 'player' };
     else if (first === 'controlpost') value = {aipilot:'aipilot',manager:'manager'};
     else if (first === 'class') value = {npc:'npc'};
