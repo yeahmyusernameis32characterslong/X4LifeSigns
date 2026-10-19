@@ -8,13 +8,22 @@ The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN` (unless OFF), and
 is the optional read-only production session key, or UNAVAILABLE. These remain
 separate identifiers; the seed is not asserted to be a unique universe key.
 
+**Owner-run finding, 2026-10-19:** all four observed runs used the same
+universe, and runs 3 and 4 loaded the same save file. All four startup seed
+values differed, including the same-save pair. Thus `gamestart.seed` is
+unsuitable as a stable universe identifier or a stable save-file identifier.
+This observation does not establish its full lifetime or reseeding mechanism,
+or guarantee a unique value on every load. Retain it as observed metadata;
+do not use it to group profiles into universes.
+
 After playable readiness, initialization resets the metadata and samples the
 documented `gamestart.seed` largeint through an availability probe and guarded
 value read. Engine-rendered seed text is escaped without JavaScript numeric
 conversion and reused for snapshot start; it is not read per asset. Absent,
 null and unexpected types produce UNAVAILABLE, NULL or UNEXPECTED_TYPE, with
-no invented value or reuse of an earlier run. The engine's actual rendering
-and seed availability/lifetime still require the owner-run test.
+no invented value or reuse of an earlier run. The four owner-run tests recorded
+PRESENT seeds with engine-rendered type `largeint`; broader availability and
+lifetime guarantees remain unestablished.
 
 Session generation/correlation, filenames, profile fields, pacing and limits
 are unchanged. This only observes the property; it adds no RNG draw or seed
