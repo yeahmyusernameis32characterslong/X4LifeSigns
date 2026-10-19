@@ -410,15 +410,17 @@ test('old persisted discovery state waits for lifecycle reset without touching o
   assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);
 });
 
-test('ticker notifications bracket the initial snapshot once without periodic repetition', () => {
+test('begun ticker and closable completion help panel bracket the snapshot once without periodic repetition', () => {
   const h = setup({}, { profilesPerTick: 1, discoveryPerTick: 1 });
   h.call('Tick');
   assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
   assert.equal(rows(h)[h.notifications[0].afterRows - 1].kind, 'SNAPSHOT_BEGIN');
   assert.equal(h.notifications[0].timeout, 5); assert.equal(h.notifications[0].priority, 1);
+  assert.equal(h.notifications[0].kind, 'ticker');
   finish(h);
   assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed.']);
   assert.equal(rows(h)[h.notifications[1].afterRows - 1].kind, 'SNAPSHOT_END');
+  assert.deepEqual(h.notifications[1], { kind: 'help', text: 'Life Signs: Snapshot completed.', allowclose: true, timeout: false, log: false, afterRows: h.notifications[1].afterRows });
   assert.equal(rows(h).filter(r => r.kind === 'PASS_END').length, 3);
   h.call('Tick'); assert.equal(h.notifications.length, 2);
   h.player.age += 86400; finish(h);
@@ -428,7 +430,7 @@ test('ticker notifications bracket the initial snapshot once without periodic re
 test('finished partial snapshots say partial data and interrupted snapshots never say completed', () => {
   const stale = host('ship', 'STALE'); stale.exists = false;
   const partial = setup({ ships: [stale] }); finish(partial);
-  assert.equal(partial.notifications.at(-1).text, 'Life Signs: Snapshot completed (partial data).');
+  assert.deepEqual(partial.notifications.at(-1), { kind: 'help', text: 'Life Signs: Snapshot completed — partial data.', allowclose: true, timeout: false, log: false, afterRows: partial.notifications.at(-1).afterRows });
   assert.equal(rows(partial).find(r => r.kind === 'SNAPSHOT_END').fields.partial, 'true');
   const interrupted = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 });
   interrupted.call('Tick'); interrupted.player.age = 0; interrupted.call('Tick');
@@ -496,7 +498,7 @@ test('uncapped collection completes beyond old test thresholds and OFF suppresse
   assert.equal(raw.at(-1).kind, 'SNAPSHOT_END'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 0);
   assert.equal(rows(h).filter(x => x.file.startsWith('profile-diagnostics-')).length, 0);
   assert.equal(h.md.$LSPStopped, false);
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed (partial data).']);
+  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed — partial data.']);
 });
 
 test('text framing preserves reserved characters and rejects malformed rows', () => {

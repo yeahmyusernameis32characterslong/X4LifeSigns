@@ -146,7 +146,8 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'run_actions') { const args = Object.fromEntries(n.children.map(p => [p.attrs.name, ev(p.attrs.value)])); const result = call(a.ref, args); if (a.result) assign(a.result, result, local); }
       else if (n.tag === 'substitute_text') { let text = a.source ? ev(a.source) : ev(a.text); for (const r of n.children) text = text.split(ev(r.attrs.string)).join(ev(r.attrs.with)); assign(a.text, text, local); }
       else if (n.tag === 'debug_to_file') output.push({ name: ev(a.name), line: ev(a.text) });
-      else if (n.tag === 'show_notification') notifications.push({ text: ev(a.text), timeout: ev(a.timeout), priority: ev(a.priority), afterRows: output.length });
+      else if (n.tag === 'show_notification') notifications.push({ kind: 'ticker', text: ev(a.text), timeout: ev(a.timeout), priority: ev(a.priority), afterRows: output.length });
+      else if (n.tag === 'show_help') notifications.push({ kind: 'help', text: ev(a.custom), allowclose: ev(a.allowclose), timeout: ev(a.timeout), log: ev(a.log), afterRows: output.length });
       else if (n.tag === 'append_to_list') ev(a.name).push(ev(a.exact));
       else if (n.tag === 'remove_value') assign(a.name, null, local, true);
       else if (n.tag === 'find_ship') assign(a.name, [...(a.trueowner ? ships : allShips)], local);

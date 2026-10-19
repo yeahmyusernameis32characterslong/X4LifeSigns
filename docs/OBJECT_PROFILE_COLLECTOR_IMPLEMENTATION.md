@@ -213,29 +213,35 @@ continuity. The extension display name is now Life Signs Object Profile Collecto
 
 ### Snapshot notifications
 
-Owner-requested snapshot notifications use the native, non-interactive message
-ticker (`show_notification`). The collector requests **Life Signs: Snapshot
-begun.** after the snapshot begin record, and **Life Signs: Snapshot completed.**
-after all three passes and the snapshot end record. If collection finishes with
-recorded gaps or partial profiles, the latter reads **Life Signs: Snapshot
-completed (partial data).** Completion describes the collection cycle finishing;
-it does not establish complete NPC discovery or confirmed disk writes.
+The start notification remains the native message ticker (`show_notification`):
+**Life Signs: Snapshot begun.**, requested after the snapshot begin record for
+five seconds at priority 1 with the default generic notification sound.
 
-Each notification requests five seconds at normal priority (1), with X4's default
-generic notification sound. Higher-priority game messages can replace the ticker;
-on-screen delivery/timing has not been verified in X4. Notifications are requested
-once per transition of the single initial collection, independently of diagnostic
-verbosity. An interrupted snapshot does not request completion. Notifications
-add no listeners, interactive prompts, mission records or explicit logbook writes.
-An unfinished NPC discovery pass therefore leaves only the start
-notification. The Personnel List correction preserves these notification actions.
+Completion uses a native closable help-message panel (`show_help`), requested
+after all three passes and the snapshot end record:
 
-Source: installed X4 9.00 `libraries/common.xsd:36951` defines
-`show_notification`, its required `text`, timeout, priority and default sound;
-`:1049` defines ticker text. Shipped `md/gm_transport_passengers.xml:1425`
-demonstrates the non-interactive action. Qwen located these references; Codex
-verified their schema and callsite. Generated-action checks cover transition
-ordering, repeated collections, partial completion, interruption and row stops.
+- **Life Signs: Snapshot completed.**
+- **Life Signs: Snapshot completed — partial data.** when recorded gaps or
+  partial profiles remain.
+
+Panels use custom text, `allowclose="true"`, `timeout="false"`, and `log="false"`.
+This enables the native close button and disables automatic expiry. No custom
+Lua, response listener, global help removal or explicit logbook write is added.
+The native UI handles dismissal. Exact appearance, help queue/menu interaction
+and on-screen delivery still require an owner-run X4 test; no automatic pause
+or modal behaviour is claimed.
+
+Messages are requested once per transition of the single initial collection,
+independently of diagnostic verbosity. Interrupted/stopped or unfinished
+snapshots do not request completion. Completion describes the collection cycle
+finishing, not complete NPC discovery or confirmed disk writes.
+
+Qwen reviewed the invocation against installed X4 9.00
+`libraries/common.xsd:36448` (`show_help`) and `:7658` (`showhelp` attributes).
+Codex verified those definitions and the close-button implementation in shipped
+`ui/addons/ego_helptext/helptext.lua:448`. Generated-action checks cover the
+panel attributes, transition ordering, repetition, partial completion and
+interruption. Deployment and native panel verification remain pending.
 
 ## Ordered passes
 

@@ -2813,10 +2813,10 @@
 </run_actions>
 <do_if value="not md.$LSPStopped">
 <do_if value="md.$LSPSnapshotPartial">
-<show_notification text="'Life Signs: Snapshot completed (partial data).'" timeout="5s" priority="1" />
+<show_help custom="'Life Signs: Snapshot completed — partial data.'" allowclose="true" timeout="false" log="false" />
 </do_if>
 <do_else>
-<show_notification text="'Life Signs: Snapshot completed.'" timeout="5s" priority="1" />
+<show_help custom="'Life Signs: Snapshot completed.'" allowclose="true" timeout="false" log="false" />
 </do_else>
 </do_if>
 <set_value name="md.$LSPActive" exact="false" />

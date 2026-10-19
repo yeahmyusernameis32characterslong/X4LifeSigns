@@ -11,6 +11,7 @@ const run = (ref, params = {}, result) => tag('run_actions', {ref, ...(result ? 
 const lib = (name, params, actions) => tag('library',{name,purpose:'run_actions'},tag('params',{},Object.entries(params).map(([name,value])=>tag('param',{name,...(value===null?{}:{default:value})})).join(''))+tag('actions',{},actions));
 const write = body => run('Write', {Body:body});
 const notify = text => tag('show_notification', {text:`'Life Signs: ${text}'`,timeout:'5s',priority:'1'});
+const completionPanel = text => tag('show_help', {custom:`'Life Signs: ${text}'`,allowclose:'true',timeout:'false',log:'false'});
 const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => {
   if (!/^[a-z0-9_]+$/.test(field)) throw Error('Generated field name must be framing-safe');
   // @ suppresses unavailable property lookups; it is invalid before literals.
@@ -194,7 +195,7 @@ export function generateRecorder(config) {
     iff("md.$LSPPass == 'STATIONS'",write("'PASS_END|kind=STATIONS'")+set('md.$LSPPass',"'SHIPS'")+set('md.$LSPIndex','1')+write("'PASS_BEGIN|kind=SHIPS'")+ret('true'))+
     iff("md.$LSPPass == 'SHIPS'",write("'PASS_END|kind=SHIPS'")+write("'PASS_BEGIN|kind=NPCS'")+startNpc+ret('true'))+
     iff("md.$LSPPass == 'NPCS'",write("'PASS_END|kind=NPCS'")+write("'SNAPSHOT_END|mode=OBJECT_PROFILES|profiles=%s|partial=%s|atomic=false|discovery_complete=UNVERIFIED'.[md.$LSPProfile, md.$LSPSnapshotPartial]")+
-      iff('not md.$LSPStopped',iff('md.$LSPSnapshotPartial',notify('Snapshot completed (partial data).'))+otherwise(notify('Snapshot completed.')))+
+      iff('not md.$LSPStopped',iff('md.$LSPSnapshotPartial',completionPanel('Snapshot completed — partial data.'))+otherwise(completionPanel('Snapshot completed.')))+
       set('md.$LSPActive','false')+
       ['Stations','Ships','Hosts','Candidates'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+set('md.$LSPActors','table[]')+set('md.$LSPContexts','table[]')+ret('true'))+ret('false'));
   const queueRun=lib('QueueRun',{},
