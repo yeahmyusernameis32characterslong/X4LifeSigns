@@ -1,33 +1,22 @@
 # Snapshot-only object profile collector
 
-## Experimental startup ID-code probes, 2026-10-19
+## Startup identifiers, 2026-10-19
 
-The owner requests native observations of `player.galaxy.idcode` and
-`player.entity.idcode`. The first raw `RUN_BEGIN`, diagnostic `RUN_BEGIN`
-(unless OFF), and `SNAPSHOT_BEGIN` now include `player_galaxy_idcode` and
-`player_entity_idcode`, each with `_state` and `_type`, labelled
-`identity_probe=EXPERIMENTAL_IDCODE`. Existing `run=` and optional read-only
-production `session=` remain unchanged.
+The owner has removed the unsuccessful `player.galaxy.idcode` and
+`player.entity.idcode` experiments. Their reads, cached observations and startup
+fields are no longer generated. In the observed native test both availability
+checks reported UNAVAILABLE; this does not establish every possible engine
+context. Historical logs/findings remain intact.
 
-Initialize resets observations each run. It checks parent availability/existence,
-then probes property availability before a guarded value read. Escaped engine
-text is reused at snapshot start, with no per-profile reads or numeric conversion.
-States distinguish PRESENT nonempty strings, EMPTY strings, NULL, UNEXPECTED_TYPE
-(with rendered value for inspection), UNAVAILABLE property and
-UNAVAILABLE_REFERENCE parent. Missing values cannot inherit a prior run's ID.
-These are experimental observations, not validated identity keys or save GUIDs.
-No fallback to another object's context, debugname, seed or filename is used.
+`gamestart.seed` collection remains removed. Object/NPC identity seeds and
+ship/station ID codes remain profile fields. Existing recorder `run=` and
+optional read-only production `session=` correlation, filenames and scheduling
+are unchanged. Both completion panels retain centred placement and text,
+manual dismissal and disabled automatic expiry.
 
-The reference declares idcode on object, outside the documented galaxy/entity
-inheritance chains. Native availability and stability require an owner-run test;
-static/schema/synthetic checks do not establish either getter succeeds.
-
-`gamestart.seed` collection and startup fields have been removed at the owner's
-request. Object/NPC identity seeds remain profile fields. Historical seed findings
-are retained: default same-universe runtime observations differed; an explicit
-custom input matched within-process reloads but changed after a fresh X4 launch.
-Neither observation is promoted into an engine lifetime guarantee. No historical
-logs are rewritten, and no RNG/routing/pacing/configuration changes are included.
+A persistent Life Signs lineage marker is a design proposal, not implemented.
+No objects are spawned, saved lineage ID is invented, or SQLite/routing changed
+by removing these probes. Native save GUID access remains unresolved.
 
 ## Datatype-cache investigation, 2026-10-19
 

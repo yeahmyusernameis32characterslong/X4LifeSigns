@@ -2740,7 +2740,7 @@
 <find_station name="md.$LSPStations" space="player.galaxy" trueowner="faction.player" multiple="true" checkoperational="false" />
 <find_ship name="md.$LSPShips" space="player.galaxy" trueowner="faction.player" multiple="true" recursive="true" checkoperational="false" />
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED|identity_probe=EXPERIMENTAL_IDCODE|player_galaxy_idcode=%s|player_galaxy_idcode_state=%s|player_galaxy_idcode_type=%s|player_entity_idcode=%s|player_entity_idcode_state=%s|player_entity_idcode_type=%s'.[md.$LSPGalaxyIdcodeText, md.$LSPGalaxyIdcodeState, md.$LSPGalaxyIdcodeType, md.$LSPEntityIdcodeText, md.$LSPEntityIdcodeState, md.$LSPEntityIdcodeType]" />
+<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'" />
 </run_actions>
 <do_if value="not md.$LSPStopped">
 <show_notification text="'Life Signs: Snapshot begun.'" timeout="5s" priority="1" />
@@ -2881,70 +2881,12 @@
 <set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
 <set_value name="md.$LSPEntry" exact="1" />
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
-<set_value name="md.$LSPGalaxyIdcodeText" exact="''" />
-<set_value name="md.$LSPGalaxyIdcodeState" exact="'UNAVAILABLE_REFERENCE'" />
-<set_value name="md.$LSPGalaxyIdcodeType" exact="'UNAVAILABLE'" />
-<do_if value="player.galaxy? and player.galaxy.exists? and player.galaxy.exists">
-<set_value name="md.$LSPGalaxyIdcodeState" exact="'UNAVAILABLE'" />
-<do_if value="player.galaxy.idcode?">
-<set_value name="$ObservedIdcode" exact="@player.galaxy.idcode" />
-<run_actions ref="Escape" result="md.$LSPGalaxyIdcodeType">
-<param name="Value" value="typeof $ObservedIdcode" />
-</run_actions>
-<do_if value="typeof $ObservedIdcode == datatype.null">
-<set_value name="md.$LSPGalaxyIdcodeState" exact="'NULL'" />
-</do_if>
-<do_else>
-<run_actions ref="Escape" result="md.$LSPGalaxyIdcodeText">
-<param name="Value" value="$ObservedIdcode" />
-</run_actions>
-<do_if value="typeof $ObservedIdcode == datatype.string">
-<set_value name="md.$LSPGalaxyIdcodeState" exact="'PRESENT'" />
-<do_if value="$ObservedIdcode == ''">
-<set_value name="md.$LSPGalaxyIdcodeState" exact="'EMPTY'" />
-</do_if>
-</do_if>
-<do_else>
-<set_value name="md.$LSPGalaxyIdcodeState" exact="'UNEXPECTED_TYPE'" />
-</do_else>
-</do_else>
-</do_if>
-</do_if>
-<set_value name="md.$LSPEntityIdcodeText" exact="''" />
-<set_value name="md.$LSPEntityIdcodeState" exact="'UNAVAILABLE_REFERENCE'" />
-<set_value name="md.$LSPEntityIdcodeType" exact="'UNAVAILABLE'" />
-<do_if value="player.entity? and player.entity.exists? and player.entity.exists">
-<set_value name="md.$LSPEntityIdcodeState" exact="'UNAVAILABLE'" />
-<do_if value="player.entity.idcode?">
-<set_value name="$ObservedIdcode" exact="@player.entity.idcode" />
-<run_actions ref="Escape" result="md.$LSPEntityIdcodeType">
-<param name="Value" value="typeof $ObservedIdcode" />
-</run_actions>
-<do_if value="typeof $ObservedIdcode == datatype.null">
-<set_value name="md.$LSPEntityIdcodeState" exact="'NULL'" />
-</do_if>
-<do_else>
-<run_actions ref="Escape" result="md.$LSPEntityIdcodeText">
-<param name="Value" value="$ObservedIdcode" />
-</run_actions>
-<do_if value="typeof $ObservedIdcode == datatype.string">
-<set_value name="md.$LSPEntityIdcodeState" exact="'PRESENT'" />
-<do_if value="$ObservedIdcode == ''">
-<set_value name="md.$LSPEntityIdcodeState" exact="'EMPTY'" />
-</do_if>
-</do_if>
-<do_else>
-<set_value name="md.$LSPEntityIdcodeState" exact="'UNEXPECTED_TYPE'" />
-</do_else>
-</do_else>
-</do_if>
-</do_if>
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|identity_probe=EXPERIMENTAL_IDCODE|player_galaxy_idcode=%s|player_galaxy_idcode_state=%s|player_galaxy_idcode_type=%s|player_entity_idcode=%s|player_entity_idcode_state=%s|player_entity_idcode_type=%s'.[md.$LSPLoadedAt, md.$LSPGalaxyIdcodeText, md.$LSPGalaxyIdcodeState, md.$LSPGalaxyIdcodeType, md.$LSPEntityIdcodeText, md.$LSPEntityIdcodeState, md.$LSPEntityIdcodeType]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|identity_probe=EXPERIMENTAL_IDCODE|player_galaxy_idcode=%s|player_galaxy_idcode_state=%s|player_galaxy_idcode_type=%s|player_entity_idcode=%s|player_entity_idcode_state=%s|player_entity_idcode_type=%s'.[md.$LSPLoadedAt, md.$LSPGalaxyIdcodeText, md.$LSPGalaxyIdcodeState, md.$LSPGalaxyIdcodeType, md.$LSPEntityIdcodeText, md.$LSPEntityIdcodeState, md.$LSPEntityIdcodeType]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]" />
 </run_actions>
 <return value="true" />
 </actions>
