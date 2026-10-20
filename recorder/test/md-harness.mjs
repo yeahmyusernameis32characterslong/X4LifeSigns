@@ -29,9 +29,9 @@ function split(s, delimiter) {
 const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {} } = {}) {
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0 } = {}) {
   const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
-  let randomCounter = 0;
+  let randomCounter = randomStart;
   function walk(node, parentCue) {
     // Native load-time syntax errors cannot be hidden by optional evaluation.
     if (Object.values(node.attrs).some(v => /^@\s*(?:null\b|')/.test(v))) throw Error('Optional lookup operator requires a property lookup, not a literal');
@@ -108,6 +108,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     else if (first === 'class') value = {npc:'npc'};
     else if (first === 'datatype') value = new Proxy({}, { get: (_, name) => ({ __type: 'datatype', name }) });
     else if (Object.hasOwn(local, first)) value = local[first];
+    else if (cues.has(first)) value = context(first);
     else throw new Error(`Unknown expression ${s}`);
     for (const part of parts) {
       if (part.startsWith('[')) { const args = evalx(part, local); value = value.replace(/%s/g, () => show(args.shift())); }
@@ -119,7 +120,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     if (value != null && Object.hasOwn(Object(value), '__pseudoEntry')) throw new Error('Cannot store contextual pseudo-type');
     const parts = split(path, '.'); const first = parts.shift();
     if (!parts.length) { if (remove) delete local[first]; else local[first] = value; return; }
-    let owner = first === 'md' ? md : local[first];
+    let owner = first === 'md' ? md : cues.has(first) ? context(first) : local[first];
     const key = part => part.startsWith('{') ? evalx(part.slice(1, -1), local) : part;
     while (parts.length > 1) owner = get(owner, key(parts.shift()));
     const last = key(parts[0]);
@@ -174,7 +175,8 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     }
     return execute(library.children.find(x => x.tag === 'actions').children, local)?.return;
   }
-  function context(name) { if (!contexts.has(name)) contexts.set(name, { parent: parents.get(name) ? context(parents.get(name)) : {} }); return contexts.get(name); }
+  // Supplied saved variables model restoration only; this is not an X4 serializer.
+  function context(name) { if (!contexts.has(name)) contexts.set(name, { ...structuredClone(savedCueState[name] || {}), parent: parents.get(name) ? context(parents.get(name)) : {} }); return contexts.get(name); }
   function cue(name) {
     const node = cues.get(name), local = context(name);
     const checks = node.children.find(x => x.tag === 'conditions')?.children.filter(x => x.tag === 'check_value') || [];
@@ -184,5 +186,5 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
   function load() { cue('RunBoundary'); cue('Bootstrap'); }
   function start() { load(); }
-  return { md, player, output, notifications, callCounts, call, cue, start, load, tree };
+  return { md, player, output, notifications, callCounts, call, cue, start, load, tree, cueVariables: context };
 }

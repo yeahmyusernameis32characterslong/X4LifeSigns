@@ -318,7 +318,7 @@ test('contextual scalar aliases reuse one observation without changing fields or
   const ship = host('ship', 'SHIP'), t = crew(ship), entry = ship.people.get(t);
   let reads = 0; const text = "Synthetic % | name\n船";
   Object.defineProperty(entry, 'name', { get() { reads++; return text; } });
-  const h = setup({ ships: [ship] }); finish(h);
+  const h = setup({ ships: [ship] }); const startupEscapes = h.callCounts.Escape || 0; finish(h);
   const p = profiles(h).find(p => p.kind === 'NPC');
   assert.equal(reads, 2, 'One availability lookup and one value lookup, reused for both output fields');
   assert.equal(p.fields.name.value, text); assert.equal(p.fields.contextual_name.value, text);
@@ -327,7 +327,7 @@ test('contextual scalar aliases reuse one observation without changing fields or
   assert.equal(p.fields.macro.value, p.fields.contextual_macro.value);
   assert.equal(p.fields.seed.type, 'datatype.largeint');
   assert.ok(h.md.$LSPTypeEscapes.size > 0);
-  assert.equal(h.callCounts.Escape, rows(h).filter(r => r.kind === 'VALUE').length + h.md.$LSPTypeEscapes.size);
+  assert.equal(h.callCounts.Escape, startupEscapes + rows(h).filter(r => r.kind === 'VALUE').length + h.md.$LSPTypeEscapes.size);
   const missingShip = host('ship', 'MISSING'), missingTemplate = crew(missingShip);
   delete missingShip.people.get(missingTemplate).name;
   const m = setup({ ships: [missingShip] }); finish(m);
@@ -466,6 +466,53 @@ test('startup preserves run/session correlation without removed ID-code or game-
     assert.equal(r.session,'synthetic-production-session');
   }
   assert.equal(h.md.$LifeSignsProductionSessionKey,'synthetic-production-session');
+});
+
+test('lineage ID exists before first snapshot and survives loads and separately restored cue state', () => {
+  const h = setup();
+  const id = h.cueVariables('UniverseIdentity').$Id;
+  assert.match(id, /^lsu1-2000-01-01_00-00-00(?:-\d+){4}$/);
+  assert.equal(h.md.$LSPSnapshotStarted, false, 'Identity exists before snapshot work');
+  const first = rows(h)[0];
+  assert.equal(first.fields.lifesigns_universe_id, id);
+  assert.equal(first.fields.lifesigns_universe_id_state, 'CREATED');
+  const saved = { UniverseIdentity: { $Id: id } };
+  finish(h); h.load(); finish(h);
+  const starts = rows(h).filter(r => r.kind === 'RUN_BEGIN' && r.file.startsWith('profiles-'));
+  assert.notEqual(starts[1].run, first.run);
+  assert.equal(starts[1].fields.lifesigns_universe_id, id);
+  assert.equal(starts[1].fields.lifesigns_universe_id_state, 'EXISTING');
+  const restored = setup({ savedCueState: saved, randomStart: 100 }); finish(restored);
+  assert.equal(restored.cueVariables('UniverseIdentity').$Id, id);
+  for (const r of rows(restored).filter(r => ['RUN_BEGIN', 'SNAPSHOT_BEGIN'].includes(r.kind))) {
+    assert.equal(r.fields.lifesigns_universe_id, id);
+    assert.equal(r.fields.lifesigns_universe_id_state, 'EXISTING');
+    assert.equal(r.fields.identity_save_confirmation, 'UNAVAILABLE');
+  }
+  assert.notEqual(rows(setup({ randomStart: 200 }))[0].fields.lifesigns_universe_id, id,
+    'Different synthetic draws yield different tags; not an RNG uniqueness proof');
+  const xml = generateRecorder(config);
+  assert.equal([...xml.matchAll(/name="UniverseIdentity\.\$Id"/g)].length, 1);
+  assert.doesNotMatch(xml, /<(?:reset_cue|cancel_cue)[^>]*cue="UniverseIdentity"/);
+});
+
+test('existing invalid lineage state is preserved, not replaced or inherited from run globals', () => {
+  for (const invalid of ['', null, 42]) {
+    const h = setup({ savedCueState: { UniverseIdentity: { $Id: invalid } } }); finish(h);
+    assert.equal(h.cueVariables('UniverseIdentity').$Id, invalid);
+    const begin = rows(h)[0];
+    assert.equal(begin.fields.lifesigns_universe_id_state, 'INVALID');
+    assert.equal(begin.fields.lifesigns_universe_id, '');
+    h.load(); finish(h);
+    assert.equal(h.cueVariables('UniverseIdentity').$Id, invalid);
+  }
+  const h = harness(generateRecorder(config));
+  h.md.$LSPUniverseIdText = 'stale-other-universe'; h.md.$LSPUniverseIdState = 'EXISTING';
+  h.start(); finish(h);
+  assert.notEqual(rows(h)[0].fields.lifesigns_universe_id, 'stale-other-universe');
+  const text = 'synthetic|%\nlineage';
+  const existing = setup({ savedCueState: { UniverseIdentity: { $Id: text } } }); finish(existing);
+  assert.equal(rows(existing)[0].fields.lifesigns_universe_id, text, 'Startup framing escapes stored text');
 });
 
 test('uncapped collection completes beyond old test thresholds and OFF suppresses diagnostics', () => {

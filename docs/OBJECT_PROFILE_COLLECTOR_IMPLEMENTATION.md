@@ -1,5 +1,56 @@
 # Snapshot-only object profile collector
 
+## Saved Life Signs universe ID, 2026-10-20
+
+Owner-authorised implementation starts from PR19 `d003dc6` on
+`feat/broad-native-event-recorder`. Goal: one create-once Life Signs lineage tag
+available before the first snapshot, held in saved MD state and reported at
+startup alongside existing run/session correlation. No native GUID or database
+routing claim. Acceptance: absent-state creation, retained-state reuse across
+run resets and synthetic fresh-interpreter restoration, invalid-state
+preservation, unchanged profiles/pacing/panels, deterministic generated XML and
+installed X4 9.00 schema gates. Deployment and native testing remain separate.
+
+The dedicated non-instantiated root cue `UniverseIdentity` holds `$Id`. Its name
+and location are a save-compatibility contract: do not rename, reset, cancel or
+remove it. It has empty actions and creates no objects or listeners. The
+initialization helper creates the variable only when absent, using local
+creation time plus four unseeded integer draws in `0..2147483647`, formatted as
+`lsu1-<YYYY-MM-DD_HH-MM-SS>-<a>-<b>-<c>-<d>`. This reuses the project's existing
+source syntax; it is not a cryptographic UUID or proof of independent entropy,
+a collision rate, or absolute uniqueness. Draws can perturb engine RNG state.
+
+The ID is usable in memory before any save exists. Saving preserves the MD
+state; loading a tagged save should restore the same ID. This persistence is
+source-backed and synthetically checked, **not yet verified in X4**. Older
+pre-tag saves loaded independently get independent tags; they cannot recover a
+shared historical ID. Copies/branches of a tagged save inherit its lineage.
+Exiting without saving loses a newly created tag. Mod removal/reinstallation
+persistence is not promised.
+
+Raw and enabled diagnostic `RUN_BEGIN`, and raw `SNAPSHOT_BEGIN`, contain:
+
+| Field | Meaning |
+| --- | --- |
+| `lifesigns_universe_id` | Escaped stored tag; empty if invalid. |
+| `lifesigns_universe_id_state` | `CREATED`, `EXISTING`, or `INVALID`. Existing means present in cue state, not a confirmation of a disk save. |
+| `identity_basis` | `LIFESIGNS_MD_V1`; generated Life Signs lineage, not the native GUID. |
+| `identity_save_confirmation` | `UNAVAILABLE`; the recorder does not confirm a save operation. |
+
+An existing null, empty or non-string value is retained and reported INVALID;
+it is never silently replaced. A nonempty stored string is reused and escaped;
+no new per-object reads or per-row ID field is added. Profiles join to this
+startup metadata through the unchanged run key. Optional production session
+correlation is read-only; no SQLite or identity-routing changes.
+
+The [official MD guide](https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/)
+documents saved-state restoration, stable static cues, named remote variables
+and guards for variables absent from older saves. Random ranges and formatting
+use the source already documented in [SESSION_KEY_SOURCE_GATE.md](SESSION_KEY_SOURCE_GATE.md);
+its RNG limitations apply here too. Pending owner test: new unsaved game,
+save/reload, fresh-process reload and another universe, checking retained and
+separate tags without conflating run/session keys.
+
 ## Startup identifiers, 2026-10-19
 
 The owner has removed the unsuccessful `player.galaxy.idcode` and
@@ -14,9 +65,9 @@ optional read-only production `session=` correlation, filenames and scheduling
 are unchanged. Both completion panels retain centred placement and text,
 manual dismissal and disabled automatic expiry.
 
-A persistent Life Signs lineage marker is a design proposal, not implemented.
-No objects are spawned, saved lineage ID is invented, or SQLite/routing changed
-by removing these probes. Native save GUID access remains unresolved.
+At that revision a persistent Life Signs lineage marker was a proposal only;
+the 2026-10-20 implementation above supersedes that status. No physical objects
+are spawned. Native save GUID access remains unresolved.
 
 ## Datatype-cache investigation, 2026-10-19
 

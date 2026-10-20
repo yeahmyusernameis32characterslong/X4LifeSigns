@@ -2,6 +2,9 @@
 <!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->
 <mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
 <cues>
+<cue name="UniverseIdentity">
+<actions />
+</cue>
 <cue name="RunBoundary" instantiate="true">
 <conditions>
 <event_universe_generated />
@@ -53,6 +56,33 @@
 <replace string="'\t'" with="'%09'" />
 </substitute_text>
 <return value="$Text" />
+</actions>
+</library>
+<library name="EnsureUniverseIdentity" purpose="run_actions">
+<params>
+</params>
+<actions>
+<set_value name="md.$LSPUniverseIdText" exact="''" />
+<set_value name="md.$LSPUniverseIdState" exact="'INVALID'" />
+<do_if value="not UniverseIdentity.$Id?">
+<set_value name="$RandomA" min="0" max="2147483647" />
+<set_value name="$RandomB" min="0" max="2147483647" />
+<set_value name="$RandomC" min="0" max="2147483647" />
+<set_value name="$RandomD" min="0" max="2147483647" />
+<set_value name="UniverseIdentity.$Id" exact="'lsu1-%s-%s-%s-%s-%s'.[md.$LSPLoadedAt, $RandomA, $RandomB, $RandomC, $RandomD]" />
+<set_value name="md.$LSPUniverseIdState" exact="'CREATED'" />
+</do_if>
+<do_if value="typeof UniverseIdentity.$Id == datatype.string">
+<do_if value="UniverseIdentity.$Id != ''">
+<run_actions ref="Escape" result="md.$LSPUniverseIdText">
+<param name="Value" value="UniverseIdentity.$Id" />
+</run_actions>
+<do_if value="md.$LSPUniverseIdState != 'CREATED'">
+<set_value name="md.$LSPUniverseIdState" exact="'EXISTING'" />
+</do_if>
+</do_if>
+</do_if>
+<return value="true" />
 </actions>
 </library>
 <library name="Write" purpose="run_actions">
@@ -2740,7 +2770,7 @@
 <find_station name="md.$LSPStations" space="player.galaxy" trueowner="faction.player" multiple="true" checkoperational="false" />
 <find_ship name="md.$LSPShips" space="player.galaxy" trueowner="faction.player" multiple="true" recursive="true" checkoperational="false" />
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'" />
+<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
 </run_actions>
 <do_if value="not md.$LSPStopped">
 <show_notification text="'Life Signs: Snapshot begun.'" timeout="5s" priority="1" />
@@ -2881,12 +2911,14 @@
 <set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
 <set_value name="md.$LSPEntry" exact="1" />
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
+<run_actions ref="EnsureUniverseIdentity">
+</run_actions>
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
 </run_actions>
 <return value="true" />
 </actions>

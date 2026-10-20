@@ -31,7 +31,19 @@ export function validateConfig(c) {
 }
 export function generateRecorder(config) {
   const c=validateConfig(config);
+  // This static cue is a save-lineage namespace, never part of the per-run reset.
+  const identity=tag('cue',{name:'UniverseIdentity'},tag('actions',{}));
+  const identityMetadata=(body,args=[])=>`'${body}|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[${[...args,'md.$LSPUniverseIdText','md.$LSPUniverseIdState'].join(', ')}]`;
   const escape=lib('Escape',{Value:null},set('$Text',"'%s'.[$Value]")+[['%','%25'],['|','%7C'],['\\n','%0A'],['\\r','%0D'],['\\t','%09']].map(([a,b])=>tag('substitute_text',{text:'$Text'},tag('replace',{string:`'${a}'`,with:`'${b}'`}))).join('')+ret('$Text'));
+  const ensureIdentity=lib('EnsureUniverseIdentity',{},
+    set('md.$LSPUniverseIdText',"''")+set('md.$LSPUniverseIdState',"'INVALID'")+
+    iff('not UniverseIdentity.$Id?',
+      ['A','B','C','D'].map(k=>tag('set_value',{name:`$Random${k}`,min:'0',max:'2147483647'})).join('')+
+      set('UniverseIdentity.$Id',"'lsu1-%s-%s-%s-%s-%s'.[md.$LSPLoadedAt, $RandomA, $RandomB, $RandomC, $RandomD]")+
+      set('md.$LSPUniverseIdState',"'CREATED'"))+
+    iff('typeof UniverseIdentity.$Id == datatype.string',iff("UniverseIdentity.$Id != ''",
+      run('Escape',{Value:'UniverseIdentity.$Id'},'md.$LSPUniverseIdText')+
+      iff("md.$LSPUniverseIdState != 'CREATED'",set('md.$LSPUniverseIdState',"'EXISTING'"))))+ret('true'));
   const writer=lib('Write',{Body:null,Diagnostic:'false'},
     iff('$Diagnostic and md.$LSPLevel == 0',ret('false'))+
     iff('md.$LSPStopped',ret('false'))+
@@ -180,7 +192,7 @@ export function generateRecorder(config) {
   const find=(kind,name,owned)=>tag(`find_${kind}`,{name,space:'player.galaxy',...(owned?{trueowner:'faction.player'}:{}),multiple:'true',...(kind === 'ship' ? {recursive:'true'} : {}),checkoperational:'false'});
   const begin=lib('BeginSnapshot',{},iff('md.$LSPSnapshotStarted',ret('false'))+set('md.$LSPSnapshotStarted','true')+add('md.$LSPSeq')+set('md.$LSPProfile','0L')+set('md.$LSPSnapshotPartial','false')+set('md.$LSPActive','true')+set('md.$LSPPass',"'STATIONS'")+set('md.$LSPIndex','1')+
     find('station','md.$LSPStations',true)+find('ship','md.$LSPShips',true)+
-    write("'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'")+
+    write(identityMetadata('SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'))+
     iff('not md.$LSPStopped',notify('Snapshot begun.'))+
     write("'PASS_BEGIN|kind=STATIONS'"));
   const startNpc= set('md.$LSPHosts','md.$LSPStations.clone')+
@@ -214,8 +226,9 @@ export function generateRecorder(config) {
     set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
     set('md.$LSPPersonnelVersion','3')+set('md.$LSPNextAssetTick','player.age')+
     set('md.$LSPDiscoveryStage',"'HOST'")+set('md.$LSPEntry','1')+set('md.$LSPTypeEscapes','table[]')+
-    write("'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt]")+
-    run('Write',{Diagnostic:'true',Body:"'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s'.[md.$LSPLoadedAt]"})+ret('true'));
+    run('EnsureUniverseIdentity')+
+    write(identityMetadata('RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE',['md.$LSPLoadedAt']))+
+    run('Write',{Diagnostic:'true',Body:identityMetadata('RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s',['md.$LSPLoadedAt'])})+ret('true'));
   const tick=lib('Tick',{},
     iff('not md.$LSPReady',ret('false'))+
     iff('not md.$LSPPersonnelVersion?',ret('false'))+
@@ -243,5 +256,5 @@ export function generateRecorder(config) {
   const lifecycle=tag('cue',{name:'RunBoundary',instantiate:'true'},tag('conditions',{},tag('event_universe_generated'))+tag('actions',{},run('QueueRun')));
   const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
     tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:`${c.npcTickSeconds}s`},tag('conditions',{},tag('check_value',{value:'md.$LSPReady and (not md.$LSPSnapshotStarted or md.$LSPActive)'}))+tag('actions',{},run('Tick')))));
-  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${lifecycle}${polling}${escape}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${initialize}${tick}</cues></mdscript>\n`.replaceAll('><','>\n<');
+  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${polling}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${initialize}${tick}</cues></mdscript>\n`.replaceAll('><','>\n<');
 }
