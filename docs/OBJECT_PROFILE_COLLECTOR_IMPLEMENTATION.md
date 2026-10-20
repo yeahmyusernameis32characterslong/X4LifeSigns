@@ -51,6 +51,30 @@ its RNG limitations apply here too. Pending owner test: new unsaved game,
 save/reload, fresh-process reload and another universe, checking retained and
 separate tags without conflating run/session keys.
 
+## In-memory logging batches: assessment, 2026-10-20
+
+The current writer renders each complete row, including its capture-time
+age/run/session/sequence, and invokes native `debug_to_file` once for that row.
+MD string variables could retain these rows for later output. Bounded multiline
+batches could reduce logging action calls; no native speedup has been measured.
+The installed action schema documents text and append output but does not
+establish internal buffering, per-call flush cost, safe payload size or
+multiline/truncation behavior.
+
+A candidate should batch already-rendered lines, bound bytes and row count,
+keep raw/diagnostic streams separate, preserve order and capture timestamps,
+and finish output actions before completion notification. Buffering live
+component references for later reads would change what is observed. Whole-snapshot
+staging is not needed to evaluate batching and could move a large output burst
+to completion. The owner prioritises performance; crash recovery is not a
+requirement of this assessment.
+
+The requested two NPC profiles per 0.1 game seconds and eight discovery steps
+per tick remain deliberate pacing, alongside getter and text-processing costs.
+Faster output alone would not remove them. Native batch layout/size behavior
+and a comparative timing test need separate approval. **No buffering or pacing
+change is implemented.**
+
 ## Startup identifiers, 2026-10-19
 
 The owner has removed the unsuccessful `player.galaxy.idcode` and
