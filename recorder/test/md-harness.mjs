@@ -186,7 +186,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     const checks = node.children.find(x => x.tag === 'conditions')?.children.filter(x => x.tag === 'check_value') || [];
     if (!checks.every(x => evalx(x.attrs.value, local))) return false;
     const result = execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
-    if (name === 'Bootstrap' && autoDatabase && md.$LSPReady) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, databaseState, md.$LSPRecord] });
+    if (name === 'Bootstrap' && md.$LSPReady) { cue('ProfileEventBus'); if (autoDatabase) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, databaseState, md.$LSPRecord] }); }
     return result;
   }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.

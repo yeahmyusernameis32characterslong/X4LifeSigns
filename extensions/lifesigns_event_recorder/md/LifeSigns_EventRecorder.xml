@@ -44,6 +44,336 @@
 </cue>
 </cues>
 </cue>
+<cue name="ProfileEventBus" checkinterval="0.1s">
+<conditions>
+<check_value value="md.$LSPReady? and md.$LSPReady and md.$LSPWatch?" />
+</conditions>
+<actions>
+<set_value name="md.$LSPEventsReady" exact="true" />
+</actions>
+<cues>
+<cue name="ProfileEvent0" instantiate="true" namespace="this">
+<conditions>
+<event_object_attacked group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.object" />
+<param name="Type" value="'ATTACKED'" />
+<param name="Host" value="null" />
+<param name="Other" value="event.param" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent1" instantiate="true" namespace="this">
+<conditions>
+<event_object_attacked_object group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.object" />
+<param name="Type" value="'ATTACKING'" />
+<param name="Host" value="null" />
+<param name="Other" value="event.param" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent2" instantiate="true" namespace="this">
+<conditions>
+<event_object_order_ready group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.object" />
+<param name="Type" value="'ORDER_READY'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="@event.param.id" />
+<param name="DetailName" value="@event.param.name" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent3" instantiate="true" namespace="this">
+<conditions>
+<event_object_commander_set group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.object" />
+<param name="Type" value="'COMMANDER_SET'" />
+<param name="Host" value="null" />
+<param name="Other" value="event.param" />
+<param name="Previous" value="event.param2" />
+<param name="Detail" value="event.param3" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent4" instantiate="true" namespace="this">
+<conditions>
+<event_object_changed_assignment group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'FLEET_ROLE_CHANGED'" />
+<param name="Host" value="null" />
+<param name="Other" value="@event.param.commander" />
+<param name="Previous" value="event.param2" />
+<param name="Detail" value="event.param3" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent5" instantiate="true" namespace="this">
+<conditions>
+<event_player_built_ship />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'CREATED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent6" instantiate="true" namespace="this">
+<conditions>
+<event_player_built_station />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'CREATED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent7" instantiate="true" namespace="this">
+<conditions>
+<event_god_created_ship space="player.galaxy" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'CREATED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent8" instantiate="true" namespace="this">
+<conditions>
+<event_god_created_station space="player.galaxy" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'CREATED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent9" instantiate="true" namespace="this">
+<conditions>
+<event_contained_object_changed_true_owner space="player.galaxy" owner="faction.player" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'ACQUIRED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="false" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent10" instantiate="true" namespace="this">
+<conditions>
+<event_npc_created />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'NPC_CREATED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent11" instantiate="true" namespace="this">
+<conditions>
+<event_control_entity_added group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'CONTROL_ROLE_ASSIGNED'" />
+<param name="Host" value="event.object" />
+<param name="Other" value="event.object" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent12" instantiate="true" namespace="this">
+<conditions>
+<event_control_entity_removed group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'CONTROL_ROLE_REMOVED'" />
+<param name="Host" value="event.object" />
+<param name="Other" value="event.object" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent13" instantiate="true" namespace="this">
+<conditions>
+<event_entity_entered group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'ENTITY_ENTERED'" />
+<param name="Host" value="event.object" />
+<param name="Other" value="event.param2" />
+<param name="Previous" value="event.param3" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent14" instantiate="true" namespace="this">
+<conditions>
+<event_entity_left group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'ENTITY_LEFT'" />
+<param name="Host" value="event.object" />
+<param name="Other" value="event.param2" />
+<param name="Previous" value="event.param3" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Create" value="false" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="false" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent15" instantiate="true" namespace="this">
+<conditions>
+<event_player_assigned_hired_actor />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'ASSIGNMENT_REQUESTED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="event.param3" />
+<param name="DetailName" value="null" />
+<param name="Target" value="event.param2" />
+<param name="Create" value="true" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="true" />
+</run_actions>
+</actions>
+</cue>
+</cues>
+</cue>
 <library name="Escape" purpose="run_actions">
 <params>
 <param name="Value" />
@@ -171,6 +501,9 @@
 <do_if value="$State == 'UNAVAILABLE' or $State == 'UNAVAILABLE_REFERENCE' or $State == 'UNVERIFIED' or $State == 'AMBIGUOUS_ASSIGNMENT'">
 <set_value name="md.$LSPProfilePartial" exact="true" />
 </do_if>
+<do_if value="$Field == 'seed' and $State == 'PRESENT'">
+<set_value name="md.$LSPCurrentSeed" exact="'%s'.[$Value]" />
+</do_if>
 <set_value name="$FieldText" exact="$Field" />
 <run_actions ref="Escape" result="$Text">
 <param name="Value" value="$Text" />
@@ -199,6 +532,8 @@
 <param name="Station" />
 </params>
 <actions>
+<set_value name="md.$LSPCurrentKind" exact="'STATION'" />
+<set_value name="md.$LSPCurrentSeed" exact="''" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -419,6 +754,9 @@
 <run_actions ref="Write">
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
+<do_if value="md.$LSPCurrentSeed != ''">
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+</do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 </do_if>
@@ -430,6 +768,8 @@
 <param name="Ship" />
 </params>
 <actions>
+<set_value name="md.$LSPCurrentKind" exact="'SHIP'" />
+<set_value name="md.$LSPCurrentSeed" exact="''" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -860,6 +1200,9 @@
 <run_actions ref="Write">
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
+<do_if value="md.$LSPCurrentSeed != ''">
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+</do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 </do_if>
@@ -871,6 +1214,8 @@
 <param name="Candidate" />
 </params>
 <actions>
+<set_value name="md.$LSPCurrentKind" exact="'NPC'" />
+<set_value name="md.$LSPCurrentSeed" exact="''" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -2451,6 +2796,9 @@
 <run_actions ref="Write">
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
+<do_if value="md.$LSPCurrentSeed != ''">
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+</do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
 </do_if>
@@ -2770,7 +3118,7 @@
 <params>
 </params>
 <actions>
-<do_if value="md.$LSPSnapshotStarted or not md.$LSPNeedBaseline">
+<do_if value="md.$LSPSnapshotStarted or not md.$LSPNeedBaseline or not md.$LSPEventsReady">
 <return value="false" />
 </do_if>
 <set_value name="md.$LSPSnapshotStarted" exact="true" />
@@ -2933,8 +3281,27 @@
 <set_value name="md.$LSPTypeEscapes" exact="table[]" />
 <run_actions ref="EnsureUniverseIdentity">
 </run_actions>
+<do_if value="not md.$LSPWatch?">
+<create_group groupname="md.$LSPWatch" />
+</do_if>
+<find_station name="$WatchStations" space="player.galaxy" trueowner="faction.player" multiple="true" checkoperational="false" />
+<find_ship name="$WatchShips" space="player.galaxy" trueowner="faction.player" multiple="true" recursive="true" checkoperational="false" />
+<add_to_group groupname="md.$LSPWatch" list="$WatchStations" replace="true" />
+<add_to_group groupname="md.$LSPWatch" list="$WatchShips" />
+<set_value name="md.$LSPNewProfiles" exact="[]" />
+<set_value name="md.$LSPSettleEvents" exact="[]" />
+<set_value name="md.$LSPKnownPending" exact="[]" />
+<set_value name="md.$LSPNewIndex" exact="1" />
+<set_value name="md.$LSPSettleIndex" exact="1" />
+<set_value name="md.$LSPKnownIndex" exact="1" />
+<set_value name="md.$LSPQueuedKeys" exact="table[]" />
+<set_value name="md.$LSPEventsReady" exact="false" />
+<do_if value="not UniverseIdentity.$KnownProfileSeeds?">
+<set_value name="UniverseIdentity.$KnownProfileSeeds" exact="table[]" />
+</do_if>
+<reset_cue cue="ProfileEventBus" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=16|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
@@ -2975,6 +3342,17 @@
 <return value="false" />
 </do_if>
 <set_value name="md.$LSPAcknowledged" exact="$Response.{4}" />
+<do_all exact="md.$LSPKnownPending.count">
+<do_if value="md.$LSPKnownIndex gt md.$LSPKnownPending.count">
+<break />
+</do_if>
+<set_value name="$KnownItem" exact="md.$LSPKnownPending.{md.$LSPKnownIndex}" />
+<do_if value="$KnownItem.{1} gt md.$LSPAcknowledged">
+<break />
+</do_if>
+<set_value name="UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}" exact="true" />
+<set_value name="md.$LSPKnownIndex" exact="1L" operation="add" />
+</do_all>
 <set_value name="UniverseIdentity.$CheckpointRun" exact="md.$LSPRun" />
 <set_value name="UniverseIdentity.$CheckpointRecord" exact="$Response.{4}" />
 <set_value name="md.$LSPDatabaseState" exact="$Response.{3}" />
@@ -3036,8 +3414,14 @@
 <set_value name="md.$LSPStopped" exact="true" />
 <return value="false" />
 </do_if>
+<run_actions ref="ProcessAssignmentObservations">
+</run_actions>
 <do_if value="not md.$LSPSnapshotStarted and md.$LSPNeedBaseline">
 <run_actions ref="BeginSnapshot">
+</run_actions>
+</do_if>
+<do_if value="not md.$LSPActive">
+<run_actions ref="ProcessNewProfiles">
 </run_actions>
 </do_if>
 <do_if value="not md.$LSPActive">
@@ -3121,6 +3505,427 @@
 <param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="QueueNewProfile" purpose="run_actions">
+<params>
+<param name="Object" default="null" />
+<param name="Host" default="null" />
+<param name="Template" default="null" />
+<param name="Target" default="null" />
+</params>
+<actions>
+<do_if value="not md.$LSPReady or md.$LSPStopped">
+<return value="false" />
+</do_if>
+<set_value name="$Kind" exact="''" />
+<set_value name="$Seed" exact="''" />
+<set_value name="$Actor" exact="null" />
+<do_if value="typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned">
+<do_if value="$Object.isclass.ship">
+<set_value name="$Kind" exact="'SHIP'" />
+</do_if>
+<do_else>
+<do_if value="$Object.isclass.station">
+<set_value name="$Kind" exact="'STATION'" />
+</do_if>
+<do_else>
+<do_if value="$Object.isclass.npc">
+<set_value name="$Kind" exact="'NPC'" />
+<set_value name="$Actor" exact="$Object" />
+<do_if value="$Host == null">
+<set_value name="$Host" exact="@$Object.container" />
+</do_if>
+<set_value name="$Template" exact="@$Object.npctemplate" />
+</do_if>
+</do_else>
+</do_else>
+<do_if value="$Object.seed?">
+<set_value name="$Seed" exact="'%s'.[$Object.seed]" />
+</do_if>
+</do_if>
+<do_if value="$Kind == '' and typeof $Template == datatype.npctemplate and typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned">
+<do_if value="@$Host.people.{$Template}.exists">
+<set_value name="$Kind" exact="'NPC'" />
+<set_value name="$Seed" exact="'%s'.[$Host.people.{$Template}.seed]" />
+</do_if>
+</do_if>
+<do_if value="$Kind == ''">
+<return value="false" />
+</do_if>
+<set_value name="$Key" exact="'$%s:%s'.[$Kind, $Seed]" />
+<do_if value="$Seed == ''">
+<set_value name="$Key" exact="'$%s:%s:%s:%s'.[$Kind,$Object,$Host,$Template]" />
+</do_if>
+<do_if value="$Seed != '' and UniverseIdentity.$KnownProfileSeeds.{$Key}?">
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPQueuedKeys.{$Key}?">
+<return value="true" />
+</do_if>
+<append_to_list name="md.$LSPNewProfiles" exact="table[$kind=$Kind,$object=$Object,$actor=$Actor,$host=$Host,$template=$Template,$key=$Key,$target=$Target,$origin='NEW_OBJECT_EVENT']" />
+<set_value name="md.$LSPQueuedKeys.{$Key}" exact="md.$LSPNewProfiles.count" />
+<do_if value="$Kind == 'SHIP' or $Kind == 'STATION'">
+<add_to_group groupname="md.$LSPWatch" object="$Object" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="QueueNewHostPersonnel" purpose="run_actions">
+<params>
+<param name="Host" />
+</params>
+<actions>
+<do_if value="not (typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned)">
+<return value="false" />
+</do_if>
+<set_value name="$People" exact="@$Host.people.list" />
+<do_if value="typeof $People == datatype.list">
+<do_all exact="[$People.count, 500].min" counter="$I">
+<run_actions ref="QueueNewProfile">
+<param name="Host" value="$Host" />
+<param name="Template" value="$People.{$I}" />
+</run_actions>
+</do_all>
+</do_if>
+<set_value name="$Actors" exact="@$Host.roleentities" />
+<do_if value="typeof $Actors == datatype.list">
+<do_for_each name="$Actor" in="$Actors">
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="$Actor" />
+<param name="Host" value="$Host" />
+</run_actions>
+</do_for_each>
+</do_if>
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="@$Host.assignedaipilot" />
+<param name="Host" value="$Host" />
+</run_actions>
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="@$Host.tradenpc" />
+<param name="Host" value="$Host" />
+</run_actions>
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="@$Host.shiptrader" />
+<param name="Host" value="$Host" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="RecordEntityEvent" purpose="run_actions">
+<params>
+<param name="Subject" default="null" />
+<param name="Host" default="null" />
+<param name="Template" default="null" />
+<param name="Other" default="null" />
+<param name="Previous" default="null" />
+<param name="Type" />
+<param name="Detail" default="null" />
+<param name="DetailName" default="null" />
+<param name="Status" default="'OBSERVED'" />
+<param name="Npc" default="false" />
+</params>
+<actions>
+<do_if value="not md.$LSPReady or md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Subject == datatype.component and $Subject.exists">
+<do_if value="$Subject.isclass.npc and not $Subject.isplayerowned">
+<return value="false" />
+</do_if>
+</do_if>
+<set_value name="$Kind" exact="''" />
+<set_value name="$subject_seed" exact="''" />
+<set_value name="$subject_idcode" exact="''" />
+<set_value name="$subject_reference" exact="''" />
+<set_value name="$host_seed" exact="''" />
+<set_value name="$host_idcode" exact="''" />
+<set_value name="$other_seed" exact="''" />
+<set_value name="$other_idcode" exact="''" />
+<set_value name="$other_reference" exact="''" />
+<set_value name="$previous_reference" exact="''" />
+<set_value name="$actual_role" exact="''" />
+<set_value name="$control_post" exact="''" />
+<set_value name="$requested_role" exact="''" />
+<set_value name="$detail" exact="''" />
+<set_value name="$detail_name" exact="''" />
+<do_if value="typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned">
+<do_if value="$Subject.isclass.ship">
+<set_value name="$Kind" exact="'SHIP'" />
+</do_if>
+<do_else>
+<do_if value="$Subject.isclass.station">
+<set_value name="$Kind" exact="'STATION'" />
+</do_if>
+<do_else>
+<do_if value="$Subject.isclass.npc">
+<set_value name="$Kind" exact="'NPC'" />
+</do_if>
+</do_else>
+</do_else>
+</do_if>
+<do_if value="$Kind == '' and $Npc and ($Subject == null or not (typeof $Subject == datatype.component and $Subject.exists)) and typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned">
+<set_value name="$Kind" exact="'NPC'" />
+</do_if>
+<do_if value="$Kind == ''">
+<return value="false" />
+</do_if>
+<do_if value="$Kind != 'SHIP' and ($Type == 'ATTACKING' or $Type == 'ORDER_READY' or $Type == 'COMMANDER_SET' or $Type == 'FLEET_ROLE_CHANGED')">
+<return value="false" />
+</do_if>
+<set_value name="$subject_reference" exact="'%s'.[$Subject]" />
+<do_if value="typeof $Subject == datatype.component and $Subject.exists">
+<do_if value="$Subject.seed?">
+<set_value name="$subject_seed" exact="'%s'.[$Subject.seed]" />
+</do_if>
+<do_if value="$Kind != 'NPC'">
+<do_if value="$Subject.idcode?">
+<set_value name="$subject_idcode" exact="$Subject.idcode" />
+</do_if>
+</do_if>
+<do_if value="$Kind == 'NPC'">
+<set_value name="$actual_role" exact="@$Subject.role.name" />
+<set_value name="$control_post" exact="@$Subject.controlpost.name" />
+</do_if>
+</do_if>
+<do_if value="typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned">
+<set_value name="$host_seed" exact="'%s'.[@$Host.seed]" />
+<set_value name="$host_idcode" exact="@$Host.idcode" />
+<do_if value="typeof $Template == datatype.npctemplate">
+<do_if value="@$Host.people.{$Template}.exists">
+<set_value name="$subject_seed" exact="'%s'.[$Host.people.{$Template}.seed]" />
+<set_value name="$actual_role" exact="@$Host.people.{$Template}.role.name" />
+</do_if>
+</do_if>
+</do_if>
+<set_value name="$other_reference" exact="'%s'.[$Other]" />
+<set_value name="$previous_reference" exact="'%s'.[$Previous]" />
+<do_if value="typeof $Other == datatype.component and $Other.exists">
+<set_value name="$other_seed" exact="'%s'.[@$Other.seed]" />
+<set_value name="$other_idcode" exact="@$Other.idcode" />
+</do_if>
+<set_value name="$detail" exact="$Detail" />
+<set_value name="$detail_name" exact="$DetailName" />
+<do_if value="$Status == 'REQUESTED'">
+<set_value name="$requested_role" exact="$Detail" />
+</do_if>
+<do_if value="$Kind == 'NPC' and $Type == 'ENTITY_LEFT'">
+<do_if value="typeof $Other == datatype.component and $Other.exists">
+<do_if value="$Other.isclass.spacesuit">
+<set_value name="$Type" exact="'EJECTED'" />
+</do_if>
+</do_if>
+</do_if>
+<do_if value="$Kind == 'NPC' and $Type == 'ENTITY_ENTERED'">
+<do_if value="typeof $Previous == datatype.component and $Previous.exists">
+<do_if value="$Previous.isclass.spacesuit">
+<set_value name="$Type" exact="'RESCUED'" />
+</do_if>
+</do_if>
+</do_if>
+<run_actions ref="Escape" result="$subject_seed">
+<param name="Value" value="$subject_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$subject_idcode">
+<param name="Value" value="$subject_idcode" />
+</run_actions>
+<run_actions ref="Escape" result="$subject_reference">
+<param name="Value" value="$subject_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$host_seed">
+<param name="Value" value="$host_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$host_idcode">
+<param name="Value" value="$host_idcode" />
+</run_actions>
+<run_actions ref="Escape" result="$other_seed">
+<param name="Value" value="$other_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$other_idcode">
+<param name="Value" value="$other_idcode" />
+</run_actions>
+<run_actions ref="Escape" result="$other_reference">
+<param name="Value" value="$other_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$previous_reference">
+<param name="Value" value="$previous_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$actual_role">
+<param name="Value" value="$actual_role" />
+</run_actions>
+<run_actions ref="Escape" result="$control_post">
+<param name="Value" value="$control_post" />
+</run_actions>
+<run_actions ref="Escape" result="$requested_role">
+<param name="Value" value="$requested_role" />
+</run_actions>
+<run_actions ref="Escape" result="$detail">
+<param name="Value" value="$detail" />
+</run_actions>
+<run_actions ref="Escape" result="$detail_name">
+<param name="Value" value="$detail_name" />
+</run_actions>
+<run_actions ref="Write">
+<param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|subject_seed=%s|subject_idcode=%s|subject_reference=%s|host_seed=%s|host_idcode=%s|other_seed=%s|other_idcode=%s|other_reference=%s|previous_reference=%s|actual_role=%s|control_post=%s|requested_role=%s|detail=%s|detail_name=%s'.[$Type, $Kind, $Status, $subject_seed, $subject_idcode, $subject_reference, $host_seed, $host_idcode, $other_seed, $other_idcode, $other_reference, $previous_reference, $actual_role, $control_post, $requested_role, $detail, $detail_name]" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="HandleProfileEvent" purpose="run_actions">
+<params>
+<param name="Subject" default="null" />
+<param name="Host" default="null" />
+<param name="Other" default="null" />
+<param name="Previous" default="null" />
+<param name="Detail" default="null" />
+<param name="DetailName" default="null" />
+<param name="Target" default="null" />
+<param name="Type" />
+<param name="Create" default="false" />
+<param name="Npc" default="false" />
+<param name="Assignment" default="false" />
+</params>
+<actions>
+<do_if value="not md.$LSPReady or md.$LSPStopped">
+<return value="false" />
+</do_if>
+<set_value name="$Template" exact="null" />
+<do_if value="typeof $Subject == datatype.list">
+<do_if value="$Subject.count ge 2">
+<set_value name="$Host" exact="$Subject.{1}" />
+<set_value name="$Template" exact="$Subject.{2}" />
+<set_value name="$Subject" exact="null" />
+</do_if>
+<do_else>
+<return value="false" />
+</do_else>
+</do_if>
+<do_if value="$Npc and $Host == null">
+<do_if value="typeof $Subject == datatype.component and $Subject.exists">
+<set_value name="$Host" exact="@$Subject.container" />
+</do_if>
+</do_if>
+<run_actions ref="RecordEntityEvent">
+<param name="Subject" value="$Subject" />
+<param name="Host" value="$Host" />
+<param name="Template" value="$Template" />
+<param name="Other" value="if $Assignment then $Target else $Other" />
+<param name="Previous" value="$Previous" />
+<param name="Type" value="$Type" />
+<param name="Detail" value="$Detail" />
+<param name="DetailName" value="$DetailName" />
+<param name="Status" value="if $Assignment then 'REQUESTED' else 'OBSERVED'" />
+<param name="Npc" value="$Npc" />
+</run_actions>
+<do_if value="$Create">
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="$Subject" />
+<param name="Host" value="$Host" />
+<param name="Template" value="$Template" />
+<param name="Target" value="$Target" />
+</run_actions>
+</do_if>
+<do_if value="$Assignment">
+<append_to_list name="md.$LSPSettleEvents" exact="[player.age + 1s,$Subject,$Host,$Template,$Target,$Detail]" />
+</do_if>
+<do_if value="$Npc">
+<do_if value="typeof $Other == datatype.component and $Other.exists">
+<do_if value="$Other.isclass.spacesuit">
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="$Other" />
+</run_actions>
+</do_if>
+</do_if>
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="ProcessNewProfiles" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="md.$LSPDatabaseState != 'READY' or md.$LSPAwaitCommit or md.$LSPActive">
+<return value="false" />
+</do_if>
+<do_all exact="8">
+<do_if value="md.$LSPNewIndex gt md.$LSPNewProfiles.count">
+<break />
+</do_if>
+<set_value name="$Item" exact="md.$LSPNewProfiles.{md.$LSPNewIndex}" />
+<set_value name="md.$LSPNewIndex" exact="1L" operation="add" />
+<do_if value="not UniverseIdentity.$KnownProfileSeeds.{$Item.$key}?">
+<do_if value="$Item.$kind == 'STATION'">
+<run_actions ref="StationProfile">
+<param name="Station" value="$Item.$object" />
+</run_actions>
+<run_actions ref="QueueNewHostPersonnel">
+<param name="Host" value="$Item.$object" />
+</run_actions>
+</do_if>
+<do_elseif value="$Item.$kind == 'SHIP'">
+<run_actions ref="ShipProfile">
+<param name="Ship" value="$Item.$object" />
+</run_actions>
+<run_actions ref="QueueNewHostPersonnel">
+<param name="Host" value="$Item.$object" />
+</run_actions>
+</do_elseif>
+<do_else>
+<do_if value="typeof $Item.$target == datatype.component and $Item.$target.exists">
+<do_if value="@$Item.$target.people.{$Item.$template}.exists">
+<set_value name="$Item.$host" exact="$Item.$target" />
+</do_if>
+</do_if>
+<run_actions ref="NpcProfile">
+<param name="Candidate" value="$Item" />
+</run_actions>
+</do_else>
+</do_if>
+</do_all>
+<do_if value="md.$LSPNewIndex gt md.$LSPNewProfiles.count">
+<set_value name="md.$LSPNewProfiles" exact="[]" />
+<set_value name="md.$LSPNewIndex" exact="1" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="ProcessAssignmentObservations" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_all exact="8">
+<do_if value="md.$LSPSettleIndex gt md.$LSPSettleEvents.count">
+<break />
+</do_if>
+<set_value name="$Item" exact="md.$LSPSettleEvents.{md.$LSPSettleIndex}" />
+<do_if value="player.age lt $Item.{1}">
+<break />
+</do_if>
+<set_value name="md.$LSPSettleIndex" exact="1L" operation="add" />
+<set_value name="$Host" exact="$Item.{3}" />
+<do_if value="typeof $Item.{5} == datatype.component and $Item.{5}.exists">
+<do_if value="typeof $Item.{4} == datatype.npctemplate">
+<do_if value="@$Item.{5}.people.{$Item.{4}}.exists">
+<set_value name="$Host" exact="$Item.{5}" />
+</do_if>
+</do_if>
+</do_if>
+<run_actions ref="RecordEntityEvent">
+<param name="Subject" value="$Item.{2}" />
+<param name="Host" value="$Host" />
+<param name="Template" value="$Item.{4}" />
+<param name="Other" value="$Item.{5}" />
+<param name="Type" value="'ASSIGNMENT_OBSERVED'" />
+<param name="Detail" value="$Item.{6}" />
+<param name="Status" value="'OBSERVED_AFTER_REQUEST'" />
+<param name="Npc" value="true" />
+</run_actions>
+</do_all>
+<do_if value="md.$LSPSettleIndex gt md.$LSPSettleEvents.count">
+<set_value name="md.$LSPSettleEvents" exact="[]" />
+<set_value name="md.$LSPSettleIndex" exact="1" />
 </do_if>
 <return value="true" />
 </actions>

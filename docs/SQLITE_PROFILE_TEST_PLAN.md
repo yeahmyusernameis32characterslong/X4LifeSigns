@@ -105,3 +105,36 @@ Qwen broad searches ended incomplete; a focused source review supported the
 transport contract. Its CWD concern is addressed by executable-path discovery;
 its performance acceptability suggestion is unmeasured. The MD request is a
 string: raise_lua_event does not document list parameters.
+
+## Selective native event increment
+
+A reviewed JSON catalog currently registers16native lifecycle/gameplay selectors:
+player construction, GOD-created owned assets, owned-property acquisition,
+NPC actor creation, control-post add/remove, entity enter/leave, hired-actor
+assignment requests, attack/attacking, order-ready and commander/assignment
+changes. Grouped selectors follow current owned station/ship assets; new owned
+assets are added to that group. The event bus is enabled before baseline work.
+No shield/hull damage event is subscribed.
+
+Each event emits a small typed subject/context record with game time and exact
+seed/code/reference text. It does not enter profile getters or traverse crew on
+attack, order or fleet events. Created/acquired unknown seeds are queued for
+individual profiles; new-asset personnel are discovered on that one asset and
+profiled separately. Seeds known from acknowledged profiles are retained in MD
+save state. Contextual assignments preserve requested role and a later observed
+role, distinguished from settled control-post events. Spacesuit ejection/rescue
+labels require observed spacesuit contexts; other moves retain raw enter/leave
+context without invented death or transfer conclusions.
+
+45collector tests plus seven SQLite/profile tests pass, including attack events
+with throwing personnel getters, new-ship/new-NPC-only profiling, no second
+baseline, contextual role observations and spacesuit movement. All selected
+filters validate against installed900schemas. Native dispatch/coverage remains
+unverified; NPC templates have no verified universal birth hook and crew-role
+UI paths are still under investigation. These are first-test candidates, not an
+exhaustive event guarantee. Order READY means enabled/ready as documented; it
+is not renamed to proof of execution. Primary definitions are in common.xsd
+12428-12454,12575-12600,13040-13068,13443-13508,13773-13815,14498-14510,
+14777-14852,14917-14954,15177-15198,16469-16482; npc_created is md.xsd2068-2077.
+Historical raw broad-research conclusions were checked against those definitions
+rather than treated as runtime guarantees.

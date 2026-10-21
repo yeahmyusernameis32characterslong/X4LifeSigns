@@ -29,6 +29,12 @@ foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
     if ($parameter.GetAttribute('value') -match "^@\s*(null\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
-if ($listeners.Count -ne 2 -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+$catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
+if ($listeners.Count -ne (2 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+for ($i=0; $i -lt $catalog.Count; $i++) {
+    $listener = $listeners[$i+2]
+    if ($listener.LocalName -ne $catalog[$i].name -or $listener.LocalName -match '(shield|hull).*damag') { throw 'Event catalog mismatch or forbidden damage event.' }
+    foreach ($selector in $catalog[$i].selector.PSObject.Properties) { if ($listener.GetAttribute($selector.Name) -ne $selector.Value) { throw 'Event selector mismatch.' } }
+}
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }
 Write-Output 'Validated generated database-aware MD against hash-checked installed X4 9.00 schemas; reviewed universe/database-reply hooks, no NPC creation. This is not runtime verification.'
