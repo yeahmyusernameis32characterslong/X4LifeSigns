@@ -33,6 +33,27 @@ try:
     execute("callbacks={}; emitted={}; health={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function AddUITriggeredEvent(s,c,p) if c=='health' then health[#health+1]=p else emitted[#emitted+1]={s,c,p} end end")
     source = Path(__file__).resolve().parents[2] / "extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_database.lua"
     execute(source.read_text(encoding="utf-8"))
+    execute("probe_source=" + json.dumps(source.read_text(encoding="utf-8")))
+    execute("""
+local realffi=require('ffi')
+local function probe(module,expected,detail)
+  local logs={}
+  local env=setmetatable({Menus={},require=function() if module==false then error('synthetic require failure') end; return module end,
+    RegisterEvent=function() end,SetScript=function() end,DebugError=function(s) logs[#logs+1]=s end},{__index=_G})
+  local chunk=assert(loadstring(probe_source));setfenv(chunk,env);chunk()
+  local stage,reason=env.LifeSignsDatabaseAdapter.readerStatus()
+  assert(stage==expected,stage..' ~= '..expected);assert(#logs==1 and logs[1]:find(expected,1,true))
+  if detail then assert(reason:find(detail,1,true)) end
+end
+probe(false,'FFI_MODULE_UNAVAILABLE','synthetic require failure')
+probe(setmetatable({cdef=function() error('synthetic cdef failure') end},{__index=realffi}),'FFI_DECLARATION_FAILED','synthetic cdef failure')
+probe(setmetatable({C=setmetatable({},{__index=function() error('synthetic symbol failure') end})},{__index=realffi}),'WINDOWS_SYMBOL_BINDING_FAILED','synthetic symbol failure')
+local symbols={CreateFileA=realffi.C.CreateFileA,ReadFile=realffi.C.ReadFile,CloseHandle=realffi.C.CloseHandle,GetModuleFileNameA=function() return 0 end}
+probe(setmetatable({C=symbols},{__index=realffi}),'EXECUTABLE_PATH_UNAVAILABLE','length=0')
+symbols.GetModuleFileNameA=function() error('synthetic path call failure') end
+probe(setmetatable({C=symbols},{__index=realffi}),'EXECUTABLE_PATH_CALL_FAILED','synthetic path call failure')
+probe(realffi,'READER_READY')
+""")
     execute("""
 local ffi=require('ffi')
 local calls=0

@@ -1,3 +1,30 @@
+# Second native test: reader initialisation probe required
+
+The corrected root addon loads. Native diagnostics reached MD in this order:
+REQUEST_RECEIVED, NATIVE_READER_UNAVAILABLE. This verifies the custom MD/Lua event
+round trip, but not status-file reading. SQLite again committed startup and
+published NEED_BASELINE; no profiles/events or completed database resulted.
+The owner profile already has Protected UI disabled; no setting was changed and
+there is no evidence that this setting caused failure.
+
+The previous reader-unavailable stage collapsed require, C declaration, symbol
+binding, executable-path retrieval and path parsing failures. The diagnostic
+increment separates these and records the actual protected-call error in the
+local debug log. It runs at addon load in the main menu, before any save or
+baseline. It installs no DLL, changes no transport behavior and launches no game.
+
+Required next evidence: OWNER launches X4 only to the main menu, then exits
+without loading a save. Codex reads the one 'Life Signs database reader
+diagnostic' line. Do not begin another full profile test until its cause is
+identified. This is not a claim that the status reader has been fixed. Sidecar
+remains stopped for this probe. Standalone tests cover module/declaration/symbol
+failure, zero/failed module-path calls and success, without proving native X4
+availability. Repeated Qwen corpus searches ended incomplete; a focused review
+confirmed the collapsed failure paths, but not an actual cause. Speculation
+about sandbox, different DLL versions or path length is not a verified finding.
+
+---
+
 # Current correction after first owner test
 
 The first native run at4cb0020 failed before profiling: SQLite committed the

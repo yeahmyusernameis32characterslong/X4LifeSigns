@@ -3,27 +3,44 @@ local Adapter = {}
 LifeSignsDatabaseAdapter = Adapter
 local ok, ffi = pcall(require, "ffi")
 local native
+local readerStage, readerDetail = "FFI_MODULE_UNAVAILABLE", ok and "" or tostring(ffi)
 if ok then
-    local declared = pcall(ffi.cdef, [[
+    local declared, declarationError = pcall(ffi.cdef, [[
         void* __stdcall CreateFileA(const char*, unsigned long, unsigned long, void*, unsigned long, unsigned long, void*);
         int __stdcall ReadFile(void*, void*, unsigned long, unsigned long*, void*);
         int __stdcall CloseHandle(void*);
         unsigned long __stdcall GetModuleFileNameA(void*, char*, unsigned long);
     ]])
+    readerStage, readerDetail = "FFI_DECLARATION_FAILED", declared and "" or tostring(declarationError)
     if declared then
-        local bound = pcall(function() return ffi.C.CreateFileA, ffi.C.ReadFile, ffi.C.CloseHandle, ffi.C.GetModuleFileNameA end)
-        if bound then native = ffi.C end
+        local bound, bindingError = pcall(function() return ffi.C.CreateFileA, ffi.C.ReadFile, ffi.C.CloseHandle, ffi.C.GetModuleFileNameA end)
+        readerStage, readerDetail = "WINDOWS_SYMBOL_BINDING_FAILED", bound and "" or tostring(bindingError)
+        if bound then native = ffi.C; readerStage = "WINDOWS_SYMBOLS_BOUND" end
     end
 end
+
+function Adapter.readerStatus() return readerStage, readerDetail end
 
 function Adapter.directory()
     if not native then return nil end
     local buffer = ffi.new("char[32768]")
     local n = tonumber(native.GetModuleFileNameA(nil, buffer, 32768))
-    if n == 0 or n >= 32768 then return nil end
+    if n == 0 or n >= 32768 then readerStage = "EXECUTABLE_PATH_UNAVAILABLE"; readerDetail = "length=" .. tostring(n); return nil end
     local executable = ffi.string(buffer, n)
     local directory = executable:match("^(.*)[/\\][^/\\]+$")
-    return directory and (directory .. "/extensions/lifesigns_event_recorder/runtime/")
+    if not directory then readerStage = "EXECUTABLE_PATH_INVALID"; readerDetail = "no directory separator"; return nil end
+    readerStage, readerDetail = "READER_READY", ""
+    return directory .. "/extensions/lifesigns_event_recorder/runtime/"
+end
+
+-- Runs when the addon loads, including the main menu. No save, actor or game API
+-- is needed. Preserve the actual initialisation error in the local debug log.
+do
+    local success, pathOrError = pcall(Adapter.directory)
+    if not success then readerStage, readerDetail = "EXECUTABLE_PATH_CALL_FAILED", tostring(pathOrError) end
+    if type(DebugError) == "function" then
+        DebugError("Life Signs database reader diagnostic: stage=" .. readerStage .. "; detail=" .. readerDetail:gsub("[\r\n]", " "):sub(1, 400))
+    end
 end
 
 function Adapter.readReply(filename)
