@@ -46,3 +46,63 @@ production component change, schema migration, pause or autosave is introduced.
 
 Actual X4 automatic start/exit and subsequent baseline/reload acceptance remain
 owner-test gates. Automated process fixtures do not establish gameplay behaviour.
+
+## Installed behaviour
+
+The companion is separate from the read-only native DLL. A current-user Startup
+shortcut starts the hidden PowerShell watcher at Windows sign-in; installation
+also starts it immediately. It checks once per second using .NET process APIs.
+When idle it has no Node child and no SQLite database open. It does not start X4
+or change Steam launch options. The checkout must remain at its configured
+database location; companion code is copied into an ignored, hash-pinned install
+directory so a later source checkout cannot silently change the deployed worker.
+
+The exact game executable path and its PID/start time identify each launch.
+Another executable with the same filename is ignored; inaccessible/ambiguous
+process information blocks transitions instead of pretending the game exited.
+The recorder content identity, enabled content flag and five required files must
+be present. A duplicate watcher for the same extension exits under a named mutex.
+Do not run a separate manual profile-service process while automatic mode is active.
+
+The worker uses the Windows creation time of each per-run log, compared with the
+X4 process UTC start time. Retained older files are never consumed by automatic
+mode, even when their modification time changes. Restarting the worker within
+one game launch can replay that launch's files using existing SQL idempotence.
+A rejected run receives ERROR and remains rejected for that worker lifetime;
+later loads/new universes remain eligible. Invalid paths/global I/O failure still
+stop the worker. No saved-ancestry check is weakened.
+
+Game exit or recorder removal closes the private control pipe after a stop
+request. The worker drains complete rows in bounded chunks, closes SQLite, then
+exits; it is never forcibly terminated by normal shutdown. Incomplete final rows
+cannot claim successful completion. Unexpected watcher loss closes the pipe and
+also stops the child. A crashed worker is retried after five seconds, at most
+three starts per game generation; persistent failure is recorded locally.
+
+## Install, inspect and remove
+
+From the clean approved checkout, with X4 and any manual profile service closed:
+
+```powershell
+./scripts/install-profile-service.ps1 -GameRoot '<X4 installation>' -LogDirectory '<X4 user data>/logs/lifesigns-event-recorder' -ApprovedCommit '<full reviewed SHA>'
+```
+
+This installs only the optional local companion and its owned Startup shortcut;
+it does not replace game extension files. Local state, transition history,
+receipts and child stdout/stderr are under
+`local-data/profile-service-lifecycle/`. `watcher-state.local.json` records IDLE,
+SERVICE_RUNNING, DRAINING, rejection/retry or inspection failure states. Child
+stdout/stderr are preserved after each child exits. `installed.local.json`
+records hashes and Startup registration. No private paths enter shared docs.
+
+To disable automatic mode, remove only its owned **Life Signs SQLite Profiles**
+Startup shortcut, then create `stop-watcher.local` in that state directory. The
+watcher drains/closes any child before exiting. Keep databases, native logs,
+install receipts and evidence. Reinstallation backs up prior owned registration,
+configuration and watcher state; unrelated shortcuts are refused.
+
+Checks: `node --test recorder/test/*.test.mjs profiles/test/*.test.mjs`. Windows
+watcher tests use a renamed but unmodified signed system executable as a process
+fixture, loopback only. They cover idle/absent extension, wrong executable path,
+duplicate exclusion, real SQL commit, crash recovery, final-row drain, extension
+removal and orphan pipe EOF. No application-control setting is changed.

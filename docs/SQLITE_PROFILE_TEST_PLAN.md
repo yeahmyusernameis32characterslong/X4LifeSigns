@@ -261,6 +261,12 @@ database, and does not silently trigger repeated full snapshots.
 
 ### Running the experimental sidecar
 
+Automatic start/stop is now the owner-approved deployment mode. See
+[service lifecycle](PROFILE_SERVICE_LIFECYCLE.md) for installation and checks.
+The manual command below is for isolated development; do not run it alongside
+the automatic watcher. Automatic mode reads only logs from its X4 launch and
+preserves retained historical files without importing them.
+
 Run from the checkout with Node24.21.x; the optional recorder and its UI files
 must be installed. Keep production docking readers/databases unchanged.
 

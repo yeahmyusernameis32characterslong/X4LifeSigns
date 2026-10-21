@@ -86,6 +86,9 @@ test('incremental tail retains incomplete UTF-8 rows and refuses truncation', t 
   const { dir } = fixture(t), file = path.join(dir, 'synthetic.log'); const bytes = Buffer.from('first\n船\n');
   fs.writeFileSync(file, bytes.subarray(0, 7)); const tail = new LogTail(file); assert.deepEqual(tail.poll(), ['first']);
   fs.appendFileSync(file, bytes.subarray(7)); assert.deepEqual(tail.poll(), ['船']); fs.writeFileSync(file, ''); assert.throws(() => tail.poll(), /truncated/);
+  const replacement=path.join(dir,'replacement.log');fs.writeFileSync(replacement,'different\n');
+  const identityTail=new LogTail(file);identityTail.poll();fs.renameSync(replacement,file);
+  assert.throws(()=>identityTail.poll(),/replaced/);
 });
 
 test('launch boundary excludes retained files even if their modification time changes', async t => {
