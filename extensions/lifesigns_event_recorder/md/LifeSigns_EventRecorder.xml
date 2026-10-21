@@ -58,6 +58,24 @@
 </do_if>
 </actions>
 </cue>
+<cue name="ProfileNameResponse" instantiate="true">
+<conditions>
+<event_ui_triggered screen="'LifeSignsProfiles'" control="'name_changed'" />
+</conditions>
+<actions>
+<do_if value="typeof event.param3 == datatype.list">
+<do_if value="event.param3.count == 5">
+<run_actions ref="RecordNameObservation">
+<param name="Object" value="component.{event.param3.{1}}" />
+<param name="Before" value="event.param3.{2}" />
+<param name="BeforeState" value="event.param3.{3}" />
+<param name="Requested" value="event.param3.{4}" />
+<param name="Source" value="event.param3.{5}" />
+</run_actions>
+</do_if>
+</do_if>
+</actions>
+</cue>
 <cue name="Bootstrap" checkinterval="1s">
 <conditions>
 <check_value value="md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy" />
@@ -4129,6 +4147,89 @@
 <set_value name="md.$LSPOrderChecks" exact="[]" />
 <set_value name="md.$LSPOrderIndex" exact="1" />
 </do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="RecordNameObservation" purpose="run_actions">
+<params>
+<param name="Object" />
+<param name="Before" />
+<param name="BeforeState" />
+<param name="Requested" />
+<param name="Source" />
+</params>
+<actions>
+<do_if value="not md.$LSPReady or md.$LSPStopped or not (typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned)">
+<return value="false" />
+</do_if>
+<do_if value="not ($Object.isclass.ship or $Object.isclass.station)">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Before != datatype.string or typeof $Requested != datatype.string">
+<return value="false" />
+</do_if>
+<do_if value="$BeforeState != 'PRESENT' and $BeforeState != 'UNKNOWN'">
+<return value="false" />
+</do_if>
+<do_if value="$Source != 'MAP_RENAME_DIALOG' and $Source != 'MAP_INFO_EDIT'">
+<return value="false" />
+</do_if>
+<set_value name="$Kind" exact="if $Object.isclass.station then 'STATION' else 'SHIP'" />
+<set_value name="$Type" exact="'NAME_CHANGE_REQUESTED'" />
+<set_value name="$new_name" exact="''" />
+<set_value name="$new_name_state" exact="'UNKNOWN'" />
+<do_if value="$Object.knownname?">
+<do_if value="typeof $Object.knownname == datatype.string">
+<set_value name="$new_name" exact="$Object.knownname" />
+<set_value name="$new_name_state" exact="'PRESENT'" />
+<do_if value="$BeforeState == 'PRESENT'">
+<do_if value="$Before == $new_name">
+<return value="false" />
+</do_if>
+<set_value name="$Type" exact="'NAME_CHANGED'" />
+</do_if>
+<do_else>
+<set_value name="$Type" exact="'NAME_OBSERVED'" />
+</do_else>
+</do_if>
+</do_if>
+<set_value name="$subject_seed" exact="'%s'.[@$Object.seed]" />
+<set_value name="$subject_idcode" exact="@$Object.idcode" />
+<set_value name="$subject_reference" exact="'%s'.[$Object]" />
+<set_value name="$old_name" exact="$Before" />
+<set_value name="$old_name_state" exact="$BeforeState" />
+<set_value name="$requested_name" exact="$Requested" />
+<set_value name="$name_source" exact="$Source" />
+<run_actions ref="Escape" result="$subject_seed">
+<param name="Value" value="$subject_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$subject_idcode">
+<param name="Value" value="$subject_idcode" />
+</run_actions>
+<run_actions ref="Escape" result="$subject_reference">
+<param name="Value" value="$subject_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$old_name">
+<param name="Value" value="$old_name" />
+</run_actions>
+<run_actions ref="Escape" result="$old_name_state">
+<param name="Value" value="$old_name_state" />
+</run_actions>
+<run_actions ref="Escape" result="$new_name">
+<param name="Value" value="$new_name" />
+</run_actions>
+<run_actions ref="Escape" result="$new_name_state">
+<param name="Value" value="$new_name_state" />
+</run_actions>
+<run_actions ref="Escape" result="$requested_name">
+<param name="Value" value="$requested_name" />
+</run_actions>
+<run_actions ref="Escape" result="$name_source">
+<param name="Value" value="$name_source" />
+</run_actions>
+<run_actions ref="Write">
+<param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=OBSERVED_AFTER_UI_RENAME|subject_seed=%s|subject_idcode=%s|subject_reference=%s|old_name=%s|old_name_state=%s|new_name=%s|new_name_state=%s|requested_name=%s|name_source=%s'.[$Type, $Kind, $subject_seed, $subject_idcode, $subject_reference, $old_name, $old_name_state, $new_name, $new_name_state, $requested_name, $name_source]" />
+</run_actions>
 <return value="true" />
 </actions>
 </library>

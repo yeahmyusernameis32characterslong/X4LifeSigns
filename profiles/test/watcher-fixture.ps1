@@ -56,7 +56,11 @@ try {
  # Deliberate owned-service crash: restart same game generation, idempotent replay.
  Stop-Process -Id $serviceId
  $deadline=[DateTime]::UtcNow.AddSeconds(12);$restarted=$false
- while([DateTime]::UtcNow -lt $deadline){$s=Get-Content (Join-Path $state 'watcher-state.local.json') -Raw|ConvertFrom-Json;if($s.status -eq 'SERVICE_RUNNING' -and $s.servicePid -ne $serviceId){$serviceId=[int]$s.servicePid;$restarted=$true;break};Start-Sleep -Milliseconds 100}
+ while([DateTime]::UtcNow -lt $deadline){
+  # Like WaitState, tolerate transient lookup/sharing errors during status replacement.
+  try {$s=Get-Content (Join-Path $state 'watcher-state.local.json') -Raw|ConvertFrom-Json;if($s.status -eq 'SERVICE_RUNNING' -and $s.servicePid -ne $serviceId){$serviceId=[int]$s.servicePid;$restarted=$true;break}}catch{}
+  Start-Sleep -Milliseconds 100
+ }
  if(-not $restarted){throw 'Service did not restart'}; 'service crash recovered'
  WaitReply $run 'READY\|7\|END'
  [IO.File]::AppendAllText($log,(Row 8 'ENTITY_EVENT|event_type=ATTACKED|subject_kind=SHIP|subject_seed=123')+"`n")

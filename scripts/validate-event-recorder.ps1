@@ -30,11 +30,12 @@ foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
 $catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
-if ($listeners.Count -ne (4 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+if ($listeners.Count -ne (5 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
 if ($listeners[3].GetAttribute('screen') -ne "'LifeSignsPersonnel'" -or $listeners[3].GetAttribute('control') -ne "'role_changed'") { throw 'Unexpected personnel observer listener.' }
 if ($listeners[2].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[2].GetAttribute('control') -ne "'health'") { throw 'Unexpected database health listener.' }
+if ($listeners[4].LocalName -ne 'event_ui_triggered' -or $listeners[4].GetAttribute('screen') -ne "'LifeSignsProfiles'" -or $listeners[4].GetAttribute('control') -ne "'name_changed'") { throw 'Unexpected rename observer listener.' }
 for ($i=0; $i -lt $catalog.Count; $i++) {
-    $listener = $listeners[$i+4]
+    $listener = $listeners[$i+5]
     if ($listener.LocalName -ne $catalog[$i].name -or $listener.LocalName -match '(shield|hull).*damag') { throw 'Event catalog mismatch or forbidden damage event.' }
     foreach ($selector in $catalog[$i].selector.PSObject.Properties) { if ($listener.GetAttribute($selector.Name) -ne $selector.Value) { throw 'Event selector mismatch.' } }
 }

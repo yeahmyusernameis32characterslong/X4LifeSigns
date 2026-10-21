@@ -130,6 +130,26 @@ export function generateProfileEvents(h, c) {
     iff('md.$LSPCrewIndex gt md.$LSPCrewChanges.count',set('md.$LSPCrewChanges','[]')+set('md.$LSPCrewIndex','1'))+ret('true'));
   const crewListener=tag('cue',{name:'PersonnelRoleResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsPersonnel'",control:"'role_changed'"}))+tag('actions',{},
     iff('typeof event.param3 == datatype.list',iff('event.param3.count == 4',run('QueueCrewRoleObservation',{Host:'component.{event.param3.{1}}',Seed:'event.param3.{2}',Role:'event.param3.{3}',ActualRole:'event.param3.{4}'})))));
+  const renameFields=['subject_seed','subject_idcode','subject_reference','old_name','old_name_state','new_name','new_name_state','requested_name','name_source'];
+  const rename=lib('RecordNameObservation',{Object:null,Before:null,BeforeState:null,Requested:null,Source:null},
+    iff('not md.$LSPReady or md.$LSPStopped or not ('+owned('$Object')+')',ret('false'))+
+    iff('not ($Object.isclass.ship or $Object.isclass.station)',ret('false'))+
+    iff('typeof $Before != datatype.string or typeof $Requested != datatype.string',ret('false'))+
+    iff("$BeforeState != 'PRESENT' and $BeforeState != 'UNKNOWN'",ret('false'))+
+    iff("$Source != 'MAP_RENAME_DIALOG' and $Source != 'MAP_INFO_EDIT'",ret('false'))+
+    set('$Kind',"if $Object.isclass.station then 'STATION' else 'SHIP'")+
+    set('$Type',"'NAME_CHANGE_REQUESTED'")+set('$new_name',"''")+set('$new_name_state',"'UNKNOWN'")+
+    iff('$Object.knownname?',iff('typeof $Object.knownname == datatype.string',
+      set('$new_name','$Object.knownname')+set('$new_name_state',"'PRESENT'")+
+      iff("$BeforeState == 'PRESENT'",iff('$Before == $new_name',ret('false'))+set('$Type',"'NAME_CHANGED'"))+
+      otherwise(set('$Type',"'NAME_OBSERVED'"))))+
+    set('$subject_seed',"'%s'.[@$Object.seed]")+set('$subject_idcode','@$Object.idcode')+
+    set('$subject_reference',"'%s'.[$Object]")+set('$old_name','$Before')+set('$old_name_state','$BeforeState')+
+    set('$requested_name','$Requested')+set('$name_source','$Source')+
+    renameFields.map(f=>run('Escape',{Value:'$'+f},'$'+f)).join('')+
+    write(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=OBSERVED_AFTER_UI_RENAME|${renameFields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind',...renameFields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
+  const renameListener=tag('cue',{name:'ProfileNameResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsProfiles'",control:"'name_changed'"}))+tag('actions',{},
+    iff('typeof event.param3 == datatype.list',iff('event.param3.count == 5',run('RecordNameObservation',{Object:'component.{event.param3.{1}}',Before:'event.param3.{2}',BeforeState:'event.param3.{3}',Requested:'event.param3.{4}',Source:'event.param3.{5}'})))));
   const orderChecks=lib('ProcessOrderObservations',{},
     tag('do_all',{exact:String(c.discoveryPerTick)},
       iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',tag('break'))+
@@ -140,5 +160,5 @@ export function generateProfileEvents(h, c) {
     tag('conditions',{},tag(e.name,e.selector))+tag('actions',{},run('HandleProfileEvent',{
       Subject:e.subject,Type:`'${e.type}'`,Host:e.host||'null',Other:e.other||'null',Previous:e.previous||'null',Detail:e.detail||'null',DetailName:e.detailName||'null',Target:e.target||'null',Order:e.order||'null',Create:String(Boolean(e.create)),Npc:String(Boolean(e.npc)),Assignment:String(Boolean(e.assignment))})))).join('');
   const cues=tag('cue',{name:'ProfileEventBus',checkinterval:'0.1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPReady? and md.$LSPReady and md.$LSPWatch?'}))+tag('actions',{},set('md.$LSPEventsReady','true'))+tag('cues',{},listeners));
-  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks, cues, crewListener };
+  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename, cues, crewListener, renameListener };
 }

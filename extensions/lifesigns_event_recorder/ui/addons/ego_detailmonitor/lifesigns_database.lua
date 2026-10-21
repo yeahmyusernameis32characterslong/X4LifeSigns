@@ -1,7 +1,7 @@
 -- Optional read-only profile status adapter. File bytes are never evaluated.
 local Adapter = {}
 LifeSignsDatabaseAdapter = Adapter
-local ok, ffi = pcall(require, "ffi") -- Only existing game personnel getters use FFI.
+local ok, ffi = pcall(require, "ffi") -- Existing game scalar getters only; no OS FFI.
 local native
 local readerStage, readerDetail = "NATIVE_MODULE_UNAVAILABLE", ""
 local policyKnown, safe = false, nil
@@ -137,3 +137,54 @@ function Adapter.installPersonnelObserver(menus)
     end
 end
 Adapter.installPersonnelObserver(Menus)
+
+-- Passive observers of the two MapMenu component-name setter routes.
+-- Fleet labels are separate from ship/station names and are deliberately excluded.
+function Adapter.readComponentName(object)
+    return ffi.string(ffi.C.GetComponentName(object))
+end
+local function captureRename(object, requested, source)
+    if object == nil or type(requested) ~= "string" then return nil end
+    local converted, id = pcall(function() return ConvertStringToLuaID(tostring(object)) end)
+    if not converted or id == nil then return nil end
+    local read, before = pcall(Adapter.readComponentName, object)
+    local known = read and type(before) == "string"
+    return {id, known and before or "", known and "PRESENT" or "UNKNOWN", requested, source}
+end
+local function publishRename(observation)
+    if observation then pcall(AddUITriggeredEvent, "LifeSignsProfiles", "name_changed", observation) end
+end
+function Adapter.installRenameObservers(menus)
+    for _, menu in ipairs(menus or {}) do
+        if menu.name == "MapMenu" then
+            if type(menu.buttonRenameConfirm) == "function" and not menu.lifeSignsRenameConfirmObserver then
+                local original = menu.buttonRenameConfirm
+                menu.buttonRenameConfirm = function(isconfirmed, ...)
+                    local observation
+                    pcall(function()
+                        local data = menu.contextMenuData
+                        if isconfirmed and data and not data.fleetrename then
+                            observation = captureRename(data.component, data.newtext, "MAP_RENAME_DIALOG")
+                        end
+                    end)
+                    local result = pack(original(isconfirmed, ...))
+                    publishRename(observation)
+                    return unpack(result, 1, result.n)
+                end
+                menu.lifeSignsRenameConfirmObserver = true
+            end
+            if type(menu.infoChangeObjectName) == "function" and not menu.lifeSignsInfoNameObserver then
+                local original = menu.infoChangeObjectName
+                menu.infoChangeObjectName = function(object, text, textchanged, ...)
+                    local observation
+                    if textchanged then pcall(function() observation = captureRename(object, text, "MAP_INFO_EDIT") end) end
+                    local result = pack(original(object, text, textchanged, ...))
+                    publishRename(observation)
+                    return unpack(result, 1, result.n)
+                end
+                menu.lifeSignsInfoNameObserver = true
+            end
+        end
+    end
+end
+Adapter.installRenameObservers(Menus)

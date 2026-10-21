@@ -24,11 +24,15 @@ test('generated collector and real SQLite handshake create once, then skip basel
   for(let i=0;i<1000&&!h.notifications.some(n=>n.text===CREATED);i++){h.player.age+=0.1;h.call('Tick');deliver(h);}
   assert.equal(h.notifications.at(-1).text,CREATED);
   const store=consumer.stores.get(h.md.$LSPRun);assert.equal(fs.existsSync(store.final),true);assert.equal(store.profilesAt()[0].seed,'9223372036854775807');
+  ship.knownname='Renamed | 船';
+  h.call('RecordNameObservation',{Object:ship,Before:'Synthetic ship',BeforeState:'PRESENT',Requested:ship.knownname,Source:'MAP_INFO_EDIT'});deliver(h);
+  assert.equal(store.profilesAt()[0].fields.name.value,ship.knownname);assert.equal(store.eventsAt()[0].event_type,'NAME_CHANGED');
   const savedCueState={UniverseIdentity:structuredClone(Object.fromEntries(Object.entries(h.cueVariables('UniverseIdentity')).filter(([k])=>k!=='parent')))};
   const next=harness(generateRecorder(config),{autoDatabase:false,ships:[ship],savedCueState,randomStart:100});next.start();cursor=0;deliver(next);
   assert.equal(next.md.$LSPDatabaseState,'READY');assert.equal(next.md.$LSPNeedBaseline,false);
   for(let i=0;i<100;i++){next.player.age+=1;next.call('Tick');deliver(next);}
   assert.equal(next.notifications.length,0);assert.equal(next.output.some(x=>x.line.includes('|SNAPSHOT_BEGIN|')),false);
   const nextStore=consumer.stores.get(next.md.$LSPRun);assert.equal(nextStore.profilesAt()[0].seed,'9223372036854775807');
+  assert.equal(nextStore.profilesAt()[0].fields.name.value,ship.knownname);assert.equal(nextStore.eventsAt()[0].fields.old_name,'Synthetic ship');
   assert.equal(nextStore.db.prepare('SELECT count(*) AS n FROM sessions').get().n,2);
 });

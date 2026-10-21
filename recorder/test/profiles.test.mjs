@@ -40,10 +40,38 @@ function profiles(h) {
   return result;
 }
 
+test('observed ship/station renames emit escaped identity/time deltas without profiling',()=>{
+  const ship=host('ship','SYN-001'),station=host('station','SYN-002');
+  const h=setup({ships:[ship],stations:[station]});finish(h);
+  const beforeProfiles=profiles(h).length,beforeCalls=h.callCounts.NpcProfile||0;
+  Object.defineProperty(ship,'people',{get(){throw Error('Rename must not read personnel');}});
+  const old=ship.knownname;ship.knownname='New | 100% 船\nname';h.player.age+=7;
+  h.call('RecordNameObservation',{Object:ship,Before:old,BeforeState:'PRESENT',Requested:'requested text',Source:'MAP_INFO_EDIT'});
+  const e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(e.fields.event_type,'NAME_CHANGED');assert.equal(e.fields.subject_kind,'SHIP');
+  assert.equal(e.fields.old_name,old);assert.equal(e.fields.new_name,ship.knownname);assert.equal(e.fields.subject_seed,String(ship.seed));assert.equal(e.fields.subject_idcode,'SYN-001');assert.equal(e.age,String(h.player.age));
+  const previous=station.knownname;station.knownname='Station renamed';
+  h.call('RecordNameObservation',{Object:station,Before:previous,BeforeState:'PRESENT',Requested:station.knownname,Source:'MAP_RENAME_DIALOG'});
+  assert.equal(rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1).fields.subject_kind,'STATION');
+  assert.equal(profiles(h).length,beforeProfiles);assert.equal(h.callCounts.NpcProfile||0,beforeCalls);
+});
+
+test('rename no-ops/foreign objects are ignored and missing names stay explicitly unverified',()=>{
+  const ship=host('ship','SYN-001');const h=setup({ships:[ship]});finish(h);
+  const emit=(o,b,s='PRESENT')=>h.call('RecordNameObservation',{Object:o,Before:b,BeforeState:s,Requested:'new',Source:'MAP_INFO_EDIT'});
+  emit(ship,ship.knownname);const foreign=host('ship','FOREIGN',false);emit(foreign,'old');
+  emit(actor('NPC',ship),'old');const dead=host('ship','DEAD');dead.exists=false;emit(dead,'old');
+  assert.equal(rows(h).filter(r=>r.kind==='ENTITY_EVENT').length,0);
+  emit(ship,'','UNKNOWN');let e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(e.fields.event_type,'NAME_OBSERVED');assert.equal(e.fields.old_name_state,'UNKNOWN');assert.equal(e.fields.new_name,ship.knownname);
+  delete ship.knownname;emit(ship,'old');e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(e.fields.event_type,'NAME_CHANGE_REQUESTED');assert.equal(e.fields.new_name_state,'UNKNOWN');assert.equal(e.fields.requested_name,'new');
+});
+
 test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
-  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', ...profileEvents.map(e=>e.name)]);
+  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', ...profileEvents.map(e=>e.name)]);
   assert.doesNotMatch(xml, /<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);

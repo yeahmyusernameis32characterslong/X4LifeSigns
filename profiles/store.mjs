@@ -190,7 +190,9 @@ export class ProfileStore {
       index(codes, p.idcode && `${p.kind}:${p.idcode}`, p);
       index(references, p.reference && `${p.run_id}:${p.kind}:${p.reference}`, p);
     }
-    for (const e of this.eventsAt(run, record)) {
+    const names = this.db.prepare("SELECT * FROM events WHERE run_id=? AND record_id<=? AND event_type IN ('NAME_CHANGED','NAME_OBSERVED') AND subject_kind IN ('SHIP','STATION') ORDER BY record_id");
+    const nameEvents = [...chain].reverse().flatMap(p => names.all(p.run, p.limit).map(e => ({ ...e, fields: JSON.parse(e.fields_json) })));
+    for (const e of nameEvents) {
       if (!['SHIP', 'STATION'].includes(e.subject_kind) || !['NAME_CHANGED', 'NAME_OBSERVED'].includes(e.event_type) || e.fields.new_name_state !== 'PRESENT' || typeof e.fields.new_name !== 'string') continue;
       // A mismatching seed must never fall back to somebody else's ID code.
       const p = e.subject_seed ? seeds.get(`${e.subject_kind}:${e.subject_seed}`) : e.subject_idcode ? codes.get(`${e.subject_kind}:${e.subject_idcode}`) : references.get(`${e.run_id}:${e.subject_kind}:${e.subject_reference}`);

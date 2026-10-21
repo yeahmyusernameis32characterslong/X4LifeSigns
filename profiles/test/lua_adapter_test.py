@@ -102,6 +102,50 @@ failure({loadlib=function() error('must not load with unknown policy') end},'thr
     emitted={}
     """)
 
+        execute("""
+    local ffi=require('ffi')
+    local a=LifeSignsDatabaseAdapter
+    local calls=0
+    local names={['123ULL']='Old | name'}
+    a.readComponentName=function(object) return names[tostring(object)] end
+    local m={name='MapMenu'}
+    local function context(fleet,text) m.contextMenuData={component=ffi.new('uint64_t',123ULL),newtext=text,fleetrename=fleet} end
+    m.buttonRenameConfirm=function(confirmed,extra)
+      calls=calls+1;assert(extra=='extra')
+      local d=m.contextMenuData
+      if confirmed and d.newtext and not d.fleetrename then names[tostring(d.component)]=d.newtext end
+      m.contextMenuData=nil
+      return nil,'second',nil
+    end
+    m.infoChangeObjectName=function(object,text,changed,extra)
+      calls=calls+1;assert(extra=='extra')
+      if changed then names[tostring(object)]=text end
+      return 'first',nil,'third'
+    end
+    a.installRenameObservers({m});a.installRenameObservers({m})
+    local function results(...) return {n=select('#',...),...} end
+    context(false,'New | name')
+    local r=results(m.buttonRenameConfirm(true,'extra'))
+    assert(calls==1 and r.n==3 and r[1]==nil and r[2]=='second' and r[3]==nil)
+    assert(#emitted==1 and emitted[1][1]=='LifeSignsProfiles' and emitted[1][2]=='name_changed')
+    local p=emitted[1][3];assert(p[1]=='123' and p[2]=='Old | name' and p[3]=='PRESENT' and p[4]=='New | name' and p[5]=='MAP_RENAME_DIALOG')
+    context(false,'Cancelled');m.buttonRenameConfirm(false,'extra');assert(#emitted==1)
+    context(true,'Fleet label');m.buttonRenameConfirm(true,'extra');assert(#emitted==1)
+    context(false,nil);m.buttonRenameConfirm(true,'extra');assert(#emitted==1)
+    r=results(m.infoChangeObjectName(ffi.new('uint64_t',123ULL),'Info name',true,'extra'))
+    assert(calls==5 and r.n==3 and r[1]=='first' and r[2]==nil and r[3]=='third')
+    p=emitted[2][3];assert(p[2]=='New | name' and p[4]=='Info name' and p[5]=='MAP_INFO_EDIT')
+    m.infoChangeObjectName(ffi.new('uint64_t',123ULL),'ignored',false,'extra');assert(#emitted==2)
+    a.readComponentName=function() error('getter unavailable') end
+    m.infoChangeObjectName(ffi.new('uint64_t',123ULL),'After unknown',true,'extra')
+    p=emitted[3][3];assert(p[2]=='' and p[3]=='UNKNOWN')
+    local broken={name='MapMenu',buttonRenameConfirm=function() error('original rename failure') end,contextMenuData={component=123,newtext='x'}}
+    a.installRenameObservers({broken});assert(not pcall(broken.buttonRenameConfirm,true));assert(#emitted==3)
+    local event=AddUITriggeredEvent;AddUITriggeredEvent=function() error('observer failure') end
+    m.infoChangeObjectName(ffi.new('uint64_t',123ULL),'Still changes',true,'extra');assert(names['123ULL']=='Still changes')
+    AddUITriggeredEvent=event
+    emitted={}
+    """)
         execute(f"run={json.dumps(run)}; universe={json.dumps(universe)}")
         execute("native=assert(package.loadlib('./extensions/lifesigns_event_recorder/native/lifesigns_status.dll','luaopen_lifesigns_status'))(); assert(type(native.readReply)=='function')")
         execute("local a=LifeSignsDatabaseAdapter; assert(a.readerStatus()=='NATIVE_MODULE_READY'); assert(a.readReply(run)); local p=a.parse(a.readReply(run),run,universe); assert(p[3]=='NEED_BASELINE' and p[4]==1); assert(not a.parse(a.readReply(run),'stale',universe)); assert(not a.parse(a.readReply(run),run,'other')); assert(not a.parse('return os.execute(1)',run,universe))")
