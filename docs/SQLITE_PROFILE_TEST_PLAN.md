@@ -46,3 +46,25 @@ The five-minute statement is owner-specified product text, not a new measured be
 ## Source findings and limitations
 
 The Life Signs saved MD tag has been observed CREATED and then identical/EXISTING across one owner save/load cycle; no global uniqueness claim. Current installed recorder is1d8bb96, still per-load full-snapshot-only. Existing automatic session routing is tested for docking, not profile inheritance. Engine log actions do not acknowledge SQLite commits. Transport and event coverage investigations are active; findings and implementation status will be recorded incrementally here and in the private handoff. Allowance percentage is not visible; use conservative commit/check/publication checkpoints.
+
+## Storage increment (implemented, not connected to X4 yet)
+
+`profiles/store.mjs` and `profiles/service.mjs` add a separate experimental
+profile store. Production docking v1/v2 routing/files are untouched. Profile
+files are named by validated Life Signs universe ID, with isolated session rows
+and saved parent-run/record checkpoints inside that universe database. This
+retains independent session provenance while supporting universe-level lookup;
+it does not collapse all sessions into one mutable current profile.
+
+A baseline is staged separately and published under the universe database name
+only after snapshot counts, transaction commit and readback succeed. Historical
+profile versions and event rows retain exact engine text. Loading an earlier
+checkpoint selects only that session's recorded ancestry, excluding later
+versions. Existing/wrong-owner/corrupt/schema-incompatible data is refused.
+No prior exploratory logs are imported without the explicit LSDB1 protocol.
+
+Six real SQLite/temporary-file tests pass: baseline commit gating and exact
+largeint/Unicode values; saved checkpoint isolation; restart/replay; ownership
+and malformed/gapped input; replies after commit/error; partial UTF-8 tailing.
+This is an automated storage gate, not native return-channel validation. MD,
+Lua, selective events and deployment remain in progress.
