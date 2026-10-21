@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->
+<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->
 <mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
 <cues>
 <cue name="UniverseIdentity">
@@ -14,6 +14,16 @@
 </run_actions>
 </actions>
 </cue>
+<cue name="DatabaseResponse" instantiate="true">
+<conditions>
+<event_ui_triggered screen="'LifeSignsDatabase'" control="'reply'" />
+</conditions>
+<actions>
+<run_actions ref="DatabaseReply">
+<param name="Response" value="event.param3" />
+</run_actions>
+</actions>
+</cue>
 <cue name="Bootstrap" checkinterval="1s">
 <conditions>
 <check_value value="md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy" />
@@ -25,7 +35,7 @@
 <cues>
 <cue name="ProcessingTick" instantiate="true" checkinterval="0.1s">
 <conditions>
-<check_value value="md.$LSPReady and (not md.$LSPSnapshotStarted or md.$LSPActive)" />
+<check_value value="md.$LSPReady and not md.$LSPStopped" />
 </conditions>
 <actions>
 <run_actions ref="Tick">
@@ -103,7 +113,10 @@
 <set_value name="$Session" exact="md.$LifeSignsProductionSessionKey" />
 </do_if>
 </do_if>
-<set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]" />
+<do_if value="not $Diagnostic">
+<set_value name="md.$LSPRecord" exact="1L" operation="add" />
+</do_if>
+<set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|record=%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body, md.$LSPRecord]" />
 <do_if value="$Diagnostic">
 <set_value name="md.$LSPDiagnosticRows" exact="1L" operation="add" />
 <debug_to_file name="md.$LSPDiagnosticFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
@@ -2757,7 +2770,7 @@
 <params>
 </params>
 <actions>
-<do_if value="md.$LSPSnapshotStarted">
+<do_if value="md.$LSPSnapshotStarted or not md.$LSPNeedBaseline">
 <return value="false" />
 </do_if>
 <set_value name="md.$LSPSnapshotStarted" exact="true" />
@@ -2770,10 +2783,10 @@
 <find_station name="md.$LSPStations" space="player.galaxy" trueowner="faction.player" multiple="true" checkoperational="false" />
 <find_ship name="md.$LSPShips" space="player.galaxy" trueowner="faction.player" multiple="true" recursive="true" checkoperational="false" />
 <run_actions ref="Write">
-<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
+<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <do_if value="not md.$LSPStopped">
-<show_notification text="'Life Signs: Snapshot begun.'" timeout="5s" priority="1" />
+<show_help custom="'Welcome to Life Signs\nA new database is being created and soon your X4 game will have a memory\nFollowing the creation of this database you should save your game immediately\nSaving your game will store a Life Signs ID into the save file\nCreating a Life Signs database can take considerable time\nA high performance desktop may take 5 minutes for existing games with 5,000 player owned assets\nYou will be notified when your database has been created and to save your game'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
 </do_if>
 <run_actions ref="Write">
 <param name="Body" value="'PASS_BEGIN|kind=STATIONS'" />
@@ -2841,15 +2854,9 @@
 <run_actions ref="Write">
 <param name="Body" value="'SNAPSHOT_END|mode=OBJECT_PROFILES|profiles=%s|partial=%s|atomic=false|discovery_complete=UNVERIFIED'.[md.$LSPProfile, md.$LSPSnapshotPartial]" />
 </run_actions>
-<do_if value="not md.$LSPStopped">
-<do_if value="md.$LSPSnapshotPartial">
-<show_help custom="'Life Signs: Snapshot completed — partial data.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
-</do_if>
-<do_else>
-<show_help custom="'Life Signs: Snapshot completed.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
-</do_else>
-</do_if>
 <set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPAwaitCommit" exact="true" />
+<set_value name="md.$LSPEndRecord" exact="md.$LSPRecord" />
 <set_value name="md.$LSPStations" exact="[]" />
 <set_value name="md.$LSPShips" exact="[]" />
 <set_value name="md.$LSPHosts" exact="[]" />
@@ -2893,9 +2900,22 @@
 <set_value name="md.$LSPRows" exact="0L" />
 <set_value name="md.$LSPDiagnosticRows" exact="0L" />
 <set_value name="md.$LSPProfile" exact="0L" />
+<set_value name="md.$LSPRecord" exact="0L" />
+<set_value name="md.$LSPAcknowledged" exact="0L" />
 <set_value name="md.$LSPStopped" exact="false" />
 <set_value name="md.$LSPActive" exact="false" />
 <set_value name="md.$LSPLevel" exact="4" />
+<set_value name="md.$LSPDatabaseState" exact="'WAITING'" />
+<set_value name="md.$LSPAwaitCommit" exact="false" />
+<set_value name="md.$LSPNeedBaseline" exact="false" />
+<set_value name="md.$LSPDatabasePoll" exact="player.age" />
+<set_value name="md.$LSPDatabaseDeadline" exact="player.age + 30s" />
+<set_value name="md.$LSPParentRun" exact="'NONE'" />
+<set_value name="md.$LSPParentRecord" exact="0L" />
+<do_if value="UniverseIdentity.$CheckpointRun? and UniverseIdentity.$CheckpointRecord?">
+<set_value name="md.$LSPParentRun" exact="UniverseIdentity.$CheckpointRun" />
+<set_value name="md.$LSPParentRecord" exact="UniverseIdentity.$CheckpointRecord" />
+</do_if>
 <set_value name="md.$LSPLastAge" exact="player.age" />
 <set_value name="md.$LSPSnapshotStarted" exact="false" />
 <set_value name="md.$LSPNextHeartbeat" exact="player.age + 60s" />
@@ -2914,12 +2934,62 @@
 <run_actions ref="EnsureUniverseIdentity">
 </run_actions>
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="DatabaseReply" purpose="run_actions">
+<params>
+<param name="Response" />
+</params>
+<actions>
+<do_if value="not md.$LSPReady or md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Response != datatype.list">
+<return value="false" />
+</do_if>
+<do_if value="$Response.count != 4">
+<return value="false" />
+</do_if>
+<do_if value="$Response.{1} != md.$LSPRun or $Response.{2} != md.$LSPUniverseIdText">
+<return value="false" />
+</do_if>
+<do_if value="not (typeof $Response.{4}).isnumeric">
+<return value="false" />
+</do_if>
+<do_if value="$Response.{4} lt md.$LSPAcknowledged or $Response.{4} gt md.$LSPRecord">
+<return value="false" />
+</do_if>
+<do_if value="$Response.{3} == 'ERROR'">
+<show_help custom="'Life Signs could not create or open its database. Please close X4 and report this message.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<return value="false" />
+</do_if>
+<do_if value="$Response.{3} != 'READY' and $Response.{3} != 'NEED_BASELINE' and $Response.{3} != 'BUILDING'">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPAcknowledged" exact="$Response.{4}" />
+<set_value name="UniverseIdentity.$CheckpointRun" exact="md.$LSPRun" />
+<set_value name="UniverseIdentity.$CheckpointRecord" exact="$Response.{4}" />
+<set_value name="md.$LSPDatabaseState" exact="$Response.{3}" />
+<do_if value="$Response.{3} == 'NEED_BASELINE' and not md.$LSPSnapshotStarted">
+<set_value name="md.$LSPNeedBaseline" exact="true" />
+</do_if>
+<do_if value="$Response.{3} == 'READY'">
+<set_value name="md.$LSPNeedBaseline" exact="false" />
+<do_if value="md.$LSPAwaitCommit">
+<do_if value="$Response.{4} ge md.$LSPEndRecord">
+<set_value name="md.$LSPAwaitCommit" exact="false" />
+<show_help custom="'Your Life Signs database has now been created and it\'s Life Signs ID generated\nPlease save your game immediately'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
+</do_if>
+</do_if>
+</do_if>
 <return value="true" />
 </actions>
 </library>
@@ -2957,7 +3027,16 @@
 <do_if value="not md.$LSPActive or md.$LSPPass != 'NPCS'">
 <set_value name="md.$LSPNextAssetTick" exact="player.age + 1s" />
 </do_if>
-<do_if value="not md.$LSPSnapshotStarted">
+<do_if value="md.$LSPDatabaseState != 'READY' and player.age ge md.$LSPDatabasePoll">
+<set_value name="md.$LSPDatabasePoll" exact="player.age + 1s" />
+<raise_lua_event name="'LifeSignsDatabaseRequest'" param="'%s|%s'.[md.$LSPRun, md.$LSPUniverseIdText]" />
+</do_if>
+<do_if value="md.$LSPDatabaseState == 'WAITING' and player.age ge md.$LSPDatabaseDeadline">
+<show_help custom="'Life Signs could not create or open its database. Please close X4 and report this message.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPSnapshotStarted and md.$LSPNeedBaseline">
 <run_actions ref="BeginSnapshot">
 </run_actions>
 </do_if>

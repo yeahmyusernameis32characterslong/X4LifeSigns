@@ -29,6 +29,6 @@ foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
     if ($parameter.GetAttribute('value') -match "^@\s*(null\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
-if ($listeners.Count -ne 1 -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[0].ParentNode.ParentNode.LocalName -ne 'cue' -or $listeners[0].ParentNode.ParentNode.GetAttribute('name') -ne 'RunBoundary') { throw 'Snapshot collector permits only its single universe lifecycle boundary; no gameplay/UI listeners.' }
+if ($listeners.Count -ne 2 -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }
-Write-Output 'Validated generated snapshot-only MD against hash-checked installed X4 9.00 schemas; one universe lifecycle hook, no gameplay/UI listeners or NPC creation actions. This is not runtime verification.'
+Write-Output 'Validated generated database-aware MD against hash-checked installed X4 9.00 schemas; reviewed universe/database-reply hooks, no NPC creation. This is not runtime verification.'

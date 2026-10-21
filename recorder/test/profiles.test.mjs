@@ -4,6 +4,7 @@ import test from 'node:test';
 import { generateRecorder, validateConfig } from '../md-generator.mjs';
 import { parseRecord, escapeValue, unescapeValue } from '../log-format.mjs';
 import { harness } from './md-harness.mjs';
+import { WELCOME, CREATED } from '../profile-messages.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../config.json', import.meta.url)));
 const sector = { __type: 'component', exists: true, class: 'sector', name: 'Synthetic sector', ref: 'sector' };
@@ -38,11 +39,11 @@ function profiles(h) {
   return result;
 }
 
-test('generated snapshot-only artifact has exactly one lifecycle hook and no gameplay capture', () => {
+test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
-  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated']);
-  assert.doesNotMatch(xml, /event\.(?:object|param)|<create_npc|roleentity\.\{/);
+  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered']);
+  assert.doesNotMatch(xml, /<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);
   assert.match(xml, /gameplay_listeners=0/);
@@ -407,34 +408,32 @@ test('old persisted discovery state waits for lifecycle reset without touching o
   assert.equal(h.output.slice(before).some(r=>r.name===oldFile), false);
   finish(h);
   assert.equal(rows(h).filter(r => r.kind === 'SNAPSHOT_END').length, 1);
-  assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);
+  assert.equal(h.notifications.filter(n => n.text === CREATED).length, 1);
 });
 
-test('begun ticker and centred closable completion panel bracket the snapshot once without periodic repetition', () => {
+test('exact owner welcome and committed-database help panels are centred and closable', () => {
   const h = setup({}, { profilesPerTick: 1, discoveryPerTick: 1 });
   h.call('Tick');
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+  assert.deepEqual(h.notifications.map(n => n.text), [WELCOME]);
   assert.equal(rows(h)[h.notifications[0].afterRows - 1].kind, 'SNAPSHOT_BEGIN');
-  assert.equal(h.notifications[0].timeout, 5); assert.equal(h.notifications[0].priority, 1);
-  assert.equal(h.notifications[0].kind, 'ticker');
+  assert.equal(h.notifications[0].kind, 'help');
   finish(h);
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed.']);
-  assert.equal(rows(h)[h.notifications[1].afterRows - 1].kind, 'SNAPSHOT_END');
-  assert.deepEqual(h.notifications[1], { kind: 'help', text: 'Life Signs: Snapshot completed.', position: 4, halign: 'center', allowclose: true, timeout: false, log: false, afterRows: h.notifications[1].afterRows });
+  assert.deepEqual(h.notifications.map(n => n.text), [WELCOME, CREATED]);
+  assert.equal(CREATED, "Your Life Signs database has now been created and it's Life Signs ID generated\nPlease save your game immediately");
+  for (const n of h.notifications) assert.deepEqual({position:n.position,halign:n.halign,allowclose:n.allowclose,timeout:n.timeout,log:n.log}, {position:4,halign:'center',allowclose:true,timeout:false,log:false});
   assert.equal(rows(h).filter(r => r.kind === 'PASS_END').length, 3);
-  h.call('Tick'); assert.equal(h.notifications.length, 2);
-  h.player.age += 86400; finish(h);
+  h.call('Tick'); h.player.age += 86400; finish(h);
   assert.equal(h.notifications.length, 2);
 });
 
-test('finished partial snapshots say partial data and interrupted snapshots never say completed', () => {
+test('partial field flags remain recorded and interrupted collections never announce database creation', () => {
   const stale = host('ship', 'STALE'); stale.exists = false;
   const partial = setup({ ships: [stale] }); finish(partial);
-  assert.deepEqual(partial.notifications.at(-1), { kind: 'help', text: 'Life Signs: Snapshot completed — partial data.', position: 4, halign: 'center', allowclose: true, timeout: false, log: false, afterRows: partial.notifications.at(-1).afterRows });
+  assert.equal(partial.notifications.at(-1).text, CREATED);
   assert.equal(rows(partial).find(r => r.kind === 'SNAPSHOT_END').fields.partial, 'true');
   const interrupted = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 });
   interrupted.call('Tick'); interrupted.player.age = 0; interrupted.call('Tick');
-  assert.deepEqual(interrupted.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+  assert.deepEqual(interrupted.notifications.map(n => n.text), [WELCOME]);
 });
 
 test('removed schedule and row-cap configuration are rejected rather than silently used', () => {
@@ -522,7 +521,39 @@ test('uncapped collection completes beyond old test thresholds and OFF suppresse
   assert.equal(raw.at(-1).kind, 'SNAPSHOT_END'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 0);
   assert.equal(rows(h).filter(x => x.file.startsWith('profile-diagnostics-')).length, 0);
   assert.equal(h.md.$LSPStopped, false);
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed — partial data.']);
+  assert.deepEqual(h.notifications.map(n => n.text), [WELCOME, CREATED]);
+});
+
+test('actual database reply is required and an existing database suppresses the whole snapshot', () => {
+  const h = setup({ autoDatabase: false, ships: [host('ship', 'SHIP')] });
+  h.call('Tick'); assert.equal(rows(h).some(r => r.kind === 'SNAPSHOT_BEGIN'), false);
+  assert.equal(h.call('BeginSnapshot'), false); assert.equal(h.notifications.length, 0);
+  const reply = (state, record = h.md.$LSPRecord) => h.call('DatabaseReply', { Response: [h.md.$LSPRun, h.md.$LSPUniverseIdText, state, record] });
+  assert.equal(reply('READY'), true); h.player.age += 100; h.call('Tick');
+  assert.equal(h.call('BeginSnapshot'), false); assert.equal(profiles(h).length, 0); assert.equal(h.notifications.length, 0);
+  assert.equal(h.cueVariables('UniverseIdentity').$CheckpointRun, h.md.$LSPRun);
+});
+
+test('database-created help waits for final committed record and stale/future replies are rejected', () => {
+  const h = setup({ autoDatabase: false });
+  for (const response of [['stale',h.md.$LSPUniverseIdText,'NEED_BASELINE',1],[h.md.$LSPRun,'other','READY',1],[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',999]]) assert.equal(h.call('DatabaseReply',{Response:response}),false);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'NEED_BASELINE',1]});
+  for (let i=0;i<200&&!h.md.$LSPAwaitCommit;i++){h.player.age+=0.1;h.call('Tick');}
+  assert.equal(h.md.$LSPAwaitCommit,true);assert.deepEqual(h.notifications.map(n=>n.text),[WELCOME]);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPEndRecord-1]});
+  assert.equal(h.notifications.length,1);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPEndRecord]});
+  assert.deepEqual(h.notifications.map(n=>n.text),[WELCOME,CREATED]);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPEndRecord]});assert.equal(h.notifications.length,2);
+});
+
+test('failed or absent database connection cannot claim successful creation', () => {
+  for(const state of ['ERROR','TIMEOUT']){
+    const h=setup({autoDatabase:false});
+    if(state==='ERROR')h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'ERROR',0]});
+    else {h.player.age+=31;h.call('Tick');}
+    assert.equal(h.md.$LSPStopped,true);assert.equal(h.notifications.some(n=>n.text===CREATED),false);assert.equal(profiles(h).length,0);
+  }
 });
 
 test('text framing preserves reserved characters and rejects malformed rows', () => {

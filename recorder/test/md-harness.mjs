@@ -29,7 +29,7 @@ function split(s, delimiter) {
 const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0 } = {}) {
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0, autoDatabase = true, databaseState = 'NEED_BASELINE' } = {}) {
   const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   let randomCounter = randomStart;
   function walk(node, parentCue) {
@@ -149,6 +149,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'debug_to_file') output.push({ name: ev(a.name), line: ev(a.text) });
       else if (n.tag === 'show_notification') notifications.push({ kind: 'ticker', text: ev(a.text), timeout: ev(a.timeout), priority: ev(a.priority), afterRows: output.length });
       else if (n.tag === 'show_help') notifications.push({ kind: 'help', text: ev(a.custom), position: ev(a.position), halign: ev(a.halign), allowclose: ev(a.allowclose), timeout: ev(a.timeout), log: ev(a.log), afterRows: output.length });
+      else if (n.tag === 'raise_lua_event') {} // Real UI/file/SQLite transport is tested separately.
       else if (n.tag === 'append_to_list') ev(a.name).push(ev(a.exact));
       else if (n.tag === 'remove_value') assign(a.name, null, local, true);
       else if (n.tag === 'find_ship') assign(a.name, [...(a.trueowner ? ships : allShips)], local);
@@ -173,7 +174,10 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (p.attrs.default !== undefined) local[key] = evalx(p.attrs.default, local);
       else throw new Error(`Missing ${p.attrs.name}`);
     }
-    return execute(library.children.find(x => x.tag === 'actions').children, local)?.return;
+    const result = execute(library.children.find(x => x.tag === 'actions').children, local)?.return;
+    // Explicit synthetic database fixture; never evidence of native or SQL success.
+    if (autoDatabase && name === 'Tick' && md.$LSPAwaitCommit) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, 'READY', md.$LSPRecord] });
+    return result;
   }
   // Supplied saved variables model restoration only; this is not an X4 serializer.
   function context(name) { if (!contexts.has(name)) contexts.set(name, { ...structuredClone(savedCueState[name] || {}), parent: parents.get(name) ? context(parents.get(name)) : {} }); return contexts.get(name); }
@@ -181,7 +185,9 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     const node = cues.get(name), local = context(name);
     const checks = node.children.find(x => x.tag === 'conditions')?.children.filter(x => x.tag === 'check_value') || [];
     if (!checks.every(x => evalx(x.attrs.value, local))) return false;
-    return execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
+    const result = execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
+    if (name === 'Bootstrap' && autoDatabase && md.$LSPReady) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, databaseState, md.$LSPRecord] });
+    return result;
   }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
   function load() { cue('RunBoundary'); cue('Bootstrap'); }

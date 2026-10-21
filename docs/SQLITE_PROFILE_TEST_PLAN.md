@@ -68,3 +68,40 @@ largeint/Unicode values; saved checkpoint isolation; restart/replay; ownership
 and malformed/gapped input; replies after commit/error; partial UTF-8 tailing.
 This is an automated storage gate, not native return-channel validation. MD,
 Lua, selective events and deployment remain in progress.
+
+## Database handshake and panels increment
+
+The generated MD now waits for an LSDB1 database reply before starting the
+baseline. READY suppresses a whole snapshot; NEED_BASELINE permits it. The
+exact owner welcome/completion panels are centred and closable. Completion
+waits for a committed/read-back SNAPSHOT_END record. Replies are matched to the
+current run/universe and bounded by emitted/acknowledged record ordinals; saved
+MD state retains that committed checkpoint for later session ancestry.
+
+The optional UI XML diff adds one original Lua file to the existing menus
+environment. MD sends a string request through raise_lua_event. Lua reads a
+strict ASCII reply file and returns a list via AddUITriggeredEvent; MD consumes
+screen parameters. The adapter derives the installation directory from the
+process executable using GetModuleFileNameA, avoiding a working-directory
+assumption. It uses the existing LuaJIT ffi.C binding to Windows kernel32 for
+read-only CreateFileA/ReadFile/CloseHandle, not a new third-party DLL.
+
+41 collector tests and seven real SQLite/profile tests pass, including generated
+MD -> SQLite -> reply -> generated MD creation and saved-state reload. The
+installed X4 9.00 schema gate passes. A standalone test loads the installed
+lua51_64.dll without starting X4 and verifies compilation, real Win32 file reads,
+parsing, stale identity rejection and mocked UI callback/polling. This does not
+prove that the full X4 UI environment loads the addon or dispatches the custom
+reply; the first owner test must establish that. Missing/unavailable transport
+cannot announce a created database.
+
+Primary references: installed common.xsd12023-12046/31309-31332, helptext.lua
+RegisterEvent/SetScript call sites and the hash-verified ego_detailmonitor addon
+XML/coreaddon schema. Standard APIs: [LuaJIT FFI](https://luajit.org/ext_ffi_api.html),
+[CreateFileA](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea),
+[ReadFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile),
+[GetModuleFileNameA](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamea).
+Qwen broad searches ended incomplete; a focused source review supported the
+transport contract. Its CWD concern is addressed by executable-path discovery;
+its performance acceptability suggestion is unmeasured. The MD request is a
+string: raise_lua_event does not document list parameters.
