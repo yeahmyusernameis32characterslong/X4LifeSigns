@@ -129,7 +129,7 @@ export function generateProfileEvents(h, c) {
         run('QueueNewProfile',{Host:'$Host',Template:'$Template'})+add('md.$LSPCrewIndex'))))+
     iff('md.$LSPCrewIndex gt md.$LSPCrewChanges.count',set('md.$LSPCrewChanges','[]')+set('md.$LSPCrewIndex','1'))+ret('true'));
   const crewListener=tag('cue',{name:'PersonnelRoleResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsPersonnel'",control:"'role_changed'"}))+tag('actions',{},
-    iff('typeof event.param3 == datatype.list',iff('event.param3.count == 4',run('QueueCrewRoleObservation',{Host:'component.{event.param3.{1}}',Seed:'event.param3.{2}',Role:'event.param3.{3}',ActualRole:'event.param3.{4}'})))));
+    iff('typeof event.param3 == datatype.list',iff('event.param3.count == 4',iff('typeof event.param3.{1} == datatype.component',run('QueueCrewRoleObservation',{Host:'event.param3.{1}',Seed:'event.param3.{2}',Role:'event.param3.{3}',ActualRole:'event.param3.{4}'}))))));
   const renameFields=['subject_seed','subject_idcode','subject_reference','old_name','old_name_state','new_name','new_name_state','requested_name','name_source'];
   const rename=lib('RecordNameObservation',{Object:null,Before:null,BeforeState:null,Requested:null,Source:null},
     iff('not md.$LSPReady or md.$LSPStopped or not ('+owned('$Object')+')',ret('false'))+
@@ -149,7 +149,7 @@ export function generateProfileEvents(h, c) {
     renameFields.map(f=>run('Escape',{Value:'$'+f},'$'+f)).join('')+
     write(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=OBSERVED_AFTER_UI_RENAME|${renameFields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind',...renameFields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
   const renameListener=tag('cue',{name:'ProfileNameResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsProfiles'",control:"'name_changed'"}))+tag('actions',{},
-    iff('typeof event.param3 == datatype.list',iff('event.param3.count == 5',run('RecordNameObservation',{Object:'component.{event.param3.{1}}',Before:'event.param3.{2}',BeforeState:'event.param3.{3}',Requested:'event.param3.{4}',Source:'event.param3.{5}'})))));
+    iff('typeof event.param3 == datatype.list',iff('event.param3.count == 5',iff('typeof event.param3.{1} == datatype.component',run('RecordNameObservation',{Object:'event.param3.{1}',Before:'event.param3.{2}',BeforeState:'event.param3.{3}',Requested:'event.param3.{4}',Source:'event.param3.{5}'}))))));
   const orderChecks=lib('ProcessOrderObservations',{},
     tag('do_all',{exact:String(c.discoveryPerTick)},
       iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',tag('break'))+

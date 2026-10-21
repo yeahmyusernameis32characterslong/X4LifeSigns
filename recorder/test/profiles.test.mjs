@@ -68,6 +68,20 @@ test('rename no-ops/foreign objects are ignored and missing names stay explicitl
   assert.equal(e.fields.event_type,'NAME_CHANGE_REQUESTED');assert.equal(e.fields.new_name_state,'UNKNOWN');assert.equal(e.fields.requested_name,'new');
 });
 
+test('native Lua component payloads pass directly through rename and personnel UI listeners',()=>{
+  const ship=host('ship','SYN-001');const h=setup({ships:[ship]});finish(h);
+  const before=ship.knownname;ship.knownname='Native component rename';
+  h.cueVariables('ProfileNameResponse').event={param3:[ship,before,'PRESENT',ship.knownname,'MAP_INFO_EDIT']};
+  h.cue('ProfileNameResponse');let events=rows(h).filter(r=>r.kind==='ENTITY_EVENT');
+  assert.equal(events.at(-1).fields.event_type,'NAME_CHANGED');assert.equal(events.at(-1).fields.new_name,ship.knownname);
+  const count=events.length;
+  h.cueVariables('ProfileNameResponse').event={param3:['not a component',before,'PRESENT','ignored','MAP_INFO_EDIT']};
+  h.cue('ProfileNameResponse');assert.equal(rows(h).filter(r=>r.kind==='ENTITY_EVENT').length,count);
+  h.cueVariables('PersonnelRoleResponse').event={param3:[ship,'9223372036854775807','marine','Marine']};
+  h.cue('PersonnelRoleResponse');events=rows(h).filter(r=>r.kind==='ENTITY_EVENT');
+  assert.equal(events.at(-1).fields.event_type,'CREW_ROLE_OBSERVED');assert.equal(events.at(-1).fields.subject_seed,'9223372036854775807');
+});
+
 test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));

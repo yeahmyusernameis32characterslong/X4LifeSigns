@@ -48,12 +48,14 @@
 <actions>
 <do_if value="typeof event.param3 == datatype.list">
 <do_if value="event.param3.count == 4">
+<do_if value="typeof event.param3.{1} == datatype.component">
 <run_actions ref="QueueCrewRoleObservation">
-<param name="Host" value="component.{event.param3.{1}}" />
+<param name="Host" value="event.param3.{1}" />
 <param name="Seed" value="event.param3.{2}" />
 <param name="Role" value="event.param3.{3}" />
 <param name="ActualRole" value="event.param3.{4}" />
 </run_actions>
+</do_if>
 </do_if>
 </do_if>
 </actions>
@@ -65,13 +67,15 @@
 <actions>
 <do_if value="typeof event.param3 == datatype.list">
 <do_if value="event.param3.count == 5">
+<do_if value="typeof event.param3.{1} == datatype.component">
 <run_actions ref="RecordNameObservation">
-<param name="Object" value="component.{event.param3.{1}}" />
+<param name="Object" value="event.param3.{1}" />
 <param name="Before" value="event.param3.{2}" />
 <param name="BeforeState" value="event.param3.{3}" />
 <param name="Requested" value="event.param3.{4}" />
 <param name="Source" value="event.param3.{5}" />
 </run_actions>
+</do_if>
 </do_if>
 </do_if>
 </actions>
