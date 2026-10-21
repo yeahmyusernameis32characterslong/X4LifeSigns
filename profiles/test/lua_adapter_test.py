@@ -64,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix="lifesigns-native-test-") as temporary:
         execute("""
 local function failure(packageValue,safe,expected)
   local messages={}
-  local env=setmetatable({Menus={},package=packageValue,GetUISafeModeOption=function() return safe end,
+  local env=setmetatable({Menus={},package=packageValue,GetUISafeModeOption=function() if safe=='throw' then error('synthetic policy failure') end; return safe end,
     RegisterEvent=function() end,SetScript=function() end,DebugError=function(s) messages[#messages+1]=s end},{__index=_G})
   local chunk=assert(loadstring(probe_source));setfenv(chunk,env);chunk()
   assert(env.LifeSignsDatabaseAdapter.readerStatus()==expected)
@@ -74,6 +74,8 @@ failure(false,false,'NATIVE_LOADER_UNAVAILABLE')
 failure({loadlib=function() return nil,'synthetic missing DLL' end},false,'NATIVE_MODULE_LOAD_FAILED')
 failure({loadlib=function() return function() return {} end end},false,'NATIVE_MODULE_INTERFACE_FAILED')
 failure({loadlib=function() error('must not load in protected mode') end},true,'NATIVE_MODULE_PROTECTED_MODE')
+failure({loadlib=function() error('must not load with unknown policy') end},1,'NATIVE_MODULE_POLICY_UNAVAILABLE')
+failure({loadlib=function() error('must not load with unknown policy') end},'throw','NATIVE_MODULE_POLICY_UNAVAILABLE')
 """)
         execute("""
     local ffi=require('ffi')

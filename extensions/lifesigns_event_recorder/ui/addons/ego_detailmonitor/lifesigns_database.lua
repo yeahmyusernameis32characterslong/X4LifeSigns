@@ -4,8 +4,14 @@ LifeSignsDatabaseAdapter = Adapter
 local ok, ffi = pcall(require, "ffi") -- Only existing game personnel getters use FFI.
 local native
 local readerStage, readerDetail = "NATIVE_MODULE_UNAVAILABLE", ""
-local safe = type(GetUISafeModeOption) == "function" and GetUISafeModeOption()
-if safe == true then
+local policyKnown, safe = false, nil
+if type(GetUISafeModeOption) == "function" then
+    local read, value = pcall(GetUISafeModeOption)
+    policyKnown, safe = read and type(value) == "boolean", value
+end
+if not policyKnown then
+    readerStage = "NATIVE_MODULE_POLICY_UNAVAILABLE"
+elseif safe then
     readerStage = "NATIVE_MODULE_PROTECTED_MODE"
 elseif type(package) ~= "table" or type(package.loadlib) ~= "function" then
     readerStage = "NATIVE_LOADER_UNAVAILABLE"
