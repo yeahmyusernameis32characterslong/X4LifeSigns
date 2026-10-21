@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { ProfileStore, universeId } from '../store.mjs';
-import { ProfileConsumer, LogTail } from '../service.mjs';
+import { ProfileConsumer, LogTail, startService } from '../service.mjs';
 import { escapeValue } from '../../recorder/log-format.mjs';
 
 const id = 'lsu1-2026-10-21_12-00-00-1-2-3-4';
@@ -86,4 +86,41 @@ test('incremental tail retains incomplete UTF-8 rows and refuses truncation', t 
   const { dir } = fixture(t), file = path.join(dir, 'synthetic.log'); const bytes = Buffer.from('first\n船\n');
   fs.writeFileSync(file, bytes.subarray(0, 7)); const tail = new LogTail(file); assert.deepEqual(tail.poll(), ['first']);
   fs.appendFileSync(file, bytes.subarray(7)); assert.deepEqual(tail.poll(), ['船']); fs.writeFileSync(file, ''); assert.throws(() => tail.poll(), /truncated/);
+});
+
+test('launch boundary excludes retained files even if their modification time changes', async t => {
+  const {dir,open,track}=fixture(t), s=open(); s.ingest(baseline);s.close();
+  const logs=path.join(dir,'logs'),replies=path.join(dir,'replies');fs.mkdirSync(logs);fs.mkdirSync(replies);
+  const name=r=>`profiles-${r}.log`;
+  const old=path.join(logs,name(B));fs.writeFileSync(old,line(start(B))+'\n');
+  await new Promise(r=>setTimeout(r,30));const cutoff=Date.now();await new Promise(r=>setTimeout(r,30));
+  fs.utimesSync(old,new Date(),new Date());
+  const fresh=path.join(logs,name(A));fs.writeFileSync(fresh,baseline.map(line).join('\n')+'\n');
+  const errors=[];const service=startService({root:dir,logDirectory:logs,replyDirectory:replies,notBefore:cutoff,interval:100000,onError:e=>errors.push(e),onRunError:e=>errors.push(e)});track({close:()=>service.stop()});
+  assert.equal(fs.existsSync(path.join(replies,B+'.reply')),false,'No historical error reply or DB write');
+  assert.match(fs.readFileSync(path.join(replies,A+'.reply'),'utf8'),/READY\|7\|END/);
+  assert.deepEqual(errors,[]);
+});
+
+test('rejected historical run cannot stop subsequent valid save runs or weaken ancestry', t=>{
+  const {dir,open,track}=fixture(t),s=open();s.ingest(baseline);s.close();
+  const logs=path.join(dir,'logs'),replies=path.join(dir,'replies');fs.mkdirSync(logs);fs.mkdirSync(replies);
+  fs.writeFileSync(path.join(logs,`profiles-${B}.log`),line(start(B))+'\n');
+  const errors=[],fatal=[];const service=startService({root:dir,logDirectory:logs,replyDirectory:replies,interval:100000,onRunError:e=>errors.push(e.message),onError:e=>fatal.push(e)});track({close:()=>service.stop()});
+  assert.match(fs.readFileSync(path.join(replies,B+'.reply'),'utf8'),/ERROR\|0\|END/);
+  const C='session-5-6-loaded-2026-10-21_12-02-00';
+  fs.writeFileSync(path.join(logs,`profiles-${C}.log`),line(start(C,A,'7'))+'\n');service.poll();
+  assert.match(fs.readFileSync(path.join(replies,C+'.reply'),'utf8'),/READY\|1\|END/);
+  assert.equal(errors.length,1);assert.match(errors[0],/saved committed checkpoint/);assert.deepEqual(fatal,[]);
+});
+
+test('graceful stop drains more than one final chunk and closes SQLite', t=>{
+  const {dir}=fixture(t),logs=path.join(dir,'logs'),replies=path.join(dir,'replies');fs.mkdirSync(logs);fs.mkdirSync(replies);
+  const file=path.join(logs,`profiles-${A}.log`);fs.writeFileSync(file,line(baseline[0])+'\n');
+  const errors=[];const service=startService({root:dir,logDirectory:logs,replyDirectory:replies,interval:100000,onError:e=>errors.push(e),onRunError:e=>errors.push(e)});
+  const event=n=>row(A,n,'ENTITY_EVENT',{event_type:'ATTACKED',subject_kind:'SHIP',subject_seed:'1',detail:'x'.repeat(900000)});
+  fs.appendFileSync(file,Array.from({length:6},(_,i)=>line(event(i+2))).join('\n')+'\n');service.stop();
+  assert.deepEqual(errors,[]);assert.match(fs.readFileSync(path.join(replies,A+'.reply'),'utf8'),/NEED_BASELINE\|7\|END/);
+  const db=new DatabaseSync(path.join(dir,'local-data','profiles',`${id}.${A}.building.db`));
+  assert.equal(db.prepare('SELECT count(*) AS n FROM events').get().n,6);db.exec('BEGIN EXCLUSIVE;ROLLBACK');db.close();
 });
