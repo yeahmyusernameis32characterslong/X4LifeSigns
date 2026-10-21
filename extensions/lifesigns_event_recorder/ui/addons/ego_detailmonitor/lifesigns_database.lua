@@ -47,13 +47,23 @@ function Adapter.parse(text, expectedRun, expectedUniverse)
     return { run, universe, state, n }
 end
 
-local current, lastText, lastPoll = nil, nil, 0
+local current, lastText, lastPoll, lastHealth = nil, nil, 0, nil
+function Adapter.health(stage)
+    if current and stage ~= lastHealth then
+        lastHealth = stage
+        AddUITriggeredEvent("LifeSignsDatabase", "health", {current.run, current.universe, stage})
+    end
+end
 function Adapter.receive(_, request)
     if type(request) ~= "string" then return end
     local run, universe = request:match("^([a-z0-9_-]+)|([a-z0-9_-]+)$")
     if not run or not run:match("^session%-%d+%-%d+%-loaded%-%d%d%d%d%-%d%d%-%d%d_%d%d%-%d%d%-%d%d$") or
        not universe:match("^lsu1%-%d%d%d%d%-%d%d%-%d%d_%d%d%-%d%d%-%d%d%-%d+%-%d+%-%d+%-%d+$") then return end
-    if not current or current.run ~= run then current = { run = run, universe = universe }; lastText = nil; lastPoll = 0 end
+    if not current or current.run ~= run then
+        current = { run = run, universe = universe }; lastText = nil; lastPoll = 0; lastHealth = nil
+        Adapter.health("REQUEST_RECEIVED")
+    end
+    Adapter.update()
 end
 function Adapter.update()
     if not current then return end
@@ -61,11 +71,19 @@ function Adapter.update()
     if now - lastPoll < 0.25 then return end
     lastPoll = now
     local directory = Adapter.directory()
-    if not directory then return end
+    if not directory then
+        Adapter.health("NATIVE_READER_UNAVAILABLE")
+        AddUITriggeredEvent("LifeSignsDatabase", "reply", {current.run,current.universe,"ERROR",0})
+        return
+    end
     local text = Adapter.readReply(directory .. current.run .. ".reply")
-    if not text or text == lastText then return end
+    if not text then Adapter.health("WAITING_FOR_REPLY_FILE"); return end
+    if text == lastText then return end
     local response = Adapter.parse(text, current.run, current.universe)
-    if response then lastText = text; AddUITriggeredEvent("LifeSignsDatabase", "reply", response) end
+    if response then
+        lastText = text; Adapter.health("REPLY_FORWARDED")
+        AddUITriggeredEvent("LifeSignsDatabase", "reply", response)
+    else Adapter.health("INVALID_OR_MISMATCHED_REPLY") end
 end
 RegisterEvent("LifeSignsDatabaseRequest", Adapter.receive)
 SetScript("onUpdate", Adapter.update)

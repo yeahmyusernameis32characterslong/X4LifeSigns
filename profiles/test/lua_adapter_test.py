@@ -30,7 +30,7 @@ def execute(source):
         raise RuntimeError(lua.lua_tolstring(state, -1, None).decode("utf-8", errors="replace"))
 
 try:
-    execute("callbacks={}; emitted={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function AddUITriggeredEvent(s,c,p) emitted[#emitted+1]={s,c,p} end")
+    execute("callbacks={}; emitted={}; health={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function AddUITriggeredEvent(s,c,p) if c=='health' then health[#health+1]=p else emitted[#emitted+1]={s,c,p} end end")
     source = Path(__file__).resolve().parents[2] / "extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_database.lua"
     execute(source.read_text(encoding="utf-8"))
     execute("""
@@ -71,6 +71,7 @@ emitted={}
         execute("clock=1.6; callbacks.onUpdate(); assert(#emitted==2 and emitted[2][3][3]=='READY' and emitted[2][3][4]==100)")
         reply.write_text("x" * 4096, encoding="ascii")
         execute("assert(not LifeSignsDatabaseAdapter.readReply(file)); clock=2; callbacks.onUpdate(); assert(#emitted==2)")
+        execute("assert(health[1][3]=='REQUEST_RECEIVED' and health[2][3]=='REPLY_FORWARDED'); LifeSignsDatabaseAdapter.directory=function() return nil end; clock=3; callbacks.onUpdate(); assert(health[#health][3]=='NATIVE_READER_UNAVAILABLE' and emitted[#emitted][3][3]=='ERROR')")
     print("PASS: installed LuaJIT compilation, real Win32 reply reads, strict parsing, stale identity rejection, polling/deduplication and mocked UI return callback. X4 UI runtime remains untested.")
 finally:
     lua.lua_close(state)

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="lifesigns_event_recorder" name="Life Signs Object Profile Collector" description="Experimental snapshot-only station, ship and NPC profiles. No event listeners. Requires -scriptlogfiles. Discovery and native behaviour remain unverified." version="101" author="Life Signs" enabled="1" save="0">
+<content id="lifesigns_event_recorder" name="Life Signs Object Profile Collector" description="Experimental SQLite station, ship and NPC profiles with selective event history. Requires -scriptlogfiles and the profile sidecar. Native behaviour remains under test." version="102" author="Life Signs" enabled="1" save="0">
   <dependency version="900" />
 </content>

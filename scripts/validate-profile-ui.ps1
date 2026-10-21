@@ -3,26 +3,19 @@ param([Parameter(Mandatory = $true)][string]$SourceDirectory)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $source = (Resolve-Path -LiteralPath $SourceDirectory).Path
-$expected = @{
-    'ui/addons/ego_detailmonitor/ui.xml' = '7462cc56746d4fb1705477cc0471674c147e33d162d1758f9162eb55cc03a937'
-    'ui/core/coreaddon.xsd' = 'dc4b8e04262c8f8b0a1273041b3c2b951e4bec16c375be0ee44409a70330faeb'
-}
-foreach ($name in $expected.Keys) {
-    if ((Get-FileHash -LiteralPath (Join-Path $source $name) -Algorithm SHA256).Hash -ne $expected[$name]) { throw 'UI primary source hash changed; reverify provenance.' }
-}
-[xml]$base = Get-Content -LiteralPath (Join-Path $source 'ui/addons/ego_detailmonitor/ui.xml') -Raw
-[xml]$diff = Get-Content -LiteralPath (Join-Path $root 'extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/ui.xml') -Raw
-$adds = @($diff.SelectNodes('/diff/add'))
-if ($adds.Count -ne 1 -or $adds[0].GetAttribute('sel') -ne "/addon/environment[@type='menus']" -or $adds[0].SelectNodes('file').Count -ne 1 -or $adds[0].file.name -ne 'lifesigns_database.lua') { throw 'Unexpected UI diff scope.' }
-$environment = $base.SelectNodes($adds[0].GetAttribute('sel'))
-if ($environment.Count -ne 1) { throw 'Expected one menus environment.' }
-$environment[0].AppendChild($base.ImportNode($adds[0].SelectSingleNode('file'), $true)) | Out-Null
+$schema = Join-Path $source 'ui/core/addon.xsd'
+if ((Get-FileHash -LiteralPath $schema -Algorithm SHA256).Hash -ne '67d318ee4a6892905198519df094b8abe357c84751166e3bc4af2ee19a826cca') { throw 'Extension addon schema changed; reverify source.' }
+$extension = Join-Path $root 'extensions/lifesigns_event_recorder'
+$file = Join-Path $extension 'ui.xml'
+[xml]$addon = Get-Content -LiteralPath $file -Raw
+if ($addon.addon.name -ne 'lifesigns_event_recorder' -or $addon.SelectNodes('/addon/environment').Count -ne 1 -or $addon.addon.environment.type -ne 'menus' -or $addon.SelectNodes('/addon/environment/file').Count -ne 1 -or $addon.addon.environment.file.name -ne 'ui/addons/ego_detailmonitor/lifesigns_database.lua' -or $addon.addon.environment.dependency.name -ne 'ego_detailmonitor') { throw 'Unexpected extension addon registration.' }
+if (-not (Test-Path -LiteralPath (Join-Path $extension $addon.addon.environment.file.name) -PathType Leaf)) { throw 'Registered Lua file missing.' }
+if (Test-Path -LiteralPath (Join-Path $extension 'ui/addons/ego_detailmonitor/ui.xml')) { throw 'Do not patch the vanilla addon registration.' }
 $settings = New-Object System.Xml.XmlReaderSettings
 $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
 $settings.ValidationType = [System.Xml.ValidationType]::Schema
-$settings.Schemas.Add($null, (Join-Path $source 'ui/core/coreaddon.xsd')) | Out-Null
+$settings.Schemas.Add($null, $schema) | Out-Null
 $settings.add_ValidationEventHandler({ param($sender, $event) throw $event.Message })
-$text = New-Object System.IO.StringReader($base.OuterXml)
-$reader = [System.Xml.XmlReader]::Create($text, $settings)
-try { while ($reader.Read()) {} } finally { $reader.Dispose(); $text.Dispose() }
-Write-Output 'Validated scoped UI diff merged into hash-verified X4 9.00 addon XML against installed coreaddon schema. Native UI loading remains owner-test unverified.'
+$reader = [System.Xml.XmlReader]::Create($file, $settings)
+try { while ($reader.Read()) {} } finally { $reader.Dispose() }
+Write-Output 'Validated extension-root addon registration, load dependency and Lua presence against installed X4 9.00 addon.xsd. Native loading remains owner-test unverified.'

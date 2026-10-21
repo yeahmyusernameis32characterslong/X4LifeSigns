@@ -24,6 +24,23 @@
 </run_actions>
 </actions>
 </cue>
+<cue name="DatabaseHealth" instantiate="true">
+<conditions>
+<event_ui_triggered screen="'LifeSignsDatabase'" control="'health'" />
+</conditions>
+<actions>
+<do_if value="md.$LSPReady? and md.$LSPReady and typeof event.param3 == datatype.list">
+<do_if value="event.param3.count == 3">
+<do_if value="event.param3.{1} == md.$LSPRun and event.param3.{2} == md.$LSPUniverseIdText">
+<run_actions ref="Write">
+<param name="Diagnostic" value="true" />
+<param name="Body" value="'DATABASE_TRANSPORT|stage=%s'.[event.param3.{3}]" />
+</run_actions>
+</do_if>
+</do_if>
+</do_if>
+</actions>
+</cue>
 <cue name="PersonnelRoleResponse" instantiate="true">
 <conditions>
 <event_ui_triggered screen="'LifeSignsPersonnel'" control="'role_changed'" />

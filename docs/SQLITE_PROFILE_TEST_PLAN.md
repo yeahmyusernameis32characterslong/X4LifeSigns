@@ -1,3 +1,42 @@
+# Current correction after first owner test
+
+The first native run at4cb0020 failed before profiling: SQLite committed the
+startup record and wrote NEED_BASELINE, but no return acknowledgement reached
+MD before its timeout. Zero station/ship/NPC profiles or gameplay event rows
+were captured; only an incomplete staging DB exists. Original logs/status/DB
+were preserved and the sidecar was stopped after X4 closed.
+
+The earlier merged-vanilla-UI schema check proved XML shape only; it did not
+prove registration or native loading. The adapter now registers through the
+extension-root ui.xml, as documented in Egosoft's
+[MD/Lua integration guide](https://wiki.egosoft.com/X4%20Foundations%20Wiki/Modding%20Support/UI%20Modding%20support/Talking%20with%20MD%20and%20AI%20scripts/).
+It is a uniquely named menus addon with an ego_detailmonitor load dependency,
+validated against the installed extension addon.xsd (not coreaddon.xsd).
+The obsolete vanilla-addon diff is removed. This corrects a documented loading
+contract; a new owner run must still establish the actual complete path.
+
+The Lua adapter now emits per-run transport stages to a scoped diagnostic
+listener: REQUEST_RECEIVED, WAITING_FOR_REPLY_FILE, INVALID_OR_MISMATCHED_REPLY,
+NATIVE_READER_UNAVAILABLE and REPLY_FORWARDED. A missing native reader reports
+ERROR rather than silently waiting. Diagnostics do not increment raw record
+ordinals or create a feedback loop. No protected UI setting was changed.
+
+The installed addon.xsd was extracted from900 catalog08, entry offset49681216,
+size5132, MD5d163bb12d19848ca786e6c2d4dacc4c6, SHA256
+67d318ee4a6892905198519df094b8abe357c84751166e3bc4af2ee19a826cca.
+The schema explicitly restricts extension addon names, relative Lua filenames
+and dependency loading. The previous source evidence remains below as history;
+its native deployment readiness was superseded by this failed first test.
+
+56collector/SQLite tests, LuaJIT standalone adapter tests (including health/error
+stages), installed MD schema and extension-root registration schema checks pass
+for the correction. Previous112 bridge tests are unchanged; no bridge code is
+touched. Actual Windows FFI access inside X4, UI polling and reply dispatch
+remain unverified. The separate old NPC observation diagnostic reports errors;
+it remains untouched and is not established as the timeout cause.
+
+---
+
 # PR20: SQLite profile and selective event test
 
 ## Owner authority and baseline
