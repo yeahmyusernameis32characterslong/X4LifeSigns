@@ -91,6 +91,32 @@ test('incremental tail retains incomplete UTF-8 rows and refuses truncation', t 
   assert.throws(()=>identityTail.poll(),/replaced/);
 });
 
+test('rename history projects a mutable name without rewriting profile rows or inheriting future branches',t=>{
+  const {open}=fixture(t),s=open();const original=baseline.map(r=>r.kind==='PROFILE_BEGIN'?{...r,fields:{...r.fields,kind:'SHIP'}}:r);
+  s.ingest(original);
+  const change=(run,n,name,extra={})=>row(run,n,'ENTITY_EVENT',{event_type:'NAME_CHANGED',subject_kind:'SHIP',subject_seed:'9223372036854775807',old_name:'prior',old_name_state:'PRESENT',new_name:name,new_name_state:'PRESENT',...extra});
+  const first=change(A,8,'First | % 船\nname'),later=change(A,9,'Abandoned future');s.ingest([first,later]);
+  assert.equal(s.profilesAt(A,7)[0].fields.name.value,baseline[4].fields.value);
+  assert.equal(s.profilesAt(A,8)[0].fields.name.value,first.fields.new_name);assert.equal(s.profilesAt()[0].fields.name.value,'Abandoned future');
+  assert.equal(JSON.parse(s.db.prepare('SELECT fields_json FROM profile_versions').get().fields_json).name.value,baseline[4].fields.value);
+  s.close();const b=open(B);b.ingest([start(B,A,'8')]);assert.equal(b.profilesAt()[0].fields.name.value,first.fields.new_name);
+  b.ingest([change(B,2,'Current branch')]);b.ingest([change(B,2,'Current branch')]);
+  assert.equal(b.profilesAt()[0].fields.name.value,'Current branch');assert.equal(b.eventsAt().length,2);
+  assert.deepEqual(b.profilesAt()[0].name_observation,{run_id:B,record_id:2,game_time:'0.2',event_type:'NAME_CHANGED'});
+  b.ingest([change(B,3,'Unobserved request',{event_type:'NAME_CHANGE_REQUESTED',new_name_state:'UNKNOWN'})]);
+  assert.equal(b.profilesAt()[0].fields.name.value,'Current branch');
+  b.ingest([change(B,4,'Wrong seed',{subject_seed:'123',subject_idcode:'SYN-001'})]);
+  assert.equal(b.profilesAt()[0].fields.name.value,'Current branch');
+});
+
+test('a later full profile supersedes earlier name events while station observations retain unknown-old provenance',t=>{
+  const {open}=fixture(t),s=open();const original=baseline.map(r=>r.kind==='PROFILE_BEGIN'?{...r,fields:{...r.fields,kind:'STATION'}}:r);s.ingest(original);
+  s.ingest([row(A,8,'ENTITY_EVENT',{event_type:'NAME_OBSERVED',subject_kind:'STATION',subject_seed:'9223372036854775807',old_name:'',old_name_state:'UNKNOWN',new_name:'Observed station',new_name_state:'PRESENT'})]);
+  assert.equal(s.profilesAt()[0].fields.name.value,'Observed station');assert.equal(s.eventsAt()[0].fields.old_name_state,'UNKNOWN');
+  s.ingest([row(A,9,'PROFILE_BEGIN',{kind:'STATION',profile:'2'}),row(A,10,'VALUE',{profile:'2',field:'seed',value:'9223372036854775807',type:'largeint',state:'PRESENT'}),row(A,11,'VALUE',{profile:'2',field:'name',value:'Later profile',type:'string',state:'PRESENT'}),row(A,12,'PROFILE_END',{profile:'2',partial:'0'})]);
+  assert.equal(s.profilesAt()[0].fields.name.value,'Later profile');assert.equal(s.db.prepare('SELECT count(*) AS n FROM profile_versions').get().n,2);
+});
+
 test('launch boundary excludes retained files even if their modification time changes', async t => {
   const {dir,open,track}=fixture(t), s=open(); s.ingest(baseline);s.close();
   const logs=path.join(dir,'logs'),replies=path.join(dir,'replies');fs.mkdirSync(logs);fs.mkdirSync(replies);

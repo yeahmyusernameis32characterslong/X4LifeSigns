@@ -179,6 +179,25 @@ export class ProfileStore {
     const chain = this.ancestry(run, record);
     const objects = new Map();
     for (const item of chain) for (const p of this.db.prepare('SELECT * FROM profile_versions WHERE run_id=? AND record_id<=? ORDER BY record_id DESC').all(item.run, item.limit)) if (!objects.has(p.entity_key)) objects.set(p.entity_key, { ...p, fields: JSON.parse(p.fields_json) });
-    return [...objects.values()];
+    const profiles = [...objects.values()];
+    // Baseline/profile rows remain immutable. Apply only later observed names
+    // on this save's ancestry, not names from an abandoned future branch.
+    const position = new Map([...chain].reverse().map((p, i) => [p.run, i]));
+    const seeds = new Map(), codes = new Map(), references = new Map();
+    const index = (map, key, p) => { if (key) map.set(key, map.has(key) ? null : p); };
+    for (const p of profiles) {
+      index(seeds, p.seed && `${p.kind}:${p.seed}`, p);
+      index(codes, p.idcode && `${p.kind}:${p.idcode}`, p);
+      index(references, p.reference && `${p.run_id}:${p.kind}:${p.reference}`, p);
+    }
+    for (const e of this.eventsAt(run, record)) {
+      if (!['SHIP', 'STATION'].includes(e.subject_kind) || !['NAME_CHANGED', 'NAME_OBSERVED'].includes(e.event_type) || e.fields.new_name_state !== 'PRESENT' || typeof e.fields.new_name !== 'string') continue;
+      // A mismatching seed must never fall back to somebody else's ID code.
+      const p = e.subject_seed ? seeds.get(`${e.subject_kind}:${e.subject_seed}`) : e.subject_idcode ? codes.get(`${e.subject_kind}:${e.subject_idcode}`) : references.get(`${e.run_id}:${e.subject_kind}:${e.subject_reference}`);
+      if (!p || position.get(e.run_id) < position.get(p.run_id) || (e.run_id === p.run_id && e.record_id <= p.record_id)) continue;
+      p.fields.name = { value: e.fields.new_name, state: 'PRESENT', type: 'string' };
+      p.name_observation = { run_id: e.run_id, record_id: e.record_id, game_time: e.game_time, event_type: e.event_type };
+    }
+    return profiles;
   }
 }
