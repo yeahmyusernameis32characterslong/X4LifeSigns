@@ -4,6 +4,7 @@ export const profileEvents = JSON.parse(readFileSync(new URL('./profile-events.j
 export function generateProfileEvents(h, c) {
   const { tag, set, add, iff, otherwise, each, ret, run, lib, write, valid } = h;
   const owned = x => `${valid(x)} and ${x}.isplayerowned`;
+  const eventWrite=body=>run('Write',{Body:body,EventTrace:'true'});
   const key = (kind, seed) => `'$%s:%s'.[${kind}, ${seed}]`;
   const initialize = iff('not md.$LSPWatch?', tag('create_group', { groupname:'md.$LSPWatch' }))+
     tag('find_station',{name:'$WatchStations',space:'player.galaxy',trueowner:'faction.player',multiple:'true',checkoperational:'false'})+
@@ -77,7 +78,7 @@ export function generateProfileEvents(h, c) {
     iff("$Kind == 'NPC' and $Type == 'ENTITY_LEFT'",iff(valid('$Other'),iff('$Other.isclass.spacesuit',set('$Type',"'EJECTED'"))))+
     iff("$Kind == 'NPC' and $Type == 'ENTITY_ENTERED'",iff(valid('$Previous'),iff('$Previous.isclass.spacesuit',set('$Type',"'RESCUED'"))))+
     fields.map(f=>run('Escape',{Value:'$'+f},'$'+f)).join('')+
-    write(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|${fields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind','$Status',...fields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
+    eventWrite(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|${fields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind','$Status',...fields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
 
   const dispatch=lib('HandleProfileEvent',{Subject:'null',Host:'null',Other:'null',Previous:'null',Detail:'null',DetailName:'null',Target:'null',Order:'null',Type:null,Create:'false',Npc:'false',Assignment:'false'},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
@@ -147,7 +148,7 @@ export function generateProfileEvents(h, c) {
     set('$subject_reference',"'%s'.[$Object]")+set('$old_name','$Before')+set('$old_name_state','$BeforeState')+
     set('$requested_name','$Requested')+set('$name_source','$Source')+
     renameFields.map(f=>run('Escape',{Value:'$'+f},'$'+f)).join('')+
-    write(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=OBSERVED_AFTER_UI_RENAME|${renameFields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind',...renameFields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
+    eventWrite(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=OBSERVED_AFTER_UI_RENAME|${renameFields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind',...renameFields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
   const renameListener=tag('cue',{name:'ProfileNameResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsProfiles'",control:"'name_changed'"}))+tag('actions',{},
     iff('typeof event.param3 == datatype.list',iff('event.param3.count == 5',iff('typeof event.param3.{1} == datatype.component',run('RecordNameObservation',{Object:'event.param3.{1}',Before:'event.param3.{2}',BeforeState:'event.param3.{3}',Requested:'event.param3.{4}',Source:'event.param3.{5}'}))))));
   const orderChecks=lib('ProcessOrderObservations',{},

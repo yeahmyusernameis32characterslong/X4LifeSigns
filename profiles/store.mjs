@@ -108,7 +108,7 @@ export class ProfileStore {
         }
         if (!/^\d+(?:\.\d+)?$/.test(row.age)) throw Error('Invalid game time');
         const last = db.prepare('SELECT coalesce(max(record_id),0) AS n FROM records WHERE run_id=?').get(this.run).n;
-        if (n !== last + 1) throw Error('Non-contiguous profile stream');
+        if (n !== last + 1) throw Error(`Non-contiguous profile stream: expected ${last + 1}, received ${n} (${row.kind})`);
         const f = row.fields;
         if (row.kind === 'RUN_BEGIN') {
           if (n !== 1 || f.lifesigns_universe_id !== this.id || f.database_protocol !== 'LSDB1') throw Error('Invalid profile startup');

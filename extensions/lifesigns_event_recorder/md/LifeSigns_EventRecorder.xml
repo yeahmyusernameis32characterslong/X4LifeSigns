@@ -522,6 +522,7 @@
 <params>
 <param name="Body" />
 <param name="Diagnostic" default="false" />
+<param name="EventTrace" default="false" />
 </params>
 <actions>
 <do_if value="$Diagnostic and md.$LSPLevel == 0">
@@ -540,6 +541,9 @@
 <set_value name="md.$LSPRecord" exact="1L" operation="add" />
 </do_if>
 <set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|record=%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body, md.$LSPRecord]" />
+<do_if value="not $Diagnostic and $EventTrace and md.$LSPLevel ge 3">
+<debug_text text="'LSPWRITE1|phase=BEFORE|run=%s|record=%s|row=%s'.[md.$LSPRun, md.$LSPRecord, $Line]" />
+</do_if>
 <do_if value="$Diagnostic">
 <set_value name="md.$LSPDiagnosticRows" exact="1L" operation="add" />
 <debug_to_file name="md.$LSPDiagnosticFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
@@ -548,6 +552,9 @@
 <set_value name="md.$LSPRows" exact="1L" operation="add" />
 <debug_to_file name="md.$LSPProfileFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
 </do_else>
+<do_if value="not $Diagnostic and $EventTrace and md.$LSPLevel ge 3">
+<debug_text text="'LSPWRITE1|phase=AFTER|run=%s|record=%s|row=%s'.[md.$LSPRun, md.$LSPRecord, $Line]" />
+</do_if>
 <return value="true" />
 </actions>
 </library>
@@ -3886,6 +3893,7 @@
 </run_actions>
 <run_actions ref="Write">
 <param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|subject_seed=%s|subject_idcode=%s|subject_reference=%s|host_seed=%s|host_idcode=%s|other_seed=%s|other_idcode=%s|other_reference=%s|previous_reference=%s|actual_role=%s|control_post=%s|requested_role=%s|detail=%s|detail_name=%s'.[$Type, $Kind, $Status, $subject_seed, $subject_idcode, $subject_reference, $host_seed, $host_idcode, $other_seed, $other_idcode, $other_reference, $previous_reference, $actual_role, $control_post, $requested_role, $detail, $detail_name]" />
+<param name="EventTrace" value="true" />
 </run_actions>
 <return value="true" />
 </actions>
@@ -4233,6 +4241,7 @@
 </run_actions>
 <run_actions ref="Write">
 <param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=OBSERVED_AFTER_UI_RENAME|subject_seed=%s|subject_idcode=%s|subject_reference=%s|old_name=%s|old_name_state=%s|new_name=%s|new_name_state=%s|requested_name=%s|name_source=%s'.[$Type, $Kind, $subject_seed, $subject_idcode, $subject_reference, $old_name, $old_name_state, $new_name, $new_name_state, $requested_name, $name_source]" />
+<param name="EventTrace" value="true" />
 </run_actions>
 <return value="true" />
 </actions>

@@ -47,15 +47,17 @@ export function generateRecorder(config) {
     iff('typeof UniverseIdentity.$Id == datatype.string',iff("UniverseIdentity.$Id != ''",
       run('Escape',{Value:'UniverseIdentity.$Id'},'md.$LSPUniverseIdText')+
       iff("md.$LSPUniverseIdState != 'CREATED'",set('md.$LSPUniverseIdState',"'EXISTING'"))))+ret('true'));
-  const writer=lib('Write',{Body:null,Diagnostic:'false'},
+  const writeTrace=phase=>iff('not $Diagnostic and $EventTrace and md.$LSPLevel ge 3',tag('debug_text',{text:`'LSPWRITE1|phase=${phase}|run=%s|record=%s|row=%s'.[md.$LSPRun, md.$LSPRecord, $Line]`}));
+  const writer=lib('Write',{Body:null,Diagnostic:'false',EventTrace:'false'},
     iff('$Diagnostic and md.$LSPLevel == 0',ret('false'))+
     iff('md.$LSPStopped',ret('false'))+
     set('$Session',"'UNAVAILABLE'")+
     iff('md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?',iff("md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''",set('$Session','md.$LifeSignsProductionSessionKey')))+
     iff('not $Diagnostic',add('md.$LSPRecord'))+
     set('$Line',"'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|record=%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body, md.$LSPRecord]")+
+    writeTrace('BEFORE')+
     iff('$Diagnostic',add('md.$LSPDiagnosticRows')+tag('debug_to_file',{name:'md.$LSPDiagnosticFile',directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+
-    otherwise(add('md.$LSPRows')+tag('debug_to_file',{name:'md.$LSPProfileFile',directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+ret('true'));
+    otherwise(add('md.$LSPRows')+tag('debug_to_file',{name:'md.$LSPProfileFile',directory:"'lifesigns-event-recorder'",append:'true',text:'$Line'}))+writeTrace('AFTER')+ret('true'));
   const val=lib('Value',{Field:null,Value:null,Available:'true',State:"'AUTO'"},
     iff('md.$LSPStopped',ret('false'))+
     iff('md.$LSPRemaining le 0',iff('not md.$LSPValueLimit',set('md.$LSPValueLimit','true')+set('md.$LSPProfilePartial','true')+write("'PROFILE_LIMIT|reason=VALUE_BUDGET'"))+ret('false'))+

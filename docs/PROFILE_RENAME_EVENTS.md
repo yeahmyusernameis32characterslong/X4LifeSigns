@@ -88,3 +88,29 @@ Returned `fields.name` is the projected current display name; `name_observation`
 identifies its event run, ordinal and time. `fields_json` remains the original
 profile payload. Unknown actual names never overwrite known names. Replaying the
 same log is idempotent; earlier names/history remain available.
+
+## First native load/rename check and diagnostic continuation
+
+The owner-run test at `914d417` verified automatic service start/drain/exit and
+reuse of the ready database with the saved committed checkpoint; no new full
+snapshot ran. The later database error was a rejected event stream: records1–10
+committed, raw record11 absent, then12–15 present. Original baseline/database
+integrity remain intact. Do not describe this as failed initial database loading.
+
+Eight rename callbacks failed before recording: `ConvertStringToLuaID` already
+arrives in MD as a component. Wrapping it in `component.{...}` performed a second
+conversion. Rename and personnel UI listeners now require datatype.component and
+pass it directly. A regression test delivers that native payload type through
+the actual generated listener, including rejection of malformed payloads.
+
+The missing ordinal's cause is **unverified** and must not be attributed to the
+rename failure. SQL continuity remains strict; no records are manufactured or
+renumbered. Current DEBUG diagnostics add `LSPWRITE1` BEFORE/AFTER traces around
+scalar event `debug_to_file` calls in the regular scripts debug output. Snapshot
+rows are not mirrored. These traces prove action progress, not durable file or
+SQL commit, and need an owner-run repeat to compare generation/file/SQL evidence.
+They depend on the scripts debug filter; existing launch logging must be checked
+before asking for a diagnostic repeat. Remove/reduce this diagnostic after the
+native write-path investigation. A separate early-load observation appended NPC
+events to a restored old raw log before the new run boundary; automatic creation-
+time filtering prevented their import. That lifecycle ordering remains open.

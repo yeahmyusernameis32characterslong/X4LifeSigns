@@ -30,7 +30,7 @@ const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : 
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
 export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0, autoDatabase = true, databaseState = 'NEED_BASELINE' } = {}) {
-  const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+  const tree = parseXml(source), md = {}, output = [], traces = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   let randomCounter = randomStart;
   function walk(node, parentCue) {
     // Native load-time syntax errors cannot be hidden by optional evaluation.
@@ -147,6 +147,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'run_actions') { const args = Object.fromEntries(n.children.map(p => [p.attrs.name, ev(p.attrs.value)])); const result = call(a.ref, args); if (a.result) assign(a.result, result, local); }
       else if (n.tag === 'substitute_text') { let text = a.source ? ev(a.source) : ev(a.text); for (const r of n.children) text = text.split(ev(r.attrs.string)).join(ev(r.attrs.with)); assign(a.text, text, local); }
       else if (n.tag === 'debug_to_file') output.push({ name: ev(a.name), line: ev(a.text) });
+      else if (n.tag === 'debug_text') traces.push(ev(a.text));
       else if (n.tag === 'show_notification') notifications.push({ kind: 'ticker', text: ev(a.text), timeout: ev(a.timeout), priority: ev(a.priority), afterRows: output.length });
       else if (n.tag === 'show_help') notifications.push({ kind: 'help', text: ev(a.custom), position: ev(a.position), halign: ev(a.halign), allowclose: ev(a.allowclose), timeout: ev(a.timeout), log: ev(a.log), afterRows: output.length });
       else if (n.tag === 'raise_lua_event') {} // Real UI/file/SQLite transport is tested separately.
@@ -192,5 +193,5 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
   function load() { cue('RunBoundary'); cue('Bootstrap'); }
   function start() { load(); }
-  return { md, player, output, notifications, callCounts, call, cue, start, load, tree, cueVariables: context };
+  return { md, player, output, traces, notifications, callCounts, call, cue, start, load, tree, cueVariables: context };
 }

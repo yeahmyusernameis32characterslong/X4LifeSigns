@@ -82,6 +82,17 @@ test('native Lua component payloads pass directly through rename and personnel U
   assert.equal(events.at(-1).fields.event_type,'CREW_ROLE_OBSERVED');assert.equal(events.at(-1).fields.subject_seed,'9223372036854775807');
 });
 
+test('DEBUG scalar write traces bracket the exact row without tracing whole profiles or changing ordinals',()=>{
+  const ship=host('ship','SYN-001'),h=setup({ships:[ship]});finish(h);
+  assert.deepEqual(h.traces,[]);const before=h.md.$LSPRecord;
+  h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY',Detail:'Patrol'});
+  const e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1),raw=h.output.find(r=>r.line.includes('|record='+e.fields.record+'|END')).line;
+  assert.equal(h.md.$LSPRecord,before+1);assert.equal(h.traces.length,2);
+  assert.ok(h.traces[0].includes('phase=BEFORE|'));assert.ok(h.traces[1].includes('phase=AFTER|'));
+  assert.ok(h.traces.every(t=>t.endsWith('row='+raw)));
+  h.md.$LSPLevel=2;h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY'});assert.equal(h.traces.length,2);
+});
+
 test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
