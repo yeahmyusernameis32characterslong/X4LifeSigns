@@ -1,3 +1,38 @@
+# Approved native reader implementation checkpoint
+
+Owner explicitly approved this proposal in chat on2026-10-21 ("I approve").
+The earlier eight-requirement permission and its deployment scope remain.
+Implementation uses one first-party Lua C module; no third-party binary or
+Protected UI/configuration change. Initial compiled-module tests pass; native
+X4 module loading remains the next OWNER main-menu-only gate.
+
+Source: profiles/native/lifesigns_status.cpp. Build with the existing Windows
+C++ Build Tools (x64, static CRT, warnings-as-errors, CFG/ASLR/NX). The build
+script writes all outputs and source/DLL hashes under ignored local-data:
+
+```powershell
+powershell -NoProfile -File scripts/build-profile-status-native.ps1
+python profiles/test/lua_adapter_test.py '<installed lua51_64.dll>' '<built lifesigns_status.dll>'
+```
+
+The C module resolves only the documented Lua5.1 API from the already-loaded
+lua51_64.dll. It calls no X4 engine API. Canonical run filenames, fixed own
+runtime location, regular-file/single-link checks, final handle-path comparison,
+4095-byte limit and complete ASCII line checks constrain reads. Runtime directory
+reparse points are refused. C++ path/file resources are destroyed before pushing
+Lua results. Large path buffers are allocated on the heap rather than the game
+thread's stack. Lua keeps strict LSDB1 parsing/run/universe/ordinal validation.
+
+A synthetic owned reply is read locally at startup. It never emits READY to MD
+or changes a checkpoint/database. Expected main-menu diagnostic:
+NATIVE_MODULE_READY with probe=PASS. Sidecar stays stopped for that first native
+check; only after owner confirms module loading/readback should a whole-profile
+retest be prepared. Source/build instructions are committed; generated DLL,
+object/import libraries, receipts, test fixtures and actual game IDs remain
+ignored. The earlier proposal is preserved below as design history.
+
+---
+
 # Proposal: bounded native profile-status reader
 
 Status: PROPOSED, not implemented or deployed. PR20 diagnostic code at4fff596

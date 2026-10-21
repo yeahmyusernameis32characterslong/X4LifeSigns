@@ -1,57 +1,32 @@
--- Optional Windows profile test adapter. Reads only status replies; never evaluates file contents.
+-- Optional read-only profile status adapter. File bytes are never evaluated.
 local Adapter = {}
 LifeSignsDatabaseAdapter = Adapter
-local ok, ffi = pcall(require, "ffi")
+local ok, ffi = pcall(require, "ffi") -- Only existing game personnel getters use FFI.
 local native
-local readerStage, readerDetail = "FFI_MODULE_UNAVAILABLE", ok and "" or tostring(ffi)
-if ok then
-    local declared, declarationError = pcall(ffi.cdef, [[
-        void* __stdcall CreateFileA(const char*, unsigned long, unsigned long, void*, unsigned long, unsigned long, void*);
-        int __stdcall ReadFile(void*, void*, unsigned long, unsigned long*, void*);
-        int __stdcall CloseHandle(void*);
-        unsigned long __stdcall GetModuleFileNameA(void*, char*, unsigned long);
-    ]])
-    readerStage, readerDetail = "FFI_DECLARATION_FAILED", declared and "" or tostring(declarationError)
-    if declared then
-        local bound, bindingError = pcall(function() return ffi.C.CreateFileA, ffi.C.ReadFile, ffi.C.CloseHandle, ffi.C.GetModuleFileNameA end)
-        readerStage, readerDetail = "WINDOWS_SYMBOL_BINDING_FAILED", bound and "" or tostring(bindingError)
-        if bound then native = ffi.C; readerStage = "WINDOWS_SYMBOLS_BOUND" end
+local readerStage, readerDetail = "NATIVE_MODULE_UNAVAILABLE", ""
+local safe = type(GetUISafeModeOption) == "function" and GetUISafeModeOption()
+if safe == true then
+    readerStage = "NATIVE_MODULE_PROTECTED_MODE"
+elseif type(package) ~= "table" or type(package.loadlib) ~= "function" then
+    readerStage = "NATIVE_LOADER_UNAVAILABLE"
+else
+    local loaded, factory, loadError = pcall(package.loadlib,
+        "./extensions/lifesigns_event_recorder/native/lifesigns_status.dll", "luaopen_lifesigns_status")
+    if not loaded or type(factory) ~= "function" then
+        readerStage, readerDetail = "NATIVE_MODULE_LOAD_FAILED", tostring(loaded and loadError or factory)
+    else
+        local created, module = pcall(factory)
+        if created and type(module) == "table" and type(module.readReply) == "function" then
+            native = module; readerStage = "NATIVE_MODULE_READY"
+        else readerStage, readerDetail = "NATIVE_MODULE_INTERFACE_FAILED", tostring(module) end
     end
 end
-
 function Adapter.readerStatus() return readerStage, readerDetail end
-
-function Adapter.directory()
-    if not native then return nil end
-    local buffer = ffi.new("char[32768]")
-    local n = tonumber(native.GetModuleFileNameA(nil, buffer, 32768))
-    if n == 0 or n >= 32768 then readerStage = "EXECUTABLE_PATH_UNAVAILABLE"; readerDetail = "length=" .. tostring(n); return nil end
-    local executable = ffi.string(buffer, n)
-    local directory = executable:match("^(.*)[/\\][^/\\]+$")
-    if not directory then readerStage = "EXECUTABLE_PATH_INVALID"; readerDetail = "no directory separator"; return nil end
-    readerStage, readerDetail = "READER_READY", ""
-    return directory .. "/extensions/lifesigns_event_recorder/runtime/"
-end
-
--- Runs when the addon loads, including the main menu. No save, actor or game API
--- is needed. Preserve the actual initialisation error in the local debug log.
-do
-    local success, pathOrError = pcall(Adapter.directory)
-    if not success then readerStage, readerDetail = "EXECUTABLE_PATH_CALL_FAILED", tostring(pathOrError) end
-    if type(DebugError) == "function" then
-        DebugError("Life Signs database reader diagnostic: stage=" .. readerStage .. "; detail=" .. readerDetail:gsub("[\r\n]", " "):sub(1, 400))
-    end
-end
-
-function Adapter.readReply(filename)
-    if not native then return nil end
-    local handle = native.CreateFileA(filename, 0x80000000, 7, nil, 3, 128, nil)
-    if handle == ffi.cast("void*", -1) then return nil end
-    local buffer, count = ffi.new("char[4096]"), ffi.new("unsigned long[1]")
-    local success = native.ReadFile(handle, buffer, 4096, count, nil)
-    native.CloseHandle(handle)
-    if success == 0 or count[0] == 0 or count[0] >= 4096 then return nil end
-    return ffi.string(buffer, tonumber(count[0]))
+function Adapter.readReply(run)
+    if not native then return nil, "MODULE_UNAVAILABLE" end
+    local success, text, reason = pcall(native.readReply, run)
+    if not success then return nil, "MODULE_CALL_FAILED" end
+    return text, reason
 end
 
 function Adapter.parse(text, expectedRun, expectedUniverse)
@@ -87,20 +62,31 @@ function Adapter.update()
     local now = getElapsedTime()
     if now - lastPoll < 0.25 then return end
     lastPoll = now
-    local directory = Adapter.directory()
-    if not directory then
+    if not native then
         Adapter.health("NATIVE_READER_UNAVAILABLE")
         AddUITriggeredEvent("LifeSignsDatabase", "reply", {current.run,current.universe,"ERROR",0})
+        current = nil
         return
     end
-    local text = Adapter.readReply(directory .. current.run .. ".reply")
-    if not text then Adapter.health("WAITING_FOR_REPLY_FILE"); return end
+    local text, reason = Adapter.readReply(current.run)
+    if not text then Adapter.health(reason == "MISSING" and "WAITING_FOR_REPLY_FILE" or "REPLY_READ_FAILED"); return end
     if text == lastText then return end
     local response = Adapter.parse(text, current.run, current.universe)
     if response then
         lastText = text; Adapter.health("REPLY_FORWARDED")
         AddUITriggeredEvent("LifeSignsDatabase", "reply", response)
     else Adapter.health("INVALID_OR_MISMATCHED_REPLY") end
+end
+-- Owned synthetic probe is local only: it never sends READY or changes MD state.
+do
+    local run = "session-0-0-loaded-2026-01-01_00-00-00"
+    local universe = "lsu1-2026-01-01_00-00-00-0-0-0-0"
+    local text, reason = Adapter.readReply(run)
+    local parsed = text and Adapter.parse(text, run, universe)
+    local result = parsed and parsed[3] == "READY" and parsed[4] == 0 and "PASS" or reason or "INVALID"
+    if type(DebugError) == "function" then
+        DebugError("Life Signs native reader diagnostic: stage=" .. readerStage .. "; probe=" .. result .. "; detail=" .. readerDetail:gsub("[\r\n]", " "):sub(1, 400))
+    end
 end
 RegisterEvent("LifeSignsDatabaseRequest", Adapter.receive)
 SetScript("onUpdate", Adapter.update)

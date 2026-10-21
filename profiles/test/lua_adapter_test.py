@@ -1,6 +1,6 @@
 """Run the adapter with the installed LuaJIT DLL, real Win32 reads and mocked X4 UI callbacks.
 
-Usage: python profiles/test/lua_adapter_test.py <verified-installed-lua51_64.dll>
+Usage: python profiles/test/lua_adapter_test.py <installed-lua51_64.dll> <built-native-reader.dll>
 This does not start X4 or write to its installation/profile.
 """
 import ctypes
@@ -8,6 +8,10 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import os
+import shutil
+import hashlib
+import subprocess
 
 dll = Path(sys.argv[1]).resolve(strict=True)
 lua = ctypes.CDLL(str(dll))
@@ -29,70 +33,114 @@ def execute(source):
     if lua.luaL_loadstring(state, source.encode("utf-8")) or lua.lua_pcall(state, 0, 0, 0):
         raise RuntimeError(lua.lua_tolstring(state, -1, None).decode("utf-8", errors="replace"))
 
-try:
-    execute("callbacks={}; emitted={}; health={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function AddUITriggeredEvent(s,c,p) if c=='health' then health[#health+1]=p else emitted[#emitted+1]={s,c,p} end end")
-    source = Path(__file__).resolve().parents[2] / "extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_database.lua"
-    execute(source.read_text(encoding="utf-8"))
-    execute("probe_source=" + json.dumps(source.read_text(encoding="utf-8")))
-    execute("""
-local realffi=require('ffi')
-local function probe(module,expected,detail)
-  local logs={}
-  local env=setmetatable({Menus={},require=function() if module==false then error('synthetic require failure') end; return module end,
-    RegisterEvent=function() end,SetScript=function() end,DebugError=function(s) logs[#logs+1]=s end},{__index=_G})
+
+built = Path(sys.argv[2]).resolve(strict=True)
+source = Path(__file__).resolve().parents[2] / "extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_database.lua"
+source_text = source.read_text(encoding="utf-8")
+original_cwd = Path.cwd()
+with tempfile.TemporaryDirectory(prefix="lifesigns-native-test-") as temporary:
+    root = Path(temporary).resolve()
+    assert root.parent == Path(tempfile.gettempdir()).resolve()
+    game = root / "X4 Unicode \u8239"
+    extension = game / "extensions/lifesigns_event_recorder"
+    runtime = extension / "runtime"
+    runtime.mkdir(parents=True)
+    (extension / "native").mkdir()
+    shutil.copyfile(built, extension / "native/lifesigns_status.dll")
+    run = "session-1-2-loaded-2026-10-21_12-00-00"
+    universe = "lsu1-2026-10-21_12-00-00-1-2-3-4"
+    reply = runtime / (run + ".reply")
+    text = f"LSDB1|{universe}|{run}|NEED_BASELINE|1|END\n"
+    probe_run = "session-0-0-loaded-2026-01-01_00-00-00"
+    probe_id = "lsu1-2026-01-01_00-00-00-0-0-0-0"
+    (runtime / (probe_run + ".reply")).write_text(f"LSDB1|{probe_id}|{probe_run}|READY|0|END\n", encoding="ascii")
+    reply.write_text(text, encoding="ascii")
+    os.chdir(game)
+    try:
+        execute("callbacks={}; emitted={}; health={}; diagnostic={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function GetUISafeModeOption() return false end; function DebugError(s) diagnostic[#diagnostic+1]=s end; function AddUITriggeredEvent(s,c,p) if c=='health' then health[#health+1]=p else emitted[#emitted+1]={s,c,p} end end")
+        execute(source_text)
+        execute("assert(#diagnostic==1 and diagnostic[1]:find('stage=NATIVE_MODULE_READY; probe=PASS',1,true)); assert(#emitted==0 and #health==0)")
+        execute("probe_source=" + json.dumps(source_text))
+        execute("""
+local function failure(packageValue,safe,expected)
+  local messages={}
+  local env=setmetatable({Menus={},package=packageValue,GetUISafeModeOption=function() return safe end,
+    RegisterEvent=function() end,SetScript=function() end,DebugError=function(s) messages[#messages+1]=s end},{__index=_G})
   local chunk=assert(loadstring(probe_source));setfenv(chunk,env);chunk()
-  local stage,reason=env.LifeSignsDatabaseAdapter.readerStatus()
-  assert(stage==expected,stage..' ~= '..expected);assert(#logs==1 and logs[1]:find(expected,1,true))
-  if detail then assert(reason:find(detail,1,true)) end
+  assert(env.LifeSignsDatabaseAdapter.readerStatus()==expected)
+  assert(#messages==1 and messages[1]:find(expected,1,true))
 end
-probe(false,'FFI_MODULE_UNAVAILABLE','synthetic require failure')
-probe(setmetatable({cdef=function() error('synthetic cdef failure') end},{__index=realffi}),'FFI_DECLARATION_FAILED','synthetic cdef failure')
-probe(setmetatable({C=setmetatable({},{__index=function() error('synthetic symbol failure') end})},{__index=realffi}),'WINDOWS_SYMBOL_BINDING_FAILED','synthetic symbol failure')
-local symbols={CreateFileA=realffi.C.CreateFileA,ReadFile=realffi.C.ReadFile,CloseHandle=realffi.C.CloseHandle,GetModuleFileNameA=function() return 0 end}
-probe(setmetatable({C=symbols},{__index=realffi}),'EXECUTABLE_PATH_UNAVAILABLE','length=0')
-symbols.GetModuleFileNameA=function() error('synthetic path call failure') end
-probe(setmetatable({C=symbols},{__index=realffi}),'EXECUTABLE_PATH_CALL_FAILED','synthetic path call failure')
-probe(realffi,'READER_READY')
+failure(false,false,'NATIVE_LOADER_UNAVAILABLE')
+failure({loadlib=function() return nil,'synthetic missing DLL' end},false,'NATIVE_MODULE_LOAD_FAILED')
+failure({loadlib=function() return function() return {} end end},false,'NATIVE_MODULE_INTERFACE_FAILED')
+failure({loadlib=function() error('must not load in protected mode') end},true,'NATIVE_MODULE_PROTECTED_MODE')
 """)
-    execute("""
-local ffi=require('ffi')
-local calls=0
-function ConvertStringToLuaID(s) return s:gsub('ULL$','') end
-local function pending()
-  return {crew={reassigned={roles={{tiers={{persons={{person=ffi.new('uint64_t',0xffffffffffffffffULL),newrole='marine'}}}}}}}}}
-end
-local m={name='MapMenu',infoSubmenuObject=ffi.new('uint64_t',123ULL),infoTablePersistentData={left=pending()}}
-LifeSignsDatabaseAdapter.readPersonRole=function(seed,host) assert(tostring(seed)=='18446744073709551615ULL' and tostring(host)=='123ULL'); return 'marine' end
-m.infoSubmenuConfirmCrewChanges=function(instance,a)
-  calls=calls+1; assert(a=='unchanged');m.infoTablePersistentData[instance].crew.reassigned.roles={}; return nil, 'second', nil
-end
-LifeSignsDatabaseAdapter.installPersonnelObserver({m})
-LifeSignsDatabaseAdapter.installPersonnelObserver({m})
-local function results(...) return {n=select('#',...),...} end
-local r=results(m.infoSubmenuConfirmCrewChanges('left','unchanged'))
-assert(calls==1 and r.n==3 and r[1]==nil and r[2]=='second' and r[3]==nil)
-assert(#emitted==1 and emitted[1][1]=='LifeSignsPersonnel' and emitted[1][2]=='role_changed')
-assert(emitted[1][3][1]=='123' and emitted[1][3][2]=='18446744073709551615' and emitted[1][3][3]=='marine' and emitted[1][3][4]=='marine')
-local broken={name='MapMenu',infoSubmenuObject=123,infoTablePersistentData={left=pending()},infoSubmenuConfirmCrewChanges=function() error('original failure') end}
-LifeSignsDatabaseAdapter.installPersonnelObserver({broken})
-assert(not pcall(broken.infoSubmenuConfirmCrewChanges,'left'));assert(#emitted==1)
-emitted={}
-""")
-    with tempfile.TemporaryDirectory(prefix="lifesigns-lua-reply-") as folder:
-        run = "session-1-2-loaded-2026-10-21_12-00-00"
-        universe = "lsu1-2026-10-21_12-00-00-1-2-3-4"
-        reply = Path(folder) / (run + ".reply")
-        text = f"LSDB1|{universe}|{run}|NEED_BASELINE|1|END\n"
-        reply.write_text(text, encoding="ascii")
-        execute(f"run={json.dumps(run)}; universe={json.dumps(universe)}; file={json.dumps(str(reply))}; folder={json.dumps(folder + '/')}" )
-        execute("assert(type(jit.version)=='string'); assert(LifeSignsDatabaseAdapter.directory()); assert(LifeSignsDatabaseAdapter.readReply(file)); assert(not LifeSignsDatabaseAdapter.readReply(file..'.missing'))")
-        execute("local a=LifeSignsDatabaseAdapter; local p=a.parse(a.readReply(file),run,universe); assert(p[3]=='NEED_BASELINE' and p[4]==1); assert(not a.parse(a.readReply(file),'stale',universe)); assert(not a.parse(a.readReply(file),run,'other')); assert(not a.parse('return os.execute(1)',run,universe))")
-        execute("LifeSignsDatabaseAdapter.directory=function() return folder end; callbacks.LifeSignsDatabaseRequest(nil,run..'|'..universe); callbacks.onUpdate(); assert(#emitted==1 and emitted[1][1]=='LifeSignsDatabase' and emitted[1][2]=='reply'); clock=1.3; callbacks.onUpdate(); assert(#emitted==1)")
-        reply.write_text(text.replace("NEED_BASELINE|1", "READY|100"), encoding="ascii")
+        execute("""
+    local ffi=require('ffi')
+    local calls=0
+    function ConvertStringToLuaID(s) return s:gsub('ULL$','') end
+    local function pending()
+      return {crew={reassigned={roles={{tiers={{persons={{person=ffi.new('uint64_t',0xffffffffffffffffULL),newrole='marine'}}}}}}}}}
+    end
+    local m={name='MapMenu',infoSubmenuObject=ffi.new('uint64_t',123ULL),infoTablePersistentData={left=pending()}}
+    LifeSignsDatabaseAdapter.readPersonRole=function(seed,host) assert(tostring(seed)=='18446744073709551615ULL' and tostring(host)=='123ULL'); return 'marine' end
+    m.infoSubmenuConfirmCrewChanges=function(instance,a)
+      calls=calls+1; assert(a=='unchanged');m.infoTablePersistentData[instance].crew.reassigned.roles={}; return nil, 'second', nil
+    end
+    LifeSignsDatabaseAdapter.installPersonnelObserver({m})
+    LifeSignsDatabaseAdapter.installPersonnelObserver({m})
+    local function results(...) return {n=select('#',...),...} end
+    local r=results(m.infoSubmenuConfirmCrewChanges('left','unchanged'))
+    assert(calls==1 and r.n==3 and r[1]==nil and r[2]=='second' and r[3]==nil)
+    assert(#emitted==1 and emitted[1][1]=='LifeSignsPersonnel' and emitted[1][2]=='role_changed')
+    assert(emitted[1][3][1]=='123' and emitted[1][3][2]=='18446744073709551615' and emitted[1][3][3]=='marine' and emitted[1][3][4]=='marine')
+    local broken={name='MapMenu',infoSubmenuObject=123,infoTablePersistentData={left=pending()},infoSubmenuConfirmCrewChanges=function() error('original failure') end}
+    LifeSignsDatabaseAdapter.installPersonnelObserver({broken})
+    assert(not pcall(broken.infoSubmenuConfirmCrewChanges,'left'));assert(#emitted==1)
+    emitted={}
+    """)
+
+        execute(f"run={json.dumps(run)}; universe={json.dumps(universe)}")
+        execute("native=assert(package.loadlib('./extensions/lifesigns_event_recorder/native/lifesigns_status.dll','luaopen_lifesigns_status'))(); assert(type(native.readReply)=='function')")
+        execute("local a=LifeSignsDatabaseAdapter; assert(a.readerStatus()=='NATIVE_MODULE_READY'); assert(a.readReply(run)); local p=a.parse(a.readReply(run),run,universe); assert(p[3]=='NEED_BASELINE' and p[4]==1); assert(not a.parse(a.readReply(run),'stale',universe)); assert(not a.parse(a.readReply(run),run,'other')); assert(not a.parse('return os.execute(1)',run,universe))")
+        execute("for _,bad in ipairs({'../escape','C:/secret','session-01-2-loaded-2026-10-21_12-00-00','session-2147483648-2-loaded-2026-10-21_12-00-00',run..string.char(0)..'x',run..'/x'}) do local s,e=native.readReply(bad);assert(s==nil and e=='INVALID_RUN') end; assert(not native.readReply()); assert(not native.readReply(123)); assert(not native.readReply({})); assert(not native.readReply(run,'extra'))")
+        execute("local s,e=native.readReply('session-3-4-loaded-2026-10-21_12-00-00'); assert(not s and e=='MISSING')")
+        before = hashlib.sha256(reply.read_bytes()).hexdigest()
+        kernel = ctypes.WinDLL('kernel32',use_last_error=True)
+        kernel.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel.GetProcessHandleCount.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
+        def handles():
+            count=ctypes.c_ulong()
+            assert kernel.GetProcessHandleCount(kernel.GetCurrentProcess(),ctypes.byref(count))
+            return count.value
+        execute("for i=1,20 do assert(native.readReply(run)) end")
+        count_before=handles()
+        execute("for i=1,1000 do assert(native.readReply(run)) end")
+        assert handles() <= count_before+1, 'native file handles leaked'
+        assert hashlib.sha256(reply.read_bytes()).hexdigest()==before
+        execute("callbacks.LifeSignsDatabaseRequest(nil,run..'|'..universe); callbacks.onUpdate(); assert(#emitted==1 and emitted[1][1]=='LifeSignsDatabase'); clock=1.3; callbacks.onUpdate(); assert(#emitted==1)")
+        reply.write_text(text.replace('NEED_BASELINE|1','READY|100'),encoding='ascii')
         execute("clock=1.6; callbacks.onUpdate(); assert(#emitted==2 and emitted[2][3][3]=='READY' and emitted[2][3][4]==100)")
-        reply.write_text("x" * 4096, encoding="ascii")
-        execute("assert(not LifeSignsDatabaseAdapter.readReply(file)); clock=2; callbacks.onUpdate(); assert(#emitted==2)")
-        execute("assert(health[1][3]=='REQUEST_RECEIVED' and health[2][3]=='REPLY_FORWARDED'); LifeSignsDatabaseAdapter.directory=function() return nil end; clock=3; callbacks.onUpdate(); assert(health[#health][3]=='NATIVE_READER_UNAVAILABLE' and emitted[#emitted][3][3]=='ERROR')")
-    print("PASS: installed LuaJIT compilation, real Win32 reply reads, strict parsing, stale identity rejection, polling/deduplication and mocked UI return callback. X4 UI runtime remains untested.")
-finally:
-    lua.lua_close(state)
+        for data,expected in [(b'x'*4096,'FILE_SIZE'),(b'','FILE_SIZE'),(text.rstrip('\n').encode(),'INCOMPLETE'),(text.replace('READY','READY\n').encode() if 'READY' in text else text.replace('NEED_BASELINE','NEED\nBASELINE').encode(),'INCOMPLETE'),(text.replace('NEED_BASELINE','NEED\x00BASELINE').encode(),'INVALID_BYTES')]:
+            reply.write_bytes(data)
+            execute(f"local s,e=native.readReply(run);assert(s==nil and e=={json.dumps(expected)},tostring(e))")
+        reply.write_text(text,encoding='ascii')
+        alias=root/'hardlink.reply';os.link(reply,alias)
+        execute("local s,e=native.readReply(run);assert(not s and e=='FILE_TYPE')")
+        alias.unlink()
+        # Replace only our temporary runtime directory with a junction into this fixture.
+        saved_runtime=extension/'runtime-original';assert saved_runtime.is_relative_to(root)
+        runtime.rename(saved_runtime)
+        target=game/'other-replies';target.mkdir()
+        quote=lambda p:"'"+str(p).replace("'","''")+"'"
+        command='New-Item -ItemType Junction -Path '+quote(runtime)+' -Target '+quote(target)+' | Out-Null'
+        subprocess.run(['powershell','-NoProfile','-Command',command],check=True,capture_output=True)
+        execute("local s,e=native.readReply(run);assert(not s and e=='RUNTIME_DIRECTORY')")
+        assert runtime.resolve().is_relative_to(root)
+        os.rmdir(runtime)
+        saved_runtime.rename(runtime)
+        execute("assert(native.readReply(run)); assert(health[1][3]=='REQUEST_RECEIVED' and health[2][3]=='REPLY_FORWARDED')")
+        print('PASS: actual compiled Lua module, Unicode path, bounded read-only replies, loader failure/protected-mode gates, traversal/argument/size/content/hard-link/junction rejection, handle closure, real DLL-to-adapter replies and crew callback preservation. Native X4 loading still requires owner probe.')
+    finally:
+        lua.lua_close(state)
+        os.chdir(original_cwd)
