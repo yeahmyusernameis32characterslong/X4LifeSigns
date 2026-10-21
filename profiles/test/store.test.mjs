@@ -58,6 +58,19 @@ test('ownership, malformed identifiers, gaps and unknown saved ancestors fail wi
   assert.throws(() => new ProfileStore(dir, id, B), /ownership mismatch/);
 });
 
+test('an existing universe rejects a pre-database save without a committed checkpoint', t => {
+  const {open}=fixture(t);const a=open();a.ingest(baseline);a.close();const b=open(B);
+  assert.throws(()=>b.ingest([start(B)]),/saved committed checkpoint/);
+  assert.equal(b.db.prepare('SELECT count(*) AS n FROM sessions WHERE run_id=?').get(B).n,0);
+  assert.throws(()=>b.ingest([start(B,A,'1')]),/predates completed baseline/);
+});
+
+test('a missing universe database rebuilds a baseline without importing an unavailable saved ancestor', t => {
+  const {open}=fixture(t);const b=open(B);
+  assert.equal(b.ingest([start(B,A,'7')]).state,'NEED_BASELINE');
+  assert.equal(b.db.prepare('SELECT parent_run FROM sessions').get().parent_run,null);
+});
+
 test('consumer sends READY only after successful database commit and publishes no old diagnostic data', t => {
   const { dir, track } = fixture(t); const replyDirectory = path.join(dir, 'reply'); fs.mkdirSync(replyDirectory);
   const c = new ProfileConsumer({ root: dir, replyDirectory }); track(c);

@@ -27,8 +27,11 @@ const statements = [
   `CREATE TABLE records (run_id TEXT NOT NULL, record_id INTEGER NOT NULL, kind TEXT NOT NULL, game_time TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(run_id,record_id)) STRICT`,
   `CREATE TABLE profile_versions (run_id TEXT NOT NULL, record_id INTEGER NOT NULL, profile_number TEXT NOT NULL, entity_key TEXT NOT NULL, kind TEXT NOT NULL, seed TEXT, idcode TEXT, reference TEXT, game_time TEXT NOT NULL, fields_json TEXT NOT NULL, partial INTEGER NOT NULL, PRIMARY KEY(run_id,record_id)) STRICT`,
   `CREATE INDEX profile_entity ON profile_versions(entity_key,run_id,record_id)`,
-  `CREATE TABLE events (run_id TEXT NOT NULL, record_id INTEGER NOT NULL, event_type TEXT NOT NULL, game_time TEXT NOT NULL, subject_kind TEXT NOT NULL, subject_seed TEXT, subject_idcode TEXT, subject_reference TEXT, fields_json TEXT NOT NULL, PRIMARY KEY(run_id,record_id)) STRICT`,
+  `CREATE TABLE events (run_id TEXT NOT NULL, record_id INTEGER NOT NULL, event_type TEXT NOT NULL, game_time TEXT NOT NULL, subject_kind TEXT NOT NULL, subject_seed TEXT, subject_idcode TEXT, subject_reference TEXT, host_seed TEXT, host_idcode TEXT, other_seed TEXT, other_idcode TEXT, fields_json TEXT NOT NULL, PRIMARY KEY(run_id,record_id)) STRICT`,
   `CREATE INDEX event_subject ON events(subject_kind,subject_seed,subject_idcode)`,
+  `CREATE INDEX event_host ON events(host_seed,host_idcode)`,
+  `CREATE INDEX event_other ON events(other_seed,other_idcode)`,
+  `CREATE INDEX profile_seed ON profile_versions(kind,seed,idcode)`,
 ];
 const normal = s => s.trim().replace(/\s+/g, ' ');
 function validate(db, id) {
@@ -87,7 +90,7 @@ export class ProfileStore {
     return { universe: this.id, run: this.run, state: ready ? 'READY' : this.db.prepare("SELECT 1 FROM records WHERE run_id=? AND kind='SNAPSHOT_BEGIN'").get(this.run) ? 'BUILDING' : 'NEED_BASELINE', record };
   }
   ingest(rows) {
-    this.guard(); const db = this.db; let completed = false;
+    this.guard(); const db = this.db;
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const row of rows) {
@@ -109,9 +112,14 @@ export class ProfileStore {
         const f = row.fields;
         if (row.kind === 'RUN_BEGIN') {
           if (n !== 1 || f.lifesigns_universe_id !== this.id || f.database_protocol !== 'LSDB1') throw Error('Invalid profile startup');
-          const parent = f.parent_run === 'NONE' ? null : runId(f.parent_run);
-          const cursor = ordinal(f.parent_record);
+          let parent = f.parent_run === 'NONE' ? null : runId(f.parent_run);
+          let cursor = ordinal(f.parent_record);
+          // Missing universe file requires a fresh baseline, even when a save carries
+          // an older acknowledged checkpoint. Retain the raw startup provenance.
+          if (this.newBaseline) { parent = null; cursor = 0; }
+          if (!parent && !this.newBaseline) throw Error('Existing universe requires a saved committed checkpoint; refusing later history for a pre-database save');
           if (parent && !db.prepare('SELECT 1 FROM records WHERE run_id=? AND record_id=?').get(parent, cursor)) throw Error('Saved checkpoint not found in this universe database');
+          if (parent && !this.ancestry(parent, cursor).some(p => db.prepare("SELECT 1 FROM records WHERE run_id=? AND record_id<=? AND kind='SNAPSHOT_END'").get(p.run, p.limit))) throw Error('Saved checkpoint predates completed baseline; save after database creation');
           db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?)').run(this.run, row.session, parent, cursor, this.newBaseline ? 1 : 0);
         } else if (!db.prepare('SELECT 1 FROM sessions WHERE run_id=?').get(this.run)) throw Error('Missing profile startup');
         db.prepare('INSERT INTO records VALUES(?,?,?,?,?)').run(this.run, n, row.kind, row.age, payload);
@@ -127,33 +135,34 @@ export class ProfileStore {
         if (row.kind === 'PROFILE_END') {
           const p = this.activeProfile; if (!p || p.number !== f.profile) throw Error('Unmatched profile end');
           const present = key => p.fields[key]?.state === 'PRESENT' ? p.fields[key].value : null;
-          const seed = present('seed'), code = present('idcode'), ref = present('reference') || present('actor_reference');
+          const seed = present('seed'), code = present('idcode') || (p.kind === 'NPC' ? /\(([A-Z]{3}-[0-9]{3})\)/.exec(present('debugname') || '')?.[1] || null : null), ref = present('reference') || present('actor_reference');
           const key = seed ? `${p.kind}:seed:${seed}` : code ? `${p.kind}:idcode:${code}` : `${p.kind}:unresolved:${this.run}:${n}`;
           db.prepare('INSERT INTO profile_versions VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(this.run, n, p.number, key, p.kind, seed, code, ref, row.age, JSON.stringify(p.fields), f.partial === '1' || f.partial === 'true' ? 1 : 0);
           this.activeProfile = null;
         }
         if (row.kind === 'ENTITY_EVENT') {
           if (!['SHIP', 'STATION', 'NPC'].includes(f.subject_kind) || !/^[A-Z][A-Z_]+$/.test(f.event_type)) throw Error('Invalid entity event');
-          db.prepare('INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?)').run(this.run, n, f.event_type, row.age, f.subject_kind, f.subject_seed || null, f.subject_idcode || null, f.subject_reference || null, JSON.stringify(f));
+          const identifier = x => x && x !== 'null' && x !== 'UNAVAILABLE' ? x : null;
+          db.prepare('INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(this.run, n, f.event_type, row.age, f.subject_kind, identifier(f.subject_seed), identifier(f.subject_idcode), identifier(f.subject_reference), identifier(f.host_seed), identifier(f.host_idcode), identifier(f.other_seed), identifier(f.other_idcode), JSON.stringify(f));
         }
         if (row.kind === 'SNAPSHOT_END') {
           if (this.activeProfile) throw Error('Snapshot ended with open profile');
           const count = db.prepare('SELECT count(*) AS n FROM profile_versions WHERE run_id=?').get(this.run).n;
           if (count !== ordinal(f.profiles)) throw Error('Snapshot count/readback mismatch');
-          db.exec('UPDATE universe_metadata SET ready=1'); completed = true;
+          db.exec('UPDATE universe_metadata SET ready=1');
         }
       }
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); this.activeProfile = null; throw e; }
     const result = this.status(); // Readback occurs only after COMMIT.
-    if (completed && this.newBaseline) {
-      this.close(); this.guard(); fs.copyFileSync(this.file, this.final, fs.constants.COPYFILE_EXCL);
+    if (result.state === 'READY' && this.newBaseline) {
+      this.close(); this.guard(); checkSidecars(this.final); fs.copyFileSync(this.file, this.final, fs.constants.COPYFILE_EXCL);
       const ro = new DatabaseSync(this.final, { readOnly: true }); try { validate(ro, this.id); } finally { ro.close(); }
       this.file = this.final; this.info = checkPath(this.file); this.newBaseline = false; this.db = new DatabaseSync(this.file); this.guard();
     }
     return result;
   }
-  profilesAt(run = this.run, record = Number.MAX_SAFE_INTEGER) {
+  ancestry(run = this.run, record = Number.MAX_SAFE_INTEGER) {
     runId(run); ordinal(record);
     const chain = []; const seen = new Set();
     for (let cursor = run, limit = record; cursor;) {
@@ -161,6 +170,13 @@ export class ProfileStore {
       chain.push({ run: cursor, limit }); const s = this.db.prepare('SELECT * FROM sessions WHERE run_id=?').get(cursor);
       if (!s) throw Error('Unknown saved session'); cursor = s.parent_run; limit = s.parent_record;
     }
+    return chain;
+  }
+  eventsAt(run = this.run, record = Number.MAX_SAFE_INTEGER) {
+    return this.ancestry(run, record).reverse().flatMap(p => this.db.prepare('SELECT * FROM events WHERE run_id=? AND record_id<=? ORDER BY record_id').all(p.run, p.limit).map(e => ({...e, fields:JSON.parse(e.fields_json)})));
+  }
+  profilesAt(run = this.run, record = Number.MAX_SAFE_INTEGER) {
+    const chain = this.ancestry(run, record);
     const objects = new Map();
     for (const item of chain) for (const p of this.db.prepare('SELECT * FROM profile_versions WHERE run_id=? AND record_id<=? ORDER BY record_id DESC').all(item.run, item.limit)) if (!objects.has(p.entity_key)) objects.set(p.entity_key, { ...p, fields: JSON.parse(p.fields_json) });
     return [...objects.values()];
