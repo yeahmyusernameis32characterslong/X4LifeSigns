@@ -33,6 +33,30 @@ try:
     execute("callbacks={}; emitted={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function AddUITriggeredEvent(s,c,p) emitted[#emitted+1]={s,c,p} end")
     source = Path(__file__).resolve().parents[2] / "extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_database.lua"
     execute(source.read_text(encoding="utf-8"))
+    execute("""
+local ffi=require('ffi')
+local calls=0
+function ConvertStringToLuaID(s) return s:gsub('ULL$','') end
+local function pending()
+  return {crew={reassigned={roles={{tiers={{persons={{person=ffi.new('uint64_t',0xffffffffffffffffULL),newrole='marine'}}}}}}}}}
+end
+local m={name='MapMenu',infoSubmenuObject=ffi.new('uint64_t',123ULL),infoTablePersistentData={left=pending()}}
+LifeSignsDatabaseAdapter.readPersonRole=function(seed,host) assert(tostring(seed)=='18446744073709551615ULL' and tostring(host)=='123ULL'); return 'marine' end
+m.infoSubmenuConfirmCrewChanges=function(instance,a)
+  calls=calls+1; assert(a=='unchanged');m.infoTablePersistentData[instance].crew.reassigned.roles={}; return nil, 'second', nil
+end
+LifeSignsDatabaseAdapter.installPersonnelObserver({m})
+LifeSignsDatabaseAdapter.installPersonnelObserver({m})
+local function results(...) return {n=select('#',...),...} end
+local r=results(m.infoSubmenuConfirmCrewChanges('left','unchanged'))
+assert(calls==1 and r.n==3 and r[1]==nil and r[2]=='second' and r[3]==nil)
+assert(#emitted==1 and emitted[1][1]=='LifeSignsPersonnel' and emitted[1][2]=='role_changed')
+assert(emitted[1][3][1]=='123' and emitted[1][3][2]=='18446744073709551615' and emitted[1][3][3]=='marine' and emitted[1][3][4]=='marine')
+local broken={name='MapMenu',infoSubmenuObject=123,infoTablePersistentData={left=pending()},infoSubmenuConfirmCrewChanges=function() error('original failure') end}
+LifeSignsDatabaseAdapter.installPersonnelObserver({broken})
+assert(not pcall(broken.infoSubmenuConfirmCrewChanges,'left'));assert(#emitted==1)
+emitted={}
+""")
     with tempfile.TemporaryDirectory(prefix="lifesigns-lua-reply-") as folder:
         run = "session-1-2-loaded-2026-10-21_12-00-00"
         universe = "lsu1-2026-10-21_12-00-00-1-2-3-4"

@@ -30,9 +30,10 @@ foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
 $catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
-if ($listeners.Count -ne (2 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+if ($listeners.Count -ne (3 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+if ($listeners[2].GetAttribute('screen') -ne "'LifeSignsPersonnel'" -or $listeners[2].GetAttribute('control') -ne "'role_changed'") { throw 'Unexpected personnel observer listener.' }
 for ($i=0; $i -lt $catalog.Count; $i++) {
-    $listener = $listeners[$i+2]
+    $listener = $listeners[$i+3]
     if ($listener.LocalName -ne $catalog[$i].name -or $listener.LocalName -match '(shield|hull).*damag') { throw 'Event catalog mismatch or forbidden damage event.' }
     foreach ($selector in $catalog[$i].selector.PSObject.Properties) { if ($listener.GetAttribute($selector.Name) -ne $selector.Value) { throw 'Event selector mismatch.' } }
 }

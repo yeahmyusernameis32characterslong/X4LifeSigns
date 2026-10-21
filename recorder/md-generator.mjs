@@ -1,4 +1,4 @@
-// Snapshot-only MD compiler. One universe lifecycle hook; no gameplay/UI capture.
+// Database-aware recorder compiler: scalar events and targeted new-object profiles.
 import { WELCOME, CREATED, DATABASE_ERROR } from './profile-messages.mjs';
 import { generateProfileEvents, profileEvents } from './profile-event-generator.mjs';
 const xml = v => String(v).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -12,7 +12,6 @@ const ret = value => tag('return', {value});
 const run = (ref, params = {}, result) => tag('run_actions', {ref, ...(result ? {result} : {})}, Object.entries(params).map(([name,value]) => tag('param',{name,value})).join(''));
 const lib = (name, params, actions) => tag('library',{name,purpose:'run_actions'},tag('params',{},Object.entries(params).map(([name,value])=>tag('param',{name,...(value===null?{}:{default:value})})).join(''))+tag('actions',{},actions));
 const write = body => run('Write', {Body:body});
-const notify = text => tag('show_notification', {text:`'Life Signs: ${text}'`,timeout:'5s',priority:'1'});
 const literal = text => "'" + text.replaceAll('\\','\\\\').replaceAll("'","\\'").replaceAll('\n','\\n') + "'";
 const completionPanel = text => tag('show_help', {custom:literal(text),position:'4',halign:"'center'",allowclose:'true',timeout:'false',log:'false'});
 const value = (field, expression, available = `${expression}?`, state = "'AUTO'") => {
@@ -250,6 +249,8 @@ export function generateRecorder(config) {
       set('md.$LSPDatabasePoll','player.age + 1s')+tag('raise_lua_event',{name:"'LifeSignsDatabaseRequest'",param:"'%s|%s'.[md.$LSPRun, md.$LSPUniverseIdText]"}))+
     iff("md.$LSPDatabaseState == 'WAITING' and player.age ge md.$LSPDatabaseDeadline",completionPanel(DATABASE_ERROR)+set('md.$LSPStopped','true')+ret('false'))+
     run('ProcessAssignmentObservations')+
+    run('ProcessCrewRoleObservations')+
+    run('ProcessOrderObservations')+
     iff('not md.$LSPSnapshotStarted and md.$LSPNeedBaseline',run('BeginSnapshot'))+
     iff('not md.$LSPActive',run('ProcessNewProfiles'))+
     iff('not md.$LSPActive',ret('true'))+
@@ -265,15 +266,16 @@ export function generateRecorder(config) {
       tag('do_elseif',{value:"md.$LSPPass == 'SHIPS'"},iff('md.$LSPIndex le md.$LSPShips.count',run('ShipProfile',{Ship:'md.$LSPShips.{md.$LSPIndex}'})+add('md.$LSPIndex'))+otherwise(run('Advance')))+
       tag('do_elseif',{value:"md.$LSPPass == 'NPCS'"},iff('md.$LSPIndex le md.$LSPReadyCandidates',run('NpcProfile',{Candidate:'md.$LSPCandidates.{md.$LSPIndex}'})+add('md.$LSPIndex')+add('md.$LSPNpcProfiles'))+otherwise(iff('md.$LSPDiscoveryDone',run('Advance'))+otherwise(tag('break'))))+
       otherwise(tag('break')))+
-    iff('player.age ge md.$LSPNextHeartbeat',set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]"})))+ret('true'));
+    iff('player.age ge md.$LSPNextHeartbeat',set('md.$LSPNextHeartbeat',`player.age + ${c.heartbeatSeconds}s`)+iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners="+profileEvents.length+"|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]"})))+ret('true'));
   const lifecycle=tag('cue',{name:'RunBoundary',instantiate:'true'},tag('conditions',{},tag('event_universe_generated'))+tag('actions',{},run('QueueRun')));
   const databaseReply=lib('DatabaseReply',{Response:null},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
     iff('typeof $Response != datatype.list',ret('false'))+iff('$Response.count != 4',ret('false'))+
     iff('$Response.{1} != md.$LSPRun or $Response.{2} != md.$LSPUniverseIdText',ret('false'))+
     iff('not (typeof $Response.{4}).isnumeric',ret('false'))+
-    iff('$Response.{4} lt md.$LSPAcknowledged or $Response.{4} gt md.$LSPRecord',ret('false'))+
+    iff('$Response.{4} lt 0 or $Response.{4} gt md.$LSPRecord',ret('false'))+
     iff("$Response.{3} == 'ERROR'",completionPanel(DATABASE_ERROR)+set('md.$LSPStopped','true')+ret('false'))+
+    iff('$Response.{4} lt md.$LSPAcknowledged',ret('false'))+
     iff("$Response.{3} != 'READY' and $Response.{3} != 'NEED_BASELINE' and $Response.{3} != 'BUILDING'",ret('false'))+
     set('md.$LSPAcknowledged','$Response.{4}')+
     events.acknowledge+
@@ -285,5 +287,5 @@ export function generateRecorder(config) {
   const databaseListener=tag('cue',{name:'DatabaseResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsDatabase'",control:"'reply'"}))+tag('actions',{},run('DatabaseReply',{Response:'event.param3'})));
   const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
     tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:`${c.npcTickSeconds}s`},tag('conditions',{},tag('check_value',{value:'md.$LSPReady and not md.$LSPStopped'}))+tag('actions',{},run('Tick')))));
-  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${databaseListener}${polling}${events.cues}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${initialize}${databaseReply}${tick}${events.libraries}</cues></mdscript>\n`.replaceAll('><','>\n<');
+  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${databaseListener}${events.crewListener}${polling}${events.cues}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${initialize}${databaseReply}${tick}${events.libraries}</cues></mdscript>\n`.replaceAll('><','>\n<');
 }

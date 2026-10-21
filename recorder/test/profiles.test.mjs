@@ -43,11 +43,11 @@ function profiles(h) {
 test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
-  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', ...profileEvents.map(e=>e.name)]);
+  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', 'event_ui_triggered', ...profileEvents.map(e=>e.name)]);
   assert.doesNotMatch(xml, /<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);
-  assert.match(xml, /gameplay_listeners=16/);
+  assert.match(xml, /gameplay_listeners=17/);
   assert.doesNotMatch(xml, /event_object_(?:shield|hull)_damaged/);
   assert.throws(() => validateConfig({ ...config, eventValueItems: 1 }));
   assert.throws(() => validateConfig({ ...config, profileValueItems: 16385 }));
@@ -552,7 +552,7 @@ test('database-created help waits for final committed record and stale/future re
 test('failed or absent database connection cannot claim successful creation', () => {
   for(const state of ['ERROR','TIMEOUT']){
     const h=setup({autoDatabase:false});
-    if(state==='ERROR')h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'ERROR',0]});
+    if(state==='ERROR'){h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'BUILDING',1]});h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'ERROR',0]});}
     else {h.player.age+=31;h.call('Tick');}
     assert.equal(h.md.$LSPStopped,true);assert.equal(h.notifications.some(n=>n.text===CREATED),false);assert.equal(profiles(h).length,0);
   }
@@ -569,6 +569,16 @@ test('attack, order and fleet events emit small subject-owned records without pr
   assert.equal(events[0].fields.other_idcode,'ENEMY');assert.equal(events[2].fields.detail_name,'Patrolling');
   assert.equal(profiles(h).length,before);assert.equal(h.md.$LSPRemaining,remaining);
   assert.equal(profileEvents.some(e=>/shield|hull/.test(e.name)),false);
+});
+
+test('order readiness records running only after the native running property is observed', () => {
+  const ship=host('ship','ORDER');const h=setup({ships:[ship]});finish(h);
+  Object.defineProperty(ship,'people',{get(){throw Error('Order observation must not scan crew');}});
+  const order={id:'Patrol',name:'Patrolling',isrunning:false};
+  h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY',Order:order});h.player.age+=2;h.call('Tick');
+  assert.equal(rows(h).some(r=>r.fields.event_type==='ORDER_RUNNING_OBSERVED'),false);
+  order.isrunning=true;h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY',Order:order});h.player.age+=2;h.call('Tick');
+  const event=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);assert.equal(event.fields.event_type,'ORDER_RUNNING_OBSERVED');assert.equal(event.fields.detail_name,'Patrolling');
 });
 
 test('a later created ship profiles only that ship and its new individual personnel, never another whole baseline', () => {
@@ -599,6 +609,19 @@ test('NPC spacesuit movement records ejection and rescue without inferring death
   h.call('HandleProfileEvent',{Subject:npc,Host:ship,Other:suit,Type:'ENTITY_LEFT',Npc:true});
   h.call('HandleProfileEvent',{Subject:npc,Host:ship,Other:ship,Previous:suit,Type:'ENTITY_ENTERED',Npc:true});
   assert.deepEqual(rows(h).filter(r=>r.kind==='ENTITY_EVENT').map(r=>r.fields.event_type),['EJECTED','RESCUED']);
+});
+
+test('bulk crew role observation finds only the changed seed and leaves existing profiles intact', () => {
+  const ship=host('ship','CREW'); const t=crew(ship); const person=ship.people.get(t);
+  const h=setup({ships:[ship]});finish(h); const before=profiles(h).length;
+  person.role={name:'Marine'};
+  Object.defineProperty(ship,'people',{get(){throw Error('Known crew role changes must not scan host personnel');}});
+  h.call('QueueCrewRoleObservation',{Host:ship,Seed:person.seed.toString(),Role:'marine',ActualRole:'Marine'});
+  h.player.age+=1;h.call('Tick');
+  const event=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(event.fields.event_type,'CREW_ROLE_OBSERVED');assert.equal(event.fields.subject_seed,person.seed.toString());
+  assert.equal(event.fields.subject_kind,'NPC');assert.equal(event.fields.actual_role,'Marine');assert.equal(event.fields.host_idcode,'CREW');
+  assert.equal(profiles(h).length,before);assert.equal(h.md.$LSPCrewChanges.length,0);
 });
 
 test('text framing preserves reserved characters and rejects malformed rows', () => {

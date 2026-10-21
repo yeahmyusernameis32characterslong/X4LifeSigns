@@ -24,6 +24,23 @@
 </run_actions>
 </actions>
 </cue>
+<cue name="PersonnelRoleResponse" instantiate="true">
+<conditions>
+<event_ui_triggered screen="'LifeSignsPersonnel'" control="'role_changed'" />
+</conditions>
+<actions>
+<do_if value="typeof event.param3 == datatype.list">
+<do_if value="event.param3.count == 4">
+<run_actions ref="QueueCrewRoleObservation">
+<param name="Host" value="component.{event.param3.{1}}" />
+<param name="Seed" value="event.param3.{2}" />
+<param name="Role" value="event.param3.{3}" />
+<param name="ActualRole" value="event.param3.{4}" />
+</run_actions>
+</do_if>
+</do_if>
+</actions>
+</cue>
 <cue name="Bootstrap" checkinterval="1s">
 <conditions>
 <check_value value="md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy" />
@@ -66,6 +83,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="false" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -86,6 +104,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="false" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -106,6 +125,7 @@
 <param name="Detail" value="@event.param.id" />
 <param name="DetailName" value="@event.param.name" />
 <param name="Target" value="null" />
+<param name="Order" value="event.param" />
 <param name="Create" value="false" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -124,8 +144,9 @@
 <param name="Other" value="event.param" />
 <param name="Previous" value="event.param2" />
 <param name="Detail" value="event.param3" />
-<param name="DetailName" value="null" />
+<param name="DetailName" value="@event.param3.name" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="false" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -144,8 +165,9 @@
 <param name="Other" value="@event.param.commander" />
 <param name="Previous" value="event.param2" />
 <param name="Detail" value="event.param3" />
-<param name="DetailName" value="null" />
+<param name="DetailName" value="@event.param3.name" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="false" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -166,6 +188,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -186,6 +209,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -206,6 +230,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -226,6 +251,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -246,6 +272,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="false" />
 <param name="Assignment" value="false" />
@@ -266,6 +293,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="true" />
 <param name="Assignment" value="false" />
@@ -286,6 +314,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="true" />
 <param name="Assignment" value="false" />
@@ -306,6 +335,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="false" />
 <param name="Npc" value="true" />
 <param name="Assignment" value="false" />
@@ -326,6 +356,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="true" />
 <param name="Assignment" value="false" />
@@ -346,6 +377,7 @@
 <param name="Detail" value="null" />
 <param name="DetailName" value="null" />
 <param name="Target" value="null" />
+<param name="Order" value="null" />
 <param name="Create" value="false" />
 <param name="Npc" value="true" />
 <param name="Assignment" value="false" />
@@ -364,11 +396,33 @@
 <param name="Other" value="null" />
 <param name="Previous" value="null" />
 <param name="Detail" value="event.param3" />
-<param name="DetailName" value="null" />
+<param name="DetailName" value="@event.param3.name" />
 <param name="Target" value="event.param2" />
+<param name="Order" value="null" />
 <param name="Create" value="true" />
 <param name="Npc" value="true" />
 <param name="Assignment" value="true" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEvent16" instantiate="true" namespace="this">
+<conditions>
+<event_contained_entity_changed_true_owner space="player.galaxy" owner="faction.player" />
+</conditions>
+<actions>
+<run_actions ref="HandleProfileEvent">
+<param name="Subject" value="event.param" />
+<param name="Type" value="'NPC_ACQUIRED'" />
+<param name="Host" value="null" />
+<param name="Other" value="null" />
+<param name="Previous" value="null" />
+<param name="Detail" value="null" />
+<param name="DetailName" value="null" />
+<param name="Target" value="null" />
+<param name="Order" value="null" />
+<param name="Create" value="true" />
+<param name="Npc" value="true" />
+<param name="Assignment" value="false" />
 </run_actions>
 </actions>
 </cue>
@@ -3291,9 +3345,13 @@
 <set_value name="md.$LSPNewProfiles" exact="[]" />
 <set_value name="md.$LSPSettleEvents" exact="[]" />
 <set_value name="md.$LSPKnownPending" exact="[]" />
+<set_value name="md.$LSPCrewChanges" exact="[]" />
+<set_value name="md.$LSPOrderChecks" exact="[]" />
 <set_value name="md.$LSPNewIndex" exact="1" />
 <set_value name="md.$LSPSettleIndex" exact="1" />
 <set_value name="md.$LSPKnownIndex" exact="1" />
+<set_value name="md.$LSPCrewIndex" exact="1" />
+<set_value name="md.$LSPOrderIndex" exact="1" />
 <set_value name="md.$LSPQueuedKeys" exact="table[]" />
 <set_value name="md.$LSPEventsReady" exact="false" />
 <do_if value="not UniverseIdentity.$KnownProfileSeeds?">
@@ -3301,7 +3359,7 @@
 </do_if>
 <reset_cue cue="ProfileEventBus" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=16|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=17|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
@@ -3330,12 +3388,15 @@
 <do_if value="not (typeof $Response.{4}).isnumeric">
 <return value="false" />
 </do_if>
-<do_if value="$Response.{4} lt md.$LSPAcknowledged or $Response.{4} gt md.$LSPRecord">
+<do_if value="$Response.{4} lt 0 or $Response.{4} gt md.$LSPRecord">
 <return value="false" />
 </do_if>
 <do_if value="$Response.{3} == 'ERROR'">
 <show_help custom="'Life Signs could not create or open its database. Please close X4 and report this message.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
 <set_value name="md.$LSPStopped" exact="true" />
+<return value="false" />
+</do_if>
+<do_if value="$Response.{4} lt md.$LSPAcknowledged">
 <return value="false" />
 </do_if>
 <do_if value="$Response.{3} != 'READY' and $Response.{3} != 'NEED_BASELINE' and $Response.{3} != 'BUILDING'">
@@ -3351,8 +3412,15 @@
 <break />
 </do_if>
 <set_value name="UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}" exact="true" />
+<do_if value="md.$LSPQueuedKeys.{$KnownItem.{2}}?">
+<remove_value name="md.$LSPQueuedKeys.{$KnownItem.{2}}" />
+</do_if>
 <set_value name="md.$LSPKnownIndex" exact="1L" operation="add" />
 </do_all>
+<do_if value="md.$LSPKnownIndex gt md.$LSPKnownPending.count">
+<set_value name="md.$LSPKnownPending" exact="[]" />
+<set_value name="md.$LSPKnownIndex" exact="1" />
+</do_if>
 <set_value name="UniverseIdentity.$CheckpointRun" exact="md.$LSPRun" />
 <set_value name="UniverseIdentity.$CheckpointRecord" exact="$Response.{4}" />
 <set_value name="md.$LSPDatabaseState" exact="$Response.{3}" />
@@ -3415,6 +3483,10 @@
 <return value="false" />
 </do_if>
 <run_actions ref="ProcessAssignmentObservations">
+</run_actions>
+<run_actions ref="ProcessCrewRoleObservations">
+</run_actions>
+<run_actions ref="ProcessOrderObservations">
 </run_actions>
 <do_if value="not md.$LSPSnapshotStarted and md.$LSPNeedBaseline">
 <run_actions ref="BeginSnapshot">
@@ -3502,7 +3574,7 @@
 <do_if value="md.$LSPLevel ge 3">
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=17|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
 </do_if>
@@ -3626,6 +3698,8 @@
 <param name="DetailName" default="null" />
 <param name="Status" default="'OBSERVED'" />
 <param name="Npc" default="false" />
+<param name="SeedText" default="''" />
+<param name="RoleText" default="''" />
 </params>
 <actions>
 <do_if value="not md.$LSPReady or md.$LSPStopped">
@@ -3672,7 +3746,7 @@
 <do_if value="$Kind == ''">
 <return value="false" />
 </do_if>
-<do_if value="$Kind != 'SHIP' and ($Type == 'ATTACKING' or $Type == 'ORDER_READY' or $Type == 'COMMANDER_SET' or $Type == 'FLEET_ROLE_CHANGED')">
+<do_if value="$Kind != 'SHIP' and ($Type == 'ATTACKING' or $Type == 'ORDER_READY' or $Type == 'ORDER_RUNNING_OBSERVED' or $Type == 'COMMANDER_SET' or $Type == 'FLEET_ROLE_CHANGED')">
 <return value="false" />
 </do_if>
 <set_value name="$subject_reference" exact="'%s'.[$Subject]" />
@@ -3706,9 +3780,13 @@
 <set_value name="$other_seed" exact="'%s'.[@$Other.seed]" />
 <set_value name="$other_idcode" exact="@$Other.idcode" />
 </do_if>
+<do_if value="$Kind == 'NPC' and $SeedText != ''">
+<set_value name="$subject_seed" exact="$SeedText" />
+<set_value name="$actual_role" exact="$RoleText" />
+</do_if>
 <set_value name="$detail" exact="$Detail" />
 <set_value name="$detail_name" exact="$DetailName" />
-<do_if value="$Status == 'REQUESTED'">
+<do_if value="$Status == 'REQUESTED' or $Status == 'OBSERVED_AFTER_UI_CONFIRM'">
 <set_value name="$requested_role" exact="$Detail" />
 </do_if>
 <do_if value="$Kind == 'NPC' and $Type == 'ENTITY_LEFT'">
@@ -3782,6 +3860,7 @@
 <param name="Detail" default="null" />
 <param name="DetailName" default="null" />
 <param name="Target" default="null" />
+<param name="Order" default="null" />
 <param name="Type" />
 <param name="Create" default="false" />
 <param name="Npc" default="false" />
@@ -3829,6 +3908,9 @@
 </do_if>
 <do_if value="$Assignment">
 <append_to_list name="md.$LSPSettleEvents" exact="[player.age + 1s,$Subject,$Host,$Template,$Target,$Detail]" />
+</do_if>
+<do_if value="$Type == 'ORDER_READY' and $Order != null">
+<append_to_list name="md.$LSPOrderChecks" exact="[player.age + 1s,$Subject,$Order]" />
 </do_if>
 <do_if value="$Npc">
 <do_if value="typeof $Other == datatype.component and $Other.exists">
@@ -3926,6 +4008,109 @@
 <do_if value="md.$LSPSettleIndex gt md.$LSPSettleEvents.count">
 <set_value name="md.$LSPSettleEvents" exact="[]" />
 <set_value name="md.$LSPSettleIndex" exact="1" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="QueueCrewRoleObservation" purpose="run_actions">
+<params>
+<param name="Host" />
+<param name="Seed" />
+<param name="Role" />
+<param name="ActualRole" default="'UNAVAILABLE'" />
+</params>
+<actions>
+<do_if value="not md.$LSPReady or md.$LSPStopped or not (typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned)">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Seed != datatype.string or typeof $Role != datatype.string">
+<return value="false" />
+</do_if>
+<run_actions ref="RecordEntityEvent">
+<param name="Host" value="$Host" />
+<param name="Type" value="'CREW_ROLE_OBSERVED'" />
+<param name="Detail" value="$Role" />
+<param name="SeedText" value="$Seed" />
+<param name="RoleText" value="$ActualRole" />
+<param name="Status" value="'OBSERVED_AFTER_UI_CONFIRM'" />
+<param name="Npc" value="true" />
+</run_actions>
+<do_if value="not UniverseIdentity.$KnownProfileSeeds.{'$%s:%s'.['NPC', $Seed]}?">
+<append_to_list name="md.$LSPCrewChanges" exact="[$Host,$Seed,$Role,1]" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="ProcessCrewRoleObservations" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_all exact="8">
+<do_if value="md.$LSPCrewIndex gt md.$LSPCrewChanges.count">
+<break />
+</do_if>
+<set_value name="$Change" exact="md.$LSPCrewChanges.{md.$LSPCrewIndex}" />
+<set_value name="$Host" exact="$Change.{1}" />
+<do_if value="not (typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned)">
+<set_value name="md.$LSPCrewIndex" exact="1L" operation="add" />
+<continue />
+</do_if>
+<set_value name="$People" exact="@$Host.people.list" />
+<do_if value="typeof $People != datatype.list">
+<set_value name="md.$LSPCrewIndex" exact="1L" operation="add" />
+<continue />
+</do_if>
+<do_if value="$Change.{4} gt $People.count">
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=CREW_ROLE_SEED_NOT_FOUND|seed=%s'.[$Change.{2}]" />
+</run_actions>
+<set_value name="md.$LSPCrewIndex" exact="1L" operation="add" />
+<continue />
+</do_if>
+<set_value name="$Template" exact="$People.{$Change.{4}}" />
+<set_value name="$Change.{4}" exact="1L" operation="add" />
+<do_if value="@$Host.people.{$Template}.exists">
+<do_if value="'%s'.[$Host.people.{$Template}.seed] == $Change.{2}">
+<run_actions ref="QueueNewProfile">
+<param name="Host" value="$Host" />
+<param name="Template" value="$Template" />
+</run_actions>
+<set_value name="md.$LSPCrewIndex" exact="1L" operation="add" />
+</do_if>
+</do_if>
+</do_all>
+<do_if value="md.$LSPCrewIndex gt md.$LSPCrewChanges.count">
+<set_value name="md.$LSPCrewChanges" exact="[]" />
+<set_value name="md.$LSPCrewIndex" exact="1" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="ProcessOrderObservations" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_all exact="8">
+<do_if value="md.$LSPOrderIndex gt md.$LSPOrderChecks.count">
+<break />
+</do_if>
+<set_value name="$Item" exact="md.$LSPOrderChecks.{md.$LSPOrderIndex}" />
+<do_if value="player.age lt $Item.{1}">
+<break />
+</do_if>
+<set_value name="md.$LSPOrderIndex" exact="1L" operation="add" />
+<do_if value="@$Item.{3}.isrunning">
+<run_actions ref="RecordEntityEvent">
+<param name="Subject" value="$Item.{2}" />
+<param name="Type" value="'ORDER_RUNNING_OBSERVED'" />
+<param name="Detail" value="@$Item.{3}.id" />
+<param name="DetailName" value="@$Item.{3}.name" />
+</run_actions>
+</do_if>
+</do_all>
+<do_if value="md.$LSPOrderIndex gt md.$LSPOrderChecks.count">
+<set_value name="md.$LSPOrderChecks" exact="[]" />
+<set_value name="md.$LSPOrderIndex" exact="1" />
 </do_if>
 <return value="true" />
 </actions>

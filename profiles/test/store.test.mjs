@@ -33,12 +33,14 @@ test('baseline remains staged until committed/read back and preserves exact prof
 test('saved checkpoint isolates later profile versions while new run reuses ready universe', t => {
   const { open } = fixture(t), a = open(); a.ingest(baseline);
   a.ingest([row(A, 8, 'PROFILE_BEGIN', { kind: 'NPC', profile: '2' }), row(A, 9, 'VALUE', { profile: '2', field: 'seed', value: '9223372036854775807', type: 'datatype.largeint', state: 'PRESENT' }), row(A, 10, 'VALUE', { profile: '2', field: 'name', value: 'Later history', state: 'PRESENT', type: 'datatype.string' }), row(A, 11, 'PROFILE_END', { profile: '2', partial: '0' })]);
+  a.ingest([row(A,12,'ENTITY_EVENT',{event_type:'ATTACKED',subject_kind:'SHIP',subject_idcode:'SYN-001'})]);
   a.close(); const b = open(B); assert.equal(b.ingest([start(B, A, '7')]).state, 'READY');
   assert.equal(b.profilesAt()[0].fields.name.value, baseline[4].fields.value, 'Later branch state must not be inherited');
   assert.equal(b.db.prepare('SELECT count(*) AS n FROM sessions').get().n, 2);
   b.ingest([row(B, 2, 'ENTITY_EVENT', { event_type: 'ROLE_CHANGED', subject_kind: 'NPC', subject_seed: '9223372036854775807', assigned_ship_idcode: 'ABC-123', role: 'Marine' })]);
-  const e = b.db.prepare('SELECT * FROM events').get(); assert.equal(e.subject_kind, 'NPC'); assert.equal(e.game_time, '0.2');
+  const e = b.db.prepare('SELECT * FROM events WHERE run_id=?').get(B); assert.equal(e.subject_kind, 'NPC'); assert.equal(e.game_time, '0.2');
   assert.equal(JSON.parse(e.fields_json).assigned_ship_idcode, 'ABC-123');
+  assert.deepEqual(b.eventsAt().map(x=>x.event_type),['ROLE_CHANGED']);
 });
 
 test('restart reconstructs unfinished profile and identical replay is idempotent', t => {

@@ -69,3 +69,44 @@ function Adapter.update()
 end
 RegisterEvent("LifeSignsDatabaseRequest", Adapter.receive)
 SetScript("onUpdate", Adapter.update)
+
+-- Observe the existing confirmation callback, never call a gameplay setter ourselves.
+-- Capture before MapMenu clears its pending list; publish only after it returns.
+local function pack(...) return { n = select("#", ...), ... } end
+function Adapter.readPersonRole(seed, host)
+    return ffi.string(ffi.C.GetPersonRole(seed, host))
+end
+function Adapter.installPersonnelObserver(menus)
+    for _, menu in ipairs(menus or {}) do
+        if menu.name == "MapMenu" and type(menu.infoSubmenuConfirmCrewChanges) == "function" and not menu.lifeSignsPersonnelObserver then
+            local original = menu.infoSubmenuConfirmCrewChanges
+            menu.infoSubmenuConfirmCrewChanges = function(instance, ...)
+                local observations = {}
+                local captured = pcall(function()
+                    local host = ConvertStringToLuaID(tostring(menu.infoSubmenuObject))
+                    local crew = menu.infoTablePersistentData[instance].crew
+                    for _, role in ipairs(crew.reassigned.roles) do
+                        for _, tier in ipairs(role.tiers) do
+                            for _, person in ipairs(tier.persons) do
+                                local seed = tostring(person.person):gsub("ULL$", "")
+                                if seed:match("^%d+$") and type(person.newrole) == "string" then
+                                    observations[#observations + 1] = {host, seed, person.newrole, person.person, menu.infoSubmenuObject}
+                                end
+                            end
+                        end
+                    end
+                end)
+                local result = pack(original(instance, ...))
+                if captured then
+                    for _, observation in ipairs(observations) do
+                        local read, role = pcall(Adapter.readPersonRole, observation[4], observation[5])
+                        pcall(AddUITriggeredEvent, "LifeSignsPersonnel", "role_changed", {observation[1],observation[2],observation[3],read and role or "UNAVAILABLE"})
+                    end
+                end
+                return unpack(result, 1, result.n)
+            end
+            menu.lifeSignsPersonnelObserver = true
+        end
+    end
+end
+Adapter.installPersonnelObserver(Menus)

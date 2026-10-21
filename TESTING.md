@@ -212,3 +212,11 @@ Testing should include scenarios where X4, Ollama, faster-whisper and Kokoro are
 The voice system should fail gracefully.
 
 A failure in speech recognition or speech synthesis must not crash the Node.js server or prevent unrelated Life Signs events from continuing.
+
+## Experimental SQLite profile test
+
+Draft PR20 adds collector/real SQLite integration tests, a scoped merged-addon
+schema check and an installed LuaJIT standalone adapter test. Commands and
+remaining native owner-test gates are in the
+[PR20 test plan](docs/SQLITE_PROFILE_TEST_PLAN.md#repeatable-checks).
+Automated callbacks do not establish native X4 UI/event dispatch.

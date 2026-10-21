@@ -9,8 +9,8 @@ export function generateProfileEvents(h, c) {
     tag('find_station',{name:'$WatchStations',space:'player.galaxy',trueowner:'faction.player',multiple:'true',checkoperational:'false'})+
     tag('find_ship',{name:'$WatchShips',space:'player.galaxy',trueowner:'faction.player',multiple:'true',recursive:'true',checkoperational:'false'})+
     tag('add_to_group',{groupname:'md.$LSPWatch',list:'$WatchStations',replace:'true'})+tag('add_to_group',{groupname:'md.$LSPWatch',list:'$WatchShips'})+
-    ['NewProfiles','SettleEvents','KnownPending'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+
-    ['NewIndex','SettleIndex','KnownIndex'].map(k=>set(`md.$LSP${k}`,'1')).join('')+
+    ['NewProfiles','SettleEvents','KnownPending','CrewChanges','OrderChecks'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+
+    ['NewIndex','SettleIndex','KnownIndex','CrewIndex','OrderIndex'].map(k=>set(`md.$LSP${k}`,'1')).join('')+
     set('md.$LSPQueuedKeys','table[]')+set('md.$LSPEventsReady','false')+
     iff('not UniverseIdentity.$KnownProfileSeeds?',set('UniverseIdentity.$KnownProfileSeeds','table[]'))+
     tag('reset_cue',{cue:'ProfileEventBus'});
@@ -21,7 +21,9 @@ export function generateProfileEvents(h, c) {
     iff('md.$LSPKnownIndex gt md.$LSPKnownPending.count',tag('break'))+
     set('$KnownItem','md.$LSPKnownPending.{md.$LSPKnownIndex}')+
     iff('$KnownItem.{1} gt md.$LSPAcknowledged',tag('break'))+
-    set('UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}','true')+add('md.$LSPKnownIndex'));
+    set('UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}','true')+
+    iff('md.$LSPQueuedKeys.{$KnownItem.{2}}?',tag('remove_value',{name:'md.$LSPQueuedKeys.{$KnownItem.{2}}'}))+add('md.$LSPKnownIndex'))+
+    iff('md.$LSPKnownIndex gt md.$LSPKnownPending.count',set('md.$LSPKnownPending','[]')+set('md.$LSPKnownIndex','1'));
 
   const queue=lib('QueueNewProfile',{Object:'null',Host:'null',Template:'null',Target:'null'},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
@@ -49,7 +51,7 @@ export function generateProfileEvents(h, c) {
     run('QueueNewProfile',{Object:'@$Host.assignedaipilot',Host:'$Host'})+
     run('QueueNewProfile',{Object:'@$Host.tradenpc',Host:'$Host'})+run('QueueNewProfile',{Object:'@$Host.shiptrader',Host:'$Host'})+ret('true'));
   const fields = ['subject_seed','subject_idcode','subject_reference','host_seed','host_idcode','other_seed','other_idcode','other_reference','previous_reference','actual_role','control_post','requested_role','detail','detail_name'];
-  const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false'},
+  const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false',SeedText:"''",RoleText:"''"},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
     iff(valid('$Subject'),iff('$Subject.isclass.npc and not $Subject.isplayerowned',ret('false')))+
     set('$Kind',"''")+fields.map(f=>set('$'+f,"''")).join('')+
@@ -57,7 +59,7 @@ export function generateProfileEvents(h, c) {
       iff('$Subject.isclass.ship',set('$Kind',"'SHIP'"))+otherwise(iff('$Subject.isclass.station',set('$Kind',"'STATION'"))+otherwise(iff('$Subject.isclass.npc',set('$Kind',"'NPC'")))))+
     iff("$Kind == '' and $Npc and ($Subject == null or not ("+valid('$Subject')+')) and '+owned('$Host'),set('$Kind',"'NPC'"))+
     iff("$Kind == ''",ret('false'))+
-    iff("$Kind != 'SHIP' and ($Type == 'ATTACKING' or $Type == 'ORDER_READY' or $Type == 'COMMANDER_SET' or $Type == 'FLEET_ROLE_CHANGED')",ret('false'))+
+    iff("$Kind != 'SHIP' and ($Type == 'ATTACKING' or $Type == 'ORDER_READY' or $Type == 'ORDER_RUNNING_OBSERVED' or $Type == 'COMMANDER_SET' or $Type == 'FLEET_ROLE_CHANGED')",ret('false'))+
     set('$subject_reference',"'%s'.[$Subject]")+
     iff(valid('$Subject'),
       iff('$Subject.seed?',set('$subject_seed',"'%s'.[$Subject.seed]"))+
@@ -69,14 +71,15 @@ export function generateProfileEvents(h, c) {
         set('$subject_seed',"'%s'.[$Host.people.{$Template}.seed]")+set('$actual_role','@$Host.people.{$Template}.role.name'))))+
     set('$other_reference',"'%s'.[$Other]")+set('$previous_reference',"'%s'.[$Previous]")+
     iff(valid('$Other'),set('$other_seed',"'%s'.[@$Other.seed]")+set('$other_idcode','@$Other.idcode'))+
+    iff("$Kind == 'NPC' and $SeedText != ''",set('$subject_seed','$SeedText')+set('$actual_role','$RoleText'))+
     set('$detail','$Detail')+set('$detail_name','$DetailName')+
-    iff("$Status == 'REQUESTED'",set('$requested_role','$Detail'))+
+    iff("$Status == 'REQUESTED' or $Status == 'OBSERVED_AFTER_UI_CONFIRM'",set('$requested_role','$Detail'))+
     iff("$Kind == 'NPC' and $Type == 'ENTITY_LEFT'",iff(valid('$Other'),iff('$Other.isclass.spacesuit',set('$Type',"'EJECTED'"))))+
     iff("$Kind == 'NPC' and $Type == 'ENTITY_ENTERED'",iff(valid('$Previous'),iff('$Previous.isclass.spacesuit',set('$Type',"'RESCUED'"))))+
     fields.map(f=>run('Escape',{Value:'$'+f},'$'+f)).join('')+
     write(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|${fields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind','$Status',...fields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
 
-  const dispatch=lib('HandleProfileEvent',{Subject:'null',Host:'null',Other:'null',Previous:'null',Detail:'null',DetailName:'null',Target:'null',Type:null,Create:'false',Npc:'false',Assignment:'false'},
+  const dispatch=lib('HandleProfileEvent',{Subject:'null',Host:'null',Other:'null',Previous:'null',Detail:'null',DetailName:'null',Target:'null',Order:'null',Type:null,Create:'false',Npc:'false',Assignment:'false'},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
     set('$Template','null')+
     iff('typeof $Subject == datatype.list',
@@ -85,6 +88,7 @@ export function generateProfileEvents(h, c) {
     run('RecordEntityEvent',{Subject:'$Subject',Host:'$Host',Template:'$Template',Other:'if $Assignment then $Target else $Other',Previous:'$Previous',Type:'$Type',Detail:'$Detail',DetailName:'$DetailName',Status:"if $Assignment then 'REQUESTED' else 'OBSERVED'",Npc:'$Npc'})+
     iff('$Create',run('QueueNewProfile',{Object:'$Subject',Host:'$Host',Template:'$Template',Target:'$Target'}))+
     iff('$Assignment',tag('append_to_list',{name:'md.$LSPSettleEvents',exact:'[player.age + 1s,$Subject,$Host,$Template,$Target,$Detail]'}))+
+    iff("$Type == 'ORDER_READY' and $Order != null",tag('append_to_list',{name:'md.$LSPOrderChecks',exact:'[player.age + 1s,$Subject,$Order]'}))+
     iff('$Npc',iff(valid('$Other'),iff('$Other.isclass.spacesuit',run('QueueNewProfile',{Object:'$Other'}))))+ret('true'));
   const process=lib('ProcessNewProfiles',{},
     iff("md.$LSPDatabaseState != 'READY' or md.$LSPAwaitCommit or md.$LSPActive",ret('false'))+
@@ -107,9 +111,34 @@ export function generateProfileEvents(h, c) {
       iff(valid('$Item.{5}'),iff('typeof $Item.{4} == datatype.npctemplate',iff('@$Item.{5}.people.{$Item.{4}}.exists',set('$Host','$Item.{5}'))))+
       run('RecordEntityEvent',{Subject:'$Item.{2}',Host:'$Host',Template:'$Item.{4}',Other:'$Item.{5}',Type:"'ASSIGNMENT_OBSERVED'",Detail:'$Item.{6}',Status:"'OBSERVED_AFTER_REQUEST'",Npc:'true'}))+
     iff('md.$LSPSettleIndex gt md.$LSPSettleEvents.count',set('md.$LSPSettleEvents','[]')+set('md.$LSPSettleIndex','1'))+ret('true'));
+  const crewChange=lib('QueueCrewRoleObservation',{Host:null,Seed:null,Role:null,ActualRole:"'UNAVAILABLE'"},
+    iff('not md.$LSPReady or md.$LSPStopped or not ('+owned('$Host')+')',ret('false'))+
+    iff('typeof $Seed != datatype.string or typeof $Role != datatype.string',ret('false'))+
+    run('RecordEntityEvent',{Host:'$Host',Type:"'CREW_ROLE_OBSERVED'",Detail:'$Role',SeedText:'$Seed',RoleText:'$ActualRole',Status:"'OBSERVED_AFTER_UI_CONFIRM'",Npc:'true'})+
+    iff('not UniverseIdentity.$KnownProfileSeeds.{'+key("'NPC'",'$Seed')+'}?',tag('append_to_list',{name:'md.$LSPCrewChanges',exact:'[$Host,$Seed,$Role,1]'}))+ret('true'));
+  const processCrew=lib('ProcessCrewRoleObservations',{},
+    tag('do_all',{exact:String(c.discoveryPerTick)},
+      iff('md.$LSPCrewIndex gt md.$LSPCrewChanges.count',tag('break'))+
+      set('$Change','md.$LSPCrewChanges.{md.$LSPCrewIndex}')+set('$Host','$Change.{1}')+
+      iff('not ('+owned('$Host')+')',add('md.$LSPCrewIndex')+tag('continue'))+
+      set('$People','@$Host.people.list')+
+      iff('typeof $People != datatype.list',add('md.$LSPCrewIndex')+tag('continue'))+
+      iff('$Change.{4} gt $People.count',write("'DISCOVERY_GAP|reason=CREW_ROLE_SEED_NOT_FOUND|seed=%s'.[$Change.{2}]")+add('md.$LSPCrewIndex')+tag('continue'))+
+      set('$Template','$People.{$Change.{4}}')+add('$Change.{4}')+
+      iff('@$Host.people.{$Template}.exists',iff("'%s'.[$Host.people.{$Template}.seed] == $Change.{2}",
+        run('QueueNewProfile',{Host:'$Host',Template:'$Template'})+add('md.$LSPCrewIndex'))))+
+    iff('md.$LSPCrewIndex gt md.$LSPCrewChanges.count',set('md.$LSPCrewChanges','[]')+set('md.$LSPCrewIndex','1'))+ret('true'));
+  const crewListener=tag('cue',{name:'PersonnelRoleResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsPersonnel'",control:"'role_changed'"}))+tag('actions',{},
+    iff('typeof event.param3 == datatype.list',iff('event.param3.count == 4',run('QueueCrewRoleObservation',{Host:'component.{event.param3.{1}}',Seed:'event.param3.{2}',Role:'event.param3.{3}',ActualRole:'event.param3.{4}'})))));
+  const orderChecks=lib('ProcessOrderObservations',{},
+    tag('do_all',{exact:String(c.discoveryPerTick)},
+      iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',tag('break'))+
+      set('$Item','md.$LSPOrderChecks.{md.$LSPOrderIndex}')+iff('player.age lt $Item.{1}',tag('break'))+add('md.$LSPOrderIndex')+
+      iff('@$Item.{3}.isrunning',run('RecordEntityEvent',{Subject:'$Item.{2}',Type:"'ORDER_RUNNING_OBSERVED'",Detail:'@$Item.{3}.id',DetailName:'@$Item.{3}.name'})))+
+    iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',set('md.$LSPOrderChecks','[]')+set('md.$LSPOrderIndex','1'))+ret('true'));
   const listeners=profileEvents.map((e,i)=>tag('cue',{name:'ProfileEvent'+i,instantiate:'true',namespace:'this'},
     tag('conditions',{},tag(e.name,e.selector))+tag('actions',{},run('HandleProfileEvent',{
-      Subject:e.subject,Type:`'${e.type}'`,Host:e.host||'null',Other:e.other||'null',Previous:e.previous||'null',Detail:e.detail||'null',DetailName:e.detailName||'null',Target:e.target||'null',Create:String(Boolean(e.create)),Npc:String(Boolean(e.npc)),Assignment:String(Boolean(e.assignment))})))).join('');
+      Subject:e.subject,Type:`'${e.type}'`,Host:e.host||'null',Other:e.other||'null',Previous:e.previous||'null',Detail:e.detail||'null',DetailName:e.detailName||'null',Target:e.target||'null',Order:e.order||'null',Create:String(Boolean(e.create)),Npc:String(Boolean(e.npc)),Assignment:String(Boolean(e.assignment))})))).join('');
   const cues=tag('cue',{name:'ProfileEventBus',checkinterval:'0.1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPReady? and md.$LSPReady and md.$LSPWatch?'}))+tag('actions',{},set('md.$LSPEventsReady','true'))+tag('cues',{},listeners));
-  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle, cues };
+  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks, cues, crewListener };
 }

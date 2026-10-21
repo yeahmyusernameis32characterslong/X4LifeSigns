@@ -45,7 +45,7 @@ The five-minute statement is owner-specified product text, not a new measured be
 
 ## Source findings and limitations
 
-The Life Signs saved MD tag has been observed CREATED and then identical/EXISTING across one owner save/load cycle; no global uniqueness claim. Current installed recorder is1d8bb96, still per-load full-snapshot-only. Existing automatic session routing is tested for docking, not profile inheritance. Engine log actions do not acknowledge SQLite commits. Transport and event coverage investigations are active; findings and implementation status will be recorded incrementally here and in the private handoff. Allowance percentage is not visible; use conservative commit/check/publication checkpoints.
+The Life Signs saved MD tag has been observed CREATED and then identical/EXISTING across one owner save/load cycle; no global uniqueness claim. The starting installed recorder was1d8bb96, per-load full-snapshot-only. Existing automatic session routing is tested for docking, not profile inheritance. Engine log actions do not acknowledge SQLite commits. Transport and event coverage investigations are active; findings and implementation status will be recorded incrementally here and in the private handoff. Allowance percentage is not visible; use conservative commit/check/publication checkpoints.
 
 ## Storage increment (implemented, not connected to X4 yet)
 
@@ -108,7 +108,7 @@ string: raise_lua_event does not document list parameters.
 
 ## Selective native event increment
 
-A reviewed JSON catalog currently registers16native lifecycle/gameplay selectors:
+A reviewed JSON catalog now registers17 native lifecycle/gameplay selectors:
 player construction, GOD-created owned assets, owned-property acquisition,
 NPC actor creation, control-post add/remove, entity enter/leave, hired-actor
 assignment requests, attack/attacking, order-ready and commander/assignment
@@ -130,11 +130,99 @@ context without invented death or transfer conclusions.
 with throwing personnel getters, new-ship/new-NPC-only profiling, no second
 baseline, contextual role observations and spacesuit movement. All selected
 filters validate against installed900schemas. Native dispatch/coverage remains
-unverified; NPC templates have no verified universal birth hook and crew-role
-UI paths are still under investigation. These are first-test candidates, not an
+unverified; NPC templates have no verified universal birth hook. The bulk crew
+role UI path is now observed as described below. These are first-test candidates, not an
 exhaustive event guarantee. Order READY means enabled/ready as documented; it
 is not renamed to proof of execution. Primary definitions are in common.xsd
 12428-12454,12575-12600,13040-13068,13443-13508,13773-13815,14498-14510,
 14777-14852,14917-14954,15177-15198,16469-16482; npc_created is md.xsd2068-2077.
 Historical raw broad-research conclusions were checked against those definitions
 rather than treated as runtime guarantees.
+
+## Final pre-deployment gate (2026-10-21)
+
+The later increments supersede the earlier in-progress counts: 47 collector tests
+and nine SQLite/profile tests pass (56 total), plus 112 existing bridge tests.
+One initial concurrent bridge invocation failed an assertion; the full rerun
+passed all112. No production bridge change was made to obtain that result.
+Generated MD validates against the hash-pinned installed900 MD/common schemas.
+The scoped UI diff merged into the hash-pinned original addon XML validates
+against coreaddon.xsd. The installed LuaJIT DLL compiles/runs the adapter in a
+standalone test with real Win32 reads and mocked X4 callbacks. None is a native
+X4 gameplay result.
+
+Bulk Marine/service/unassigned role changes use a passive wrapper of MapMenu's
+infoSubmenuConfirmCrewChanges, identified in first-party menu_map.lua17618-17652.
+It captures seed/host/requested role before the original clears each pending
+persons list, calls the original exactly once, preserves returns and errors,
+then reads GetPersonRole(seed,host) (declaration757, caller26143). It emits a
+separate NPC scalar event with actual and requested role. uint64 seed text never
+passes through a Lua number. Observer failures cannot prevent the original
+operation. Known NPCs need no roster scan or profile refresh. Only an unknown
+seed queues a bounded host-local search for its individual profile.
+
+Qwen's focused review correctly identified the absence of a native setter
+success acknowledgement, but incorrectly said the pending persons lists were
+not cleared and evaluated the supplied original as though it were our wrapper.
+Those claims were rejected against the source. The actual role getter is the
+observation; normal return of the UI callback alone is not proof of reassignment.
+Broader Qwen searches that ended blank/repeated/HTTP failures remain incomplete,
+not evidence that a hook does not exist.
+
+ORDER_READY retains its documented meaning (enabled/ready to start). A delayed
+scalar read records ORDER_RUNNING_OBSERVED only when that order's isrunning
+property is true (scriptproperties.xml1701); no false start timestamp is
+invented. Rapid orders ending before that check may have only a ready event.
+NPC acquisition is included. New crew existing only as contextual templates are
+covered by initial personnel discovery, new-host discovery and observed
+assignment/role paths; exhaustive template creation coverage is not established.
+
+Saved checkpoints gate both profile and event ancestry. Existing databases
+reject saves from before the baseline completed instead of silently importing
+future history. When the universe file is absent, a fresh baseline is staged,
+even if the save holds an unavailable older checkpoint; raw startup provenance
+is retained. Save immediately after the created panel, then use that save for
+reload testing. Profile/event lookup must use profilesAt/eventsAt (or equivalent
+ancestry-aware SQL), never a global maximum-record query across sessions.
+
+Event records belong to subject_kind SHIP, STATION or NPC. Indexed subject,
+host and other seed/code columns link the corresponding profile_versions;
+fields_json retains exact additional context. NPC ID codes are derived offline
+only from a canonical code in debugname parentheses; no NPC idcode getter was
+restored. Unresolved identities remain unresolved. Existing partial-profile and
+personnel limits remain explicit; a partial initial baseline can be a committed
+database, and does not silently trigger repeated full snapshots.
+
+### Running the experimental sidecar
+
+Run from the checkout with Node24.21.x; the optional recorder and its UI files
+must be installed. Keep production docking readers/databases unchanged.
+
+```powershell
+node profiles/service.mjs --logs '<X4 user data folder>/logs/lifesigns-event-recorder' --replies '<X4 installation>/extensions/lifesigns_event_recorder/runtime'
+```
+
+The sidecar reads per-run logs and writes only ignored local-data/profiles
+SQLite files and strict reply files in the optional extension runtime directory.
+Old logs without LSDB1 are preserved and not imported. No Qwen process is needed
+at runtime. A missing/failed reply cannot announce database creation. The native
+MD/Lua custom event path, all event dispatch coverage, first-baseline duration
+and UI coexistence with other extensions require the owner-run test. There is
+no pause, auto-save, historical-event reconstruction, deployment to production
+bridge components or merge in this task.
+
+### Repeatable checks
+
+```powershell
+node scripts/build-event-recorder.mjs
+node --test recorder/test/*.test.mjs profiles/test/*.test.mjs
+# From bridge/: node --test test/*.test.js
+powershell -NoProfile -File scripts/validate-event-recorder.ps1 -SchemaDirectory '<verified installed-schema extraction>'
+powershell -NoProfile -File scripts/validate-profile-ui.ps1 -SourceDirectory '<verified UI extraction root>'
+python profiles/test/lua_adapter_test.py '<verified installed lua51_64.dll>'
+git diff --check
+```
+
+Source extraction and local evidence are LOCAL-ONLY. The private sqlite-profiles
+handoff carries deployment status, installed hashes and the exact next owner
+action; it is coordination, not a substitute for this source branch.

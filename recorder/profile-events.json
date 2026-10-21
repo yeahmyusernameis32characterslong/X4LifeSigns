@@ -1,18 +1,176 @@
 [
-  {"name":"event_object_attacked","type":"ATTACKED","selector":{"group":"md.$LSPWatch"},"subject":"event.object","other":"event.param"},
-  {"name":"event_object_attacked_object","type":"ATTACKING","selector":{"group":"md.$LSPWatch"},"subject":"event.object","other":"event.param"},
-  {"name":"event_object_order_ready","type":"ORDER_READY","selector":{"group":"md.$LSPWatch"},"subject":"event.object","detail":"@event.param.id","detailName":"@event.param.name"},
-  {"name":"event_object_commander_set","type":"COMMANDER_SET","selector":{"group":"md.$LSPWatch"},"subject":"event.object","other":"event.param","previous":"event.param2","detail":"event.param3"},
-  {"name":"event_object_changed_assignment","type":"FLEET_ROLE_CHANGED","selector":{"group":"md.$LSPWatch"},"subject":"event.param","other":"@event.param.commander","previous":"event.param2","detail":"event.param3"},
-  {"name":"event_player_built_ship","type":"CREATED","selector":{},"subject":"event.param","create":true},
-  {"name":"event_player_built_station","type":"CREATED","selector":{},"subject":"event.param","create":true},
-  {"name":"event_god_created_ship","type":"CREATED","selector":{"space":"player.galaxy"},"subject":"event.param","create":true},
-  {"name":"event_god_created_station","type":"CREATED","selector":{"space":"player.galaxy"},"subject":"event.param","create":true},
-  {"name":"event_contained_object_changed_true_owner","type":"ACQUIRED","selector":{"space":"player.galaxy","owner":"faction.player"},"subject":"event.param","create":true},
-  {"name":"event_npc_created","type":"NPC_CREATED","selector":{},"subject":"event.param","create":true,"npc":true},
-  {"name":"event_control_entity_added","type":"CONTROL_ROLE_ASSIGNED","selector":{"group":"md.$LSPWatch"},"subject":"event.param","host":"event.object","other":"event.object","npc":true,"create":true},
-  {"name":"event_control_entity_removed","type":"CONTROL_ROLE_REMOVED","selector":{"group":"md.$LSPWatch"},"subject":"event.param","host":"event.object","other":"event.object","npc":true},
-  {"name":"event_entity_entered","type":"ENTITY_ENTERED","selector":{"group":"md.$LSPWatch"},"subject":"event.param","host":"event.object","other":"event.param2","previous":"event.param3","npc":true,"create":true},
-  {"name":"event_entity_left","type":"ENTITY_LEFT","selector":{"group":"md.$LSPWatch"},"subject":"event.param","host":"event.object","other":"event.param2","previous":"event.param3","npc":true},
-  {"name":"event_player_assigned_hired_actor","type":"ASSIGNMENT_REQUESTED","selector":{},"subject":"event.param","target":"event.param2","detail":"event.param3","npc":true,"create":true,"assignment":true}
+  {
+    "name": "event_object_attacked",
+    "type": "ATTACKED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "other": "event.param"
+  },
+  {
+    "name": "event_object_attacked_object",
+    "type": "ATTACKING",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "other": "event.param"
+  },
+  {
+    "name": "event_object_order_ready",
+    "type": "ORDER_READY",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "detail": "@event.param.id",
+    "detailName": "@event.param.name",
+    "order": "event.param"
+  },
+  {
+    "name": "event_object_commander_set",
+    "type": "COMMANDER_SET",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "other": "event.param",
+    "previous": "event.param2",
+    "detail": "event.param3",
+    "detailName": "@event.param3.name"
+  },
+  {
+    "name": "event_object_changed_assignment",
+    "type": "FLEET_ROLE_CHANGED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "other": "@event.param.commander",
+    "previous": "event.param2",
+    "detail": "event.param3",
+    "detailName": "@event.param3.name"
+  },
+  {
+    "name": "event_player_built_ship",
+    "type": "CREATED",
+    "selector": {},
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_player_built_station",
+    "type": "CREATED",
+    "selector": {},
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_god_created_ship",
+    "type": "CREATED",
+    "selector": {
+      "space": "player.galaxy"
+    },
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_god_created_station",
+    "type": "CREATED",
+    "selector": {
+      "space": "player.galaxy"
+    },
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_contained_object_changed_true_owner",
+    "type": "ACQUIRED",
+    "selector": {
+      "space": "player.galaxy",
+      "owner": "faction.player"
+    },
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_npc_created",
+    "type": "NPC_CREATED",
+    "selector": {},
+    "subject": "event.param",
+    "create": true,
+    "npc": true
+  },
+  {
+    "name": "event_control_entity_added",
+    "type": "CONTROL_ROLE_ASSIGNED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.object",
+    "npc": true,
+    "create": true
+  },
+  {
+    "name": "event_control_entity_removed",
+    "type": "CONTROL_ROLE_REMOVED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.object",
+    "npc": true
+  },
+  {
+    "name": "event_entity_entered",
+    "type": "ENTITY_ENTERED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.param2",
+    "previous": "event.param3",
+    "npc": true,
+    "create": true
+  },
+  {
+    "name": "event_entity_left",
+    "type": "ENTITY_LEFT",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.param2",
+    "previous": "event.param3",
+    "npc": true
+  },
+  {
+    "name": "event_player_assigned_hired_actor",
+    "type": "ASSIGNMENT_REQUESTED",
+    "selector": {},
+    "subject": "event.param",
+    "target": "event.param2",
+    "detail": "event.param3",
+    "npc": true,
+    "create": true,
+    "assignment": true,
+    "detailName": "@event.param3.name"
+  },
+  {
+    "name": "event_contained_entity_changed_true_owner",
+    "type": "NPC_ACQUIRED",
+    "selector": {
+      "space": "player.galaxy",
+      "owner": "faction.player"
+    },
+    "subject": "event.param",
+    "npc": true,
+    "create": true
+  }
 ]
