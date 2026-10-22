@@ -4351,9 +4351,11 @@
 <set_value name="$location_basis" exact="'UNKNOWN'" />
 <do_if value="$Kind == 'NPC'">
 <do_if value="typeof $Subject == datatype.component and $Subject.exists">
-<set_value name="$Assigned" exact="@$Subject.roleobject" />
+<set_value name="$RoleObject" exact="@$Subject.roleobject" />
+<set_value name="$ControlledObject" exact="@$Subject.assignedcontrolled" />
+<set_value name="$Assigned" exact="$RoleObject" />
 <do_if value="$Assigned == null">
-<set_value name="$Assigned" exact="@$Subject.assignedcontrolled" />
+<set_value name="$Assigned" exact="$ControlledObject" />
 </do_if>
 <do_if value="$Subject.roleobject? and $Subject.assignedcontrolled?">
 <do_if value="$Subject.roleobject == null and $Subject.assignedcontrolled == null">
@@ -4361,6 +4363,11 @@
 </do_if>
 </do_if>
 <set_value name="$assignment_basis" exact="'ACTOR_ROLE_OR_CONTROL_OBSERVED'" />
+<do_if value="typeof $RoleObject == datatype.component and $RoleObject.exists and typeof $ControlledObject == datatype.component and $ControlledObject.exists and $RoleObject != $ControlledObject">
+<set_value name="$Assigned" exact="null" />
+<set_value name="$assignment_state" exact="'AMBIGUOUS'" />
+<set_value name="$assignment_basis" exact="'CONFLICTING_ACTOR_RELATIONSHIPS'" />
+</do_if>
 <set_value name="$Location" exact="@$Subject.container" />
 <set_value name="$location_basis" exact="'ACTOR_CONTAINER_OBSERVED'" />
 </do_if>

@@ -99,7 +99,7 @@ stories require an additional time-valid command-chain join over captured facts.
 
 ## Validation and native acceptance
 
-75 Node collector/storage/lifecycle tests and112 bridge tests pass. Actual
+76 Node collector/storage/lifecycle tests and112 bridge tests pass. Actual
 generated-listener regressions cover repeated combat contacts without crew/text
 rescans, reference expiry, trade participant fallback, cancellation payloads,
 marine pseudo-type safety and exact signed64-bit seeds, world/scan/travel fields,

@@ -199,7 +199,7 @@ export class ProfileStore {
     const states=[];
     for(const item of timeline){
       if(item.profile){const f=item.profile;
-        assignment=resolve(null,present(f,'assigned_ship_idcode'),present(f,'role_object_reference')||present(f,'assigned_controlled_reference'),item);
+        assignment=present(f,'assignment_basis')==='CONFLICTING_ACTOR_RELATIONSHIPS'?null:resolve(null,present(f,'assigned_ship_idcode'),present(f,'role_object_reference')||present(f,'assigned_controlled_reference'),item);
         assignmentBasis=present(f,'assignment_basis')||'UNKNOWN';
         presence=resolve(null,null,present(f,'container_reference'),item);
         presenceBasis=presence?'ACTOR_CONTAINER_OBSERVED':'UNKNOWN';
@@ -213,6 +213,7 @@ export class ProfileStore {
           const observed=resolve(f.assigned_seed,f.assigned_idcode,f.assigned_reference,item);
           if(observed){assignment=observed;assignmentBasis=f.assignment_basis||'OBSERVED_RELATION';}
           else if(f.assignment_state==='NONE'){assignment=null;assignmentBasis='OBSERVED_UNASSIGNED';}
+          else if(f.assignment_state==='AMBIGUOUS'){assignment=null;assignmentBasis='CONFLICTING_ACTOR_RELATIONSHIPS';}
           else if(item.event_type==='CONTROL_ROLE_REMOVED'){assignment=null;assignmentBasis='UNKNOWN_AFTER_CONTROL_REMOVAL';}
           if(meaningful(f.control_post)||meaningful(f.actual_role))role=meaningful(f.control_post)?f.control_post:f.actual_role;
         }

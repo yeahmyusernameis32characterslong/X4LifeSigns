@@ -55,3 +55,9 @@ test('world relations remain context, travel retains null sectors, scans identif
  emit(h,'SECTOR_CHANGED',{object:ship,param:null,param2:{__type:'component',exists:true,ref:'sector-old',class:'sector',knownname:'Old sector'}});f=events(h).at(-1).fields;assert.equal(f.other_reference,'null');assert.equal(f.previous_name,'Old sector');
  emit(h,'WAS_SCANNED',{object:ship,param:other,param2:false});assert.equal(events(h).at(-1).fields.other_idcode,'ARG-002');
 });
+
+test('conflicting actor assignments remain ambiguous while actual presence is independent',()=>{
+ const ship=asset('OUR-001'),other=asset('ARG-002'),h=setup([ship,other]);const npc={...asset('NPC-003'),class:'npc',roleobject:ship,assignedcontrolled:other,container:ship,role:{name:'Crewman'},controlpost:{name:'Captain'}};
+ h.call('RecordEntityEvent',{Subject:npc,Host:ship,Other:other,Type:'ASSIGNMENT_OBSERVED',Npc:true});const f=events(h).at(-1).fields;
+ assert.equal(f.assignment_state,'AMBIGUOUS');assert.equal(f.assigned_seed,'');assert.equal(f.assignment_basis,'CONFLICTING_ACTOR_RELATIONSHIPS');assert.equal(f.location_seed,'9223372036854775807');
+});

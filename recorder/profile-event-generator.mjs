@@ -85,9 +85,12 @@ export function generateProfileEvents(h, c) {
     iff(valid('$Previous'),set('$previous_seed',"'%s'.[@$Previous.seed]")+set('$previous_idcode','@$Previous.idcode'))+
     set('$Assigned','null')+set('$Location','null')+set('$assignment_basis',"'UNKNOWN'")+set('$assignment_state',"'UNKNOWN'")+set('$location_basis',"'UNKNOWN'")+
     iff("$Kind == 'NPC'",iff(valid('$Subject'),
-      set('$Assigned','@$Subject.roleobject')+iff('$Assigned == null',set('$Assigned','@$Subject.assignedcontrolled'))+
+      set('$RoleObject','@$Subject.roleobject')+set('$ControlledObject','@$Subject.assignedcontrolled')+
+      set('$Assigned','$RoleObject')+iff('$Assigned == null',set('$Assigned','$ControlledObject'))+
       iff('$Subject.roleobject? and $Subject.assignedcontrolled?',iff('$Subject.roleobject == null and $Subject.assignedcontrolled == null',set('$assignment_state',"'NONE'")))+
-      set('$assignment_basis',"'ACTOR_ROLE_OR_CONTROL_OBSERVED'")+set('$Location','@$Subject.container')+set('$location_basis',"'ACTOR_CONTAINER_OBSERVED'"))+
+      set('$assignment_basis',"'ACTOR_ROLE_OR_CONTROL_OBSERVED'")+
+      iff(valid('$RoleObject')+' and '+valid('$ControlledObject')+' and $RoleObject != $ControlledObject',set('$Assigned','null')+set('$assignment_state',"'AMBIGUOUS'")+set('$assignment_basis',"'CONFLICTING_ACTOR_RELATIONSHIPS'"))+
+      set('$Location','@$Subject.container')+set('$location_basis',"'ACTOR_CONTAINER_OBSERVED'"))+
       otherwise(iff(owned('$Host'),
         iff('typeof $Template == datatype.npctemplate',iff('@$Host.people.{$Template}.exists',
           set('$Assigned','$Host')+set('$assignment_basis',"'CONTEXT_ROSTER_ASSOCIATION'")+
