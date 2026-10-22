@@ -99,3 +99,17 @@ test('retired listener names stay inactive; migration covers every saved cue sta
   assert.equal(children.length,48);
   assert.ok(children.every(n=>n.attrs.instantiate==='false' && n.children[0].children[0].attrs.value==='false'));
 });
+
+test('documented limit: complete same-version saved flags do not prove freshness before load invalidation',()=>{
+  const previous=harness(xml,{ships:[ship],databaseState:'READY'});previous.start();
+  const restored=harness(xml,{ships:[ship],databaseState:'READY'});
+  Object.assign(restored.md,structuredClone(previous.md));
+  // Deliberately deliver a helper callback BEFORE any lifecycle event. This is
+  // a counterexample to a claim of a complete fresh-runtime gate, not evidence
+  // about the order chosen by the native engine on a future load.
+  assert.equal(event(restored),true);
+  assert.equal(rows(restored)[0].file,previous.md.$LSPProfileFile);
+  const before=restored.output.length;
+  restored.cue('InvalidateLoadedRecorder');
+  assert.equal(event(restored),false);assert.equal(restored.output.length,before);
+});

@@ -1,5 +1,13 @@
 # NPC history events
 
+## Startup correction under review
+
+The [startup safeguards](RECORDER_STARTUP.md) guard missing history state and
+stage a compatible replacement listener tree. This is a partial correction:
+same-version callbacks before load invalidation remain an explicit routing gap.
+Automated regressions cover both the safeguards and that counterexample; no
+claim of complete reload isolation or new native acceptance is made.
+
 ## Owner-approved implementation plan (22 October 2026)
 
 Baseline `44690a5`, `feat/sqlite-object-profiles`, draft PR20. The owner approved
