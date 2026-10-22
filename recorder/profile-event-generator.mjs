@@ -3,7 +3,7 @@ import { generateHistoryEvents } from './history-event-generator.mjs';
 export const profileEvents = JSON.parse(readFileSync(new URL('./profile-events.json', import.meta.url)));
 
 export function generateProfileEvents(h, c) {
-  const { tag, set, add, iff, otherwise, each, ret, run, lib, write, valid } = h;
+  const { tag, set, add, iff, otherwise, each, ret, run, lib, write, valid, ready, eventReady } = h;
   const history=generateHistoryEvents(h,c);
   const owned = x => `${valid(x)} and ${x}.isplayerowned`;
   const eventWrite=body=>run('Write',{Body:body,EventTrace:'true'});
@@ -16,7 +16,7 @@ export function generateProfileEvents(h, c) {
     ['NewIndex','SettleIndex','KnownIndex','CrewIndex','OrderIndex'].map(k=>set(`md.$LSP${k}`,'1')).join('')+
     set('md.$LSPQueuedKeys','table[]')+set('md.$LSPEventsReady','false')+
     iff('not UniverseIdentity.$KnownProfileSeeds?',set('UniverseIdentity.$KnownProfileSeeds','table[]'))+
-    history.initialize+tag('reset_cue',{cue:'ProfileEventBus'});
+    history.initialize;
   const observedSeed = iff("$Field == 'seed' and $State == 'PRESENT'",set('md.$LSPCurrentSeed',"'%s'.[$Value]"));
   const begin = kind => set('md.$LSPCurrentKind',`'${kind}'`)+set('md.$LSPCurrentSeed',"''");
   const end = iff("md.$LSPCurrentSeed != ''",tag('append_to_list',{name:'md.$LSPKnownPending',exact:`[md.$LSPRecord, ${key('md.$LSPCurrentKind','md.$LSPCurrentSeed')}]`}));
@@ -29,7 +29,7 @@ export function generateProfileEvents(h, c) {
     iff('md.$LSPKnownIndex gt md.$LSPKnownPending.count',set('md.$LSPKnownPending','[]')+set('md.$LSPKnownIndex','1'));
 
   const queue=lib('QueueNewProfile',{Object:'null',Host:'null',Template:'null',Target:'null'},
-    iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
+    iff(`not (${eventReady})`,ret('false'))+
     set('$Kind',"''")+set('$Seed',"''")+set('$Actor','null')+
     iff(owned('$Object'),
       iff('$Object.isclass.ship',set('$Kind',"'SHIP'"))+
@@ -47,6 +47,7 @@ export function generateProfileEvents(h, c) {
     set('md.$LSPQueuedKeys.{$Key}','md.$LSPNewProfiles.count')+
     iff("$Kind == 'SHIP' or $Kind == 'STATION'",tag('add_to_group',{groupname:'md.$LSPWatch',object:'$Object'}))+ret('true'));
   const crew=lib('QueueNewHostPersonnel',{Host:null},
+    iff(`not (${eventReady})`,ret('false'))+
     iff('not ('+owned('$Host')+')',ret('false'))+
     set('$People','@$Host.people.list')+
     iff('typeof $People == datatype.list',tag('do_all',{exact:`[$People.count, ${c.personnelPerHost}].min`,counter:'$I'},run('QueueNewProfile',{Host:'$Host',Template:'$People.{$I}'})))+
@@ -57,7 +58,7 @@ export function generateProfileEvents(h, c) {
     'subject_name','subject_faction','sector_name','host_reference','host_kind','other_kind','other_faction','previous_seed','previous_idcode',
     'assigned_seed','assigned_idcode','assigned_reference','assignment_basis','assignment_state','location_seed','location_idcode','location_reference','location_basis'];
   const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false',SeedText:"''",RoleText:"''"},
-    iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
+    iff(`not (${eventReady})`,ret('false'))+
     iff(valid('$Subject'),iff('$Subject.isclass.npc and not $Subject.isplayerowned',ret('false')))+
     set('$Kind',"''")+fields.map(f=>set('$'+f,"''")).join('')+
     iff(owned('$Subject'),
@@ -106,7 +107,7 @@ export function generateProfileEvents(h, c) {
     eventWrite(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|${fields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind','$Status',...fields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
 
   const dispatch=lib('HandleProfileEvent',{Subject:'null',Host:'null',Other:'null',Previous:'null',Detail:'null',DetailName:'null',Target:'null',Order:'null',Type:null,Create:'false',Npc:'false',Assignment:'false'},
-    iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
+    iff(`not (${eventReady})`,ret('false'))+
     set('$Template','null')+
     iff('typeof $Subject == datatype.list',
       iff('$Subject.count ge 2',set('$Host','$Subject.{1}')+set('$Template','$Subject.{2}')+set('$Subject','null'))+otherwise(ret('false')))+
@@ -117,6 +118,7 @@ export function generateProfileEvents(h, c) {
     iff("$Type == 'ORDER_READY' and $Order != null",tag('append_to_list',{name:'md.$LSPOrderChecks',exact:'[player.age + 1s,$Subject,$Order]'}))+
     iff('$Npc',iff(valid('$Other'),iff('$Other.isclass.spacesuit',run('QueueNewProfile',{Object:'$Other'}))))+ret('true'));
   const process=lib('ProcessNewProfiles',{},
+    iff(`not (${eventReady})`,ret('false'))+
     iff("md.$LSPDatabaseState != 'READY' or md.$LSPAwaitCommit or md.$LSPActive",ret('false'))+
     tag('do_all',{exact:String(c.profilesPerTick)},
       iff('md.$LSPNewIndex gt md.$LSPNewProfiles.count',tag('break'))+
@@ -129,6 +131,7 @@ export function generateProfileEvents(h, c) {
           run('NpcProfile',{Candidate:'$Item'}))))+
     iff('md.$LSPNewIndex gt md.$LSPNewProfiles.count',set('md.$LSPNewProfiles','[]')+set('md.$LSPNewIndex','1'))+ret('true'));
   const settle=lib('ProcessAssignmentObservations',{},
+    iff(`not (${eventReady})`,ret('false'))+
     tag('do_all',{exact:String(c.discoveryPerTick)},
       iff('md.$LSPSettleIndex gt md.$LSPSettleEvents.count',tag('break'))+
       set('$Item','md.$LSPSettleEvents.{md.$LSPSettleIndex}')+
@@ -138,11 +141,12 @@ export function generateProfileEvents(h, c) {
       run('RecordEntityEvent',{Subject:'$Item.{2}',Host:'$Host',Template:'$Item.{4}',Other:'$Item.{5}',Type:"'ASSIGNMENT_OBSERVED'",Detail:'$Item.{6}',Status:"'OBSERVED_AFTER_REQUEST'",Npc:'true'}))+
     iff('md.$LSPSettleIndex gt md.$LSPSettleEvents.count',set('md.$LSPSettleEvents','[]')+set('md.$LSPSettleIndex','1'))+ret('true'));
   const crewChange=lib('QueueCrewRoleObservation',{Host:null,Seed:null,Role:null,ActualRole:"'UNAVAILABLE'"},
-    iff('not md.$LSPReady or md.$LSPStopped or not ('+owned('$Host')+')',ret('false'))+
+    iff(`not (${eventReady}) or not (`+owned('$Host')+')',ret('false'))+
     iff('typeof $Seed != datatype.string or typeof $Role != datatype.string',ret('false'))+
     run('RecordEntityEvent',{Host:'$Host',Type:"'CREW_ROLE_OBSERVED'",Detail:'$Role',SeedText:'$Seed',RoleText:'$ActualRole',Status:"'OBSERVED_AFTER_UI_CONFIRM'",Npc:'true'})+
     iff('not UniverseIdentity.$KnownProfileSeeds.{'+key("'NPC'",'$Seed')+'}?',tag('append_to_list',{name:'md.$LSPCrewChanges',exact:'[$Host,$Seed,$Role,1]'}))+ret('true'));
   const processCrew=lib('ProcessCrewRoleObservations',{},
+    iff(`not (${eventReady})`,ret('false'))+
     tag('do_all',{exact:String(c.discoveryPerTick)},
       iff('md.$LSPCrewIndex gt md.$LSPCrewChanges.count',tag('break'))+
       set('$Change','md.$LSPCrewChanges.{md.$LSPCrewIndex}')+set('$Host','$Change.{1}')+
@@ -158,7 +162,7 @@ export function generateProfileEvents(h, c) {
     iff('typeof event.param3 == datatype.list',iff('event.param3.count == 4',iff('typeof event.param3.{1} == datatype.component',run('QueueCrewRoleObservation',{Host:'event.param3.{1}',Seed:'event.param3.{2}',Role:'event.param3.{3}',ActualRole:'event.param3.{4}'}))))));
   const renameFields=['subject_seed','subject_idcode','subject_reference','old_name','old_name_state','new_name','new_name_state','requested_name','name_source'];
   const rename=lib('RecordNameObservation',{Object:null,Before:null,BeforeState:null,Requested:null,Source:null},
-    iff('not md.$LSPReady or md.$LSPStopped or not ('+owned('$Object')+')',ret('false'))+
+    iff(`not (${eventReady}) or not (`+owned('$Object')+')',ret('false'))+
     iff('not ($Object.isclass.ship or $Object.isclass.station)',ret('false'))+
     iff('typeof $Before != datatype.string or typeof $Requested != datatype.string',ret('false'))+
     iff("$BeforeState != 'PRESENT' and $BeforeState != 'UNKNOWN'",ret('false'))+
@@ -177,14 +181,24 @@ export function generateProfileEvents(h, c) {
   const renameListener=tag('cue',{name:'ProfileNameResponse',instantiate:'true'},tag('conditions',{},tag('event_ui_triggered',{screen:"'LifeSignsProfiles'",control:"'name_changed'"}))+tag('actions',{},
     iff('typeof event.param3 == datatype.list',iff('event.param3.count == 5',iff('typeof event.param3.{1} == datatype.component',run('RecordNameObservation',{Object:'event.param3.{1}',Before:'event.param3.{2}',BeforeState:'event.param3.{3}',Requested:'event.param3.{4}',Source:'event.param3.{5}'}))))));
   const orderChecks=lib('ProcessOrderObservations',{},
+    iff(`not (${eventReady})`,ret('false'))+
     tag('do_all',{exact:String(c.discoveryPerTick)},
       iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',tag('break'))+
       set('$Item','md.$LSPOrderChecks.{md.$LSPOrderIndex}')+iff('player.age lt $Item.{1}',tag('break'))+add('md.$LSPOrderIndex')+
       iff('@$Item.{3}.isrunning',run('RecordEntityEvent',{Subject:'$Item.{2}',Type:"'ORDER_RUNNING_OBSERVED'",Detail:'@$Item.{3}.id',DetailName:'@$Item.{3}.name'})))+
     iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',set('md.$LSPOrderChecks','[]')+set('md.$LSPOrderIndex','1'))+ret('true'));
-  const listeners=profileEvents.map((e,i)=>tag('cue',{name:'ProfileEvent'+i,instantiate:'true',namespace:'this'},
+  const listeners=profileEvents.map((e,i)=>tag('cue',{name:'ProfileEventV2_'+i,instantiate:'true',namespace:'this'},
     tag('conditions',{},tag(e.name,e.selector))+tag('actions',{},e.handler?run(e.handler,e.params):run('HandleProfileEvent',{
       Subject:e.subject,Type:`'${e.type}'`,Host:e.host||'null',Other:e.other||'null',Previous:e.previous||'null',Detail:e.detail||'null',DetailName:e.detailName||'null',Target:e.target||'null',Order:e.order||'null',Create:String(Boolean(e.create)),Npc:String(Boolean(e.npc)),Assignment:String(Boolean(e.assignment))})))).join('');
-  const cues=tag('cue',{name:'ProfileEventBus',checkinterval:'0.1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPReady? and md.$LSPReady and md.$LSPWatch?'}))+tag('actions',{},set('md.$LSPEventsReady','true'))+tag('cues',{},listeners));
+  const patches=['waiting','active','complete','cancelled'].map(state=>tag('patch',{sinceversion:'1',state},run('InvalidateRecorder'))).join('');
+  // Reserve every old name in its original parent. Changing an existing cue's
+  // parent is not supported by MD refresh; inactive placeholders have no events.
+  const retiredChildren=profileEvents.map((_,i)=>tag('cue',{name:'ProfileEvent'+i,instantiate:'false',onfail:'cancel',comment:'Deprecated; name reserved for saved games'},tag('conditions',{},tag('check_value',{value:'false'})))).join('');
+  const retired=tag('cue',{name:'ProfileEventBus',version:'1',onfail:'cancel'},tag('conditions',{},tag('check_value',{value:'false'}))+patches+tag('cues',{},retiredChildren));
+  const cues=retired+tag('cue',{name:'ProfileEventBusV2',version:'1'},
+    tag('conditions',{},tag('event_cue_signalled',{cue:'ProfileEventBusV2'})+
+      tag('check_value',{value:`(${ready}) and md.$LSPBusArmedRun? and md.$LSPBusArmedRun == md.$LSPRun and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders?`}))+
+    tag('actions',{},set('md.$LSPEventsReady','true')+tag('remove_value',{name:'md.$LSPBusArmedRun'})+
+      iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'"})))+patches+tag('cues',{},listeners));
   return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
 }

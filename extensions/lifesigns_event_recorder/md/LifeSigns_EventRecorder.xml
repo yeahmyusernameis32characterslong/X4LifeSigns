@@ -100,15 +100,302 @@
 </cue>
 </cues>
 </cue>
-<cue name="ProfileEventBus" checkinterval="0.1s">
+<cue name="ProfileEventBus" version="1" onfail="cancel">
 <conditions>
-<check_value value="md.$LSPReady? and md.$LSPReady and md.$LSPWatch?" />
+<check_value value="false" />
+</conditions>
+<patch sinceversion="1" state="waiting">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<patch sinceversion="1" state="active">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<patch sinceversion="1" state="complete">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<patch sinceversion="1" state="cancelled">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<cues>
+<cue name="ProfileEvent0" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent1" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent2" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent3" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent4" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent5" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent6" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent7" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent8" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent9" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent10" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent11" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent12" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent13" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent14" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent15" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent16" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent17" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent18" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent19" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent20" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent21" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent22" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent23" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent24" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent25" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent26" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent27" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent28" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent29" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent30" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent31" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent32" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent33" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent34" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent35" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent36" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent37" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent38" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent39" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent40" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent41" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent42" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent43" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent44" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent45" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent46" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+<cue name="ProfileEvent47" instantiate="false" onfail="cancel" comment="Deprecated; name reserved for saved games">
+<conditions>
+<check_value value="false" />
+</conditions>
+</cue>
+</cues>
+</cue>
+<cue name="ProfileEventBusV2" version="1">
+<conditions>
+<event_cue_signalled cue="ProfileEventBusV2" />
+<check_value value="(md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPBusArmedRun? and md.$LSPBusArmedRun == md.$LSPRun and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders?" />
 </conditions>
 <actions>
 <set_value name="md.$LSPEventsReady" exact="true" />
+<remove_value name="md.$LSPBusArmedRun" />
+<do_if value="md.$LSPLevel ge 3">
+<run_actions ref="Write">
+<param name="Diagnostic" value="true" />
+<param name="Body" value="'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'" />
+</run_actions>
+</do_if>
 </actions>
+<patch sinceversion="1" state="waiting">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<patch sinceversion="1" state="active">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<patch sinceversion="1" state="complete">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
+<patch sinceversion="1" state="cancelled">
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</patch>
 <cues>
-<cue name="ProfileEvent0" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_0" instantiate="true" namespace="this">
 <conditions>
 <event_object_attacked group="md.$LSPWatch" />
 </conditions>
@@ -124,7 +411,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent1" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_1" instantiate="true" namespace="this">
 <conditions>
 <event_object_attacked_object group="md.$LSPWatch" />
 </conditions>
@@ -140,7 +427,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent2" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_2" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_ready group="md.$LSPWatch" />
 </conditions>
@@ -161,7 +448,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent3" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_3" instantiate="true" namespace="this">
 <conditions>
 <event_object_commander_set group="md.$LSPWatch" />
 </conditions>
@@ -182,7 +469,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent4" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_4" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_assignment group="md.$LSPWatch" />
 </conditions>
@@ -203,7 +490,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent5" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_5" instantiate="true" namespace="this">
 <conditions>
 <event_player_built_ship />
 </conditions>
@@ -224,7 +511,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent6" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_6" instantiate="true" namespace="this">
 <conditions>
 <event_player_built_station />
 </conditions>
@@ -245,7 +532,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent7" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_7" instantiate="true" namespace="this">
 <conditions>
 <event_god_created_ship space="player.galaxy" />
 </conditions>
@@ -266,7 +553,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent8" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_8" instantiate="true" namespace="this">
 <conditions>
 <event_god_created_station space="player.galaxy" />
 </conditions>
@@ -287,7 +574,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent9" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_9" instantiate="true" namespace="this">
 <conditions>
 <event_contained_object_changed_true_owner space="player.galaxy" owner="faction.player" />
 </conditions>
@@ -308,7 +595,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent10" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_10" instantiate="true" namespace="this">
 <conditions>
 <event_npc_created />
 </conditions>
@@ -329,7 +616,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent11" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_11" instantiate="true" namespace="this">
 <conditions>
 <event_control_entity_added group="md.$LSPWatch" />
 </conditions>
@@ -350,7 +637,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent12" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_12" instantiate="true" namespace="this">
 <conditions>
 <event_control_entity_removed group="md.$LSPWatch" />
 </conditions>
@@ -371,7 +658,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent13" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_13" instantiate="true" namespace="this">
 <conditions>
 <event_entity_entered group="md.$LSPWatch" />
 </conditions>
@@ -392,7 +679,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent14" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_14" instantiate="true" namespace="this">
 <conditions>
 <event_entity_left group="md.$LSPWatch" />
 </conditions>
@@ -413,7 +700,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent15" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_15" instantiate="true" namespace="this">
 <conditions>
 <event_player_assigned_hired_actor />
 </conditions>
@@ -434,7 +721,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent16" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_16" instantiate="true" namespace="this">
 <conditions>
 <event_contained_entity_changed_true_owner space="player.galaxy" owner="faction.player" />
 </conditions>
@@ -455,7 +742,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent17" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_17" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_finished group="md.$LSPWatch" />
 </conditions>
@@ -470,7 +757,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent18" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_18" instantiate="true" namespace="this">
 <conditions>
 <event_object_order_cancelled group="md.$LSPWatch" />
 </conditions>
@@ -486,7 +773,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent19" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_19" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_subordinategroup group="md.$LSPWatch" />
 </conditions>
@@ -502,7 +789,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent20" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_20" instantiate="true" namespace="this">
 <conditions>
 <event_object_subordinate_promoted group="md.$LSPWatch" />
 </conditions>
@@ -516,7 +803,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent21" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_21" instantiate="true" namespace="this">
 <conditions>
 <event_object_destroyed group="md.$LSPWatch" />
 </conditions>
@@ -532,7 +819,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent22" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_22" instantiate="true" namespace="this">
 <conditions>
 <event_object_abandoned group="md.$LSPWatch" />
 </conditions>
@@ -545,7 +832,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent23" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_23" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_owner group="md.$LSPWatch" />
 </conditions>
@@ -559,7 +846,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent24" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_24" instantiate="true" namespace="this">
 <conditions>
 <event_object_docked group="md.$LSPWatch" />
 </conditions>
@@ -574,7 +861,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent25" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_25" instantiate="true" namespace="this">
 <conditions>
 <event_object_undocked group="md.$LSPWatch" />
 </conditions>
@@ -589,7 +876,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent26" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_26" instantiate="true" namespace="this">
 <conditions>
 <event_object_changed_sector group="md.$LSPWatch" />
 </conditions>
@@ -604,7 +891,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent27" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_27" instantiate="true" namespace="this">
 <conditions>
 <event_object_entered_gate group="md.$LSPWatch" />
 </conditions>
@@ -619,7 +906,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent28" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_28" instantiate="true" namespace="this">
 <conditions>
 <event_object_collected_ware group="md.$LSPWatch" />
 </conditions>
@@ -637,7 +924,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent29" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_29" instantiate="true" namespace="this">
 <conditions>
 <event_supply_orders_added group="md.$LSPWatch" />
 </conditions>
@@ -650,7 +937,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent30" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_30" instantiate="true" namespace="this">
 <conditions>
 <event_supply_orders_removed group="md.$LSPWatch" />
 </conditions>
@@ -663,7 +950,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent31" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_31" instantiate="true" namespace="this">
 <conditions>
 <event_build_started group="md.$LSPWatch" />
 </conditions>
@@ -678,7 +965,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent32" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_32" instantiate="true" namespace="this">
 <conditions>
 <event_build_finished group="md.$LSPWatch" />
 </conditions>
@@ -693,7 +980,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent33" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_33" instantiate="true" namespace="this">
 <conditions>
 <event_build_cancelled group="md.$LSPWatch" />
 </conditions>
@@ -708,7 +995,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent34" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_34" instantiate="true" namespace="this">
 <conditions>
 <event_trade_completed space="player.galaxy" />
 </conditions>
@@ -721,7 +1008,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent35" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_35" instantiate="true" namespace="this">
 <conditions>
 <event_trade_cancelled space="player.galaxy" />
 </conditions>
@@ -734,7 +1021,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent36" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_36" instantiate="true" namespace="this">
 <conditions>
 <event_region_asteroid_mined group="md.$LSPHistorySectors" />
 </conditions>
@@ -748,7 +1035,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent37" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_37" instantiate="true" namespace="this">
 <conditions>
 <event_scan_finished scanner="md.$LSPWatch" />
 </conditions>
@@ -762,7 +1049,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent38" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_38" instantiate="true" namespace="this">
 <conditions>
 <event_scan_finished scanned="md.$LSPWatch" />
 </conditions>
@@ -776,7 +1063,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent39" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_39" instantiate="true" namespace="this">
 <conditions>
 <event_boarding_operation_created />
 </conditions>
@@ -789,7 +1076,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent40" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_40" instantiate="true" namespace="this">
 <conditions>
 <event_boarding_operation_started />
 </conditions>
@@ -802,7 +1089,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent41" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_41" instantiate="true" namespace="this">
 <conditions>
 <event_boarding_phase_changed />
 </conditions>
@@ -815,7 +1102,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent42" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_42" instantiate="true" namespace="this">
 <conditions>
 <event_boarding_operation_removed />
 </conditions>
@@ -828,7 +1115,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent43" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_43" instantiate="true" namespace="this">
 <conditions>
 <event_object_destroyed group="md.$LSPHistoryOutsiders" />
 </conditions>
@@ -844,7 +1131,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent44" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_44" instantiate="true" namespace="this">
 <conditions>
 <event_player_discovered_object />
 </conditions>
@@ -860,7 +1147,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent45" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_45" instantiate="true" namespace="this">
 <conditions>
 <event_player_relation_changed />
 </conditions>
@@ -876,7 +1163,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent46" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_46" instantiate="true" namespace="this">
 <conditions>
 <event_faction_relation_changed />
 </conditions>
@@ -891,7 +1178,7 @@
 </run_actions>
 </actions>
 </cue>
-<cue name="ProfileEvent47" instantiate="true" namespace="this">
+<cue name="ProfileEventV2_47" instantiate="true" namespace="this">
 <conditions>
 <event_object_killed_object group="md.$LSPWatch" />
 </conditions>
@@ -907,6 +1194,15 @@
 </actions>
 </cue>
 </cues>
+</cue>
+<cue name="InvalidateLoadedRecorder" instantiate="true">
+<conditions>
+<event_game_loaded />
+</conditions>
+<actions>
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+</actions>
 </cue>
 <library name="Escape" purpose="run_actions">
 <params>
@@ -966,6 +1262,9 @@
 <param name="EventTrace" default="false" />
 </params>
 <actions>
+<do_if value="not (md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun)">
+<return value="false" />
+</do_if>
 <do_if value="$Diagnostic and md.$LSPLevel == 0">
 <return value="false" />
 </do_if>
@@ -3761,15 +4060,35 @@
 <params>
 </params>
 <actions>
-<set_value name="md.$LSPReady" exact="false" />
-<set_value name="md.$LSPActive" exact="false" />
-<set_value name="md.$LSPStopped" exact="true" />
+<run_actions ref="InvalidateRecorder">
+</run_actions>
+<reset_cue cue="ProfileEventBusV2" />
 <set_value name="md.$LSPPendingLoadedAt" exact="player.systemtime.{'%Y-%m-%d_%H-%M-%S'}" />
 <set_value name="$NonceA" min="0" max="2147483647" />
 <set_value name="$NonceB" min="0" max="2147483647" />
 <set_value name="md.$LSPPendingRun" exact="'session-%s-%s-loaded-%s'.[$NonceA, $NonceB, md.$LSPPendingLoadedAt]" />
 <set_value name="md.$LSPPending" exact="true" />
 <reset_cue cue="Bootstrap" />
+<return value="true" />
+</actions>
+</library>
+<library name="InvalidateRecorder" purpose="run_actions">
+<params>
+</params>
+<actions>
+<set_value name="md.$LSPReady" exact="false" />
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<set_value name="md.$LSPEventsReady" exact="false" />
+<set_value name="md.$LSPPending" exact="false" />
+<do_if value="md.$LSPInitialisedRun?">
+<remove_value name="md.$LSPInitialisedRun" />
+</do_if>
+<do_if value="md.$LSPBusArmedRun?">
+<remove_value name="md.$LSPBusArmedRun" />
+</do_if>
+<reset_cue cue="ProfileEventBus" />
+<cancel_cue cue="ProfileEventBusV2" />
 <return value="true" />
 </actions>
 </library>
@@ -3780,6 +4099,9 @@
 <do_if value="not md.$LSPPending">
 <return value="false" />
 </do_if>
+<set_value name="md.$LSPReady" exact="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<set_value name="md.$LSPEventsReady" exact="false" />
 <set_value name="md.$LSPRun" exact="md.$LSPPendingRun" />
 <set_value name="md.$LSPLoadedAt" exact="md.$LSPPendingLoadedAt" />
 <set_value name="md.$LSPProfileFile" exact="'profiles-%s.log'.[md.$LSPRun]" />
@@ -3791,7 +4113,6 @@
 <set_value name="md.$LSPProfile" exact="0L" />
 <set_value name="md.$LSPRecord" exact="0L" />
 <set_value name="md.$LSPAcknowledged" exact="0L" />
-<set_value name="md.$LSPStopped" exact="false" />
 <set_value name="md.$LSPActive" exact="false" />
 <set_value name="md.$LSPLevel" exact="4" />
 <set_value name="md.$LSPDatabaseState" exact="'WAITING'" />
@@ -3808,7 +4129,6 @@
 <set_value name="md.$LSPLastAge" exact="player.age" />
 <set_value name="md.$LSPSnapshotStarted" exact="false" />
 <set_value name="md.$LSPNextHeartbeat" exact="player.age + 60s" />
-<set_value name="md.$LSPReady" exact="true" />
 <set_value name="md.$LSPPass" exact="'IDLE'" />
 <set_value name="md.$LSPHostsVisited" exact="0" />
 <set_value name="md.$LSPHostsSkipped" exact="0" />
@@ -3868,14 +4188,19 @@
 <find_sector name="$HistorySectors" space="player.galaxy" multiple="true" />
 <create_group groupname="md.$LSPHistorySectors" />
 <add_to_group groupname="md.$LSPHistorySectors" list="$HistorySectors" />
-<reset_cue cue="ProfileEventBus" />
+<set_value name="md.$LSPStartupVersion" exact="1" />
+<set_value name="md.$LSPInitialisedRun" exact="md.$LSPRun" />
+<set_value name="md.$LSPStopped" exact="false" />
+<set_value name="md.$LSPReady" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=48|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=48|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
 <param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
+<set_value name="md.$LSPBusArmedRun" exact="md.$LSPRun" />
+<signal_cue cue="ProfileEventBusV2" />
 <return value="true" />
 </actions>
 </library>
@@ -3884,7 +4209,7 @@
 <param name="Response" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped">
+<do_if value="not (md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun)">
 <return value="false" />
 </do_if>
 <do_if value="typeof $Response != datatype.list">
@@ -3954,7 +4279,7 @@
 <params>
 </params>
 <actions>
-<do_if value="not md.$LSPReady">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
 <return value="false" />
 </do_if>
 <do_if value="not md.$LSPPersonnelVersion?">
@@ -4102,7 +4427,7 @@
 <param name="Target" default="null" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
 <return value="false" />
 </do_if>
 <set_value name="$Kind" exact="''" />
@@ -4163,6 +4488,9 @@
 <param name="Host" />
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <do_if value="not (typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned)">
 <return value="false" />
 </do_if>
@@ -4215,7 +4543,7 @@
 <param name="RoleText" default="''" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
 <return value="false" />
 </do_if>
 <do_if value="typeof $Subject == datatype.component and $Subject.exists">
@@ -4539,7 +4867,7 @@
 <param name="Assignment" default="false" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
 <return value="false" />
 </do_if>
 <set_value name="$Template" exact="null" />
@@ -4600,6 +4928,9 @@
 <params>
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <do_if value="md.$LSPDatabaseState != 'READY' or md.$LSPAwaitCommit or md.$LSPActive">
 <return value="false" />
 </do_if>
@@ -4649,6 +4980,9 @@
 <params>
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <do_all exact="8">
 <do_if value="md.$LSPSettleIndex gt md.$LSPSettleEvents.count">
 <break />
@@ -4692,7 +5026,7 @@
 <param name="ActualRole" default="'UNAVAILABLE'" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped or not (typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned)">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or not (typeof $Host == datatype.component and $Host.exists and $Host.isplayerowned)">
 <return value="false" />
 </do_if>
 <do_if value="typeof $Seed != datatype.string or typeof $Role != datatype.string">
@@ -4717,6 +5051,9 @@
 <params>
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <do_all exact="8">
 <do_if value="md.$LSPCrewIndex gt md.$LSPCrewChanges.count">
 <break />
@@ -4762,6 +5099,9 @@
 <params>
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <do_all exact="8">
 <do_if value="md.$LSPOrderIndex gt md.$LSPOrderChecks.count">
 <break />
@@ -4796,7 +5136,7 @@
 <param name="Source" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped or not (typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned)">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or not (typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned)">
 <return value="false" />
 </do_if>
 <do_if value="not ($Object.isclass.ship or $Object.isclass.station)">
@@ -4878,6 +5218,9 @@
 <actions>
 <set_value name="$Key" exact="'$ref:%s'.[$Object]" />
 <set_value name="$I" exact="table[$kind='ASSET',$seed='',$idcode='',$reference='%s'.[$Object],$name='',$faction='',$sector='',$known_player=false]" />
+<do_if value="typeof @md.$LSPHistoryIdentities != datatype.table">
+<return value="$I" />
+</do_if>
 <do_if value="md.$LSPHistoryIdentities.{$Key}?">
 <set_value name="$I" exact="md.$LSPHistoryIdentities.{$Key}" />
 </do_if>
@@ -4929,7 +5272,10 @@
 <param name="NpcName" default="null" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped or not md.$LSPHistoryIdentities?">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
+<do_if value="typeof @md.$LSPHistoryIdentities != datatype.table or typeof @md.$LSPHistoryContacts != datatype.table">
 <return value="false" />
 </do_if>
 <do_if value="$Coalesce">
@@ -5139,6 +5485,9 @@
 <param name="Source" />
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <set_value name="$T" exact="$Offer" />
 <do_if value="@$Order.exists">
 <set_value name="$T" exact="$Order" />
@@ -5186,6 +5535,9 @@
 <param name="Source" />
 </params>
 <actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
 <do_if value="not (typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned) or typeof $Wares != datatype.table">
 <return value="false" />
 </do_if>
@@ -5210,7 +5562,10 @@
 <param name="PreviousPhase" default="null" />
 </params>
 <actions>
-<do_if value="not md.$LSPReady or md.$LSPStopped">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
+<do_if value="typeof @md.$LSPHistoryOperationHosts != datatype.table or typeof @md.$LSPHistoryMarineStates != datatype.table">
 <return value="false" />
 </do_if>
 <set_value name="$OpKey" exact="'$operation:%s'.[$Operation]" />
@@ -5315,7 +5670,10 @@
 <params>
 </params>
 <actions>
-<do_if value="not md.$LSPHistoryIdentities?">
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
+<do_if value="typeof @md.$LSPHistoryIdentities != datatype.table">
 <return value="false" />
 </do_if>
 <do_all exact="8">

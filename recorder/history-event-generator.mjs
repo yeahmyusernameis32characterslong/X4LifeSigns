@@ -1,6 +1,6 @@
 // Source-backed history observations. No engine mutation or personnel materialisation.
 export function generateHistoryEvents(h, c) {
-  const {tag,set,add,iff,otherwise,each,ret,run,lib,valid}=h;
+  const {tag,set,add,iff,otherwise,each,ret,run,lib,valid,eventReady}=h;
   const owned=o=>`${valid(o)} and ${o}.isplayerowned`;
   const ref=o=>`'%s'.[${o}]`;
   const initialize=['Identities','Contacts','MarineStates','OperationHosts','OutsiderExpiry'].map(k=>set('md.$LSPHistory'+k,'table[]')).join('')+
@@ -14,6 +14,7 @@ export function generateHistoryEvents(h, c) {
     tag('create_group',{groupname:'md.$LSPHistorySectors'})+tag('add_to_group',{groupname:'md.$LSPHistorySectors',list:'$HistorySectors'});
   const identity=lib('HistoryIdentity',{Object:'null'},
     set('$Key',"'$ref:%s'.[$Object]")+set('$I',"table[$kind='ASSET',$seed='',$idcode='',$reference='%s'.[$Object],$name='',$faction='',$sector='',$known_player=false]")+
+    iff('typeof @md.$LSPHistoryIdentities != datatype.table',ret('$I'))+
     iff('md.$LSPHistoryIdentities.{$Key}?',set('$I','md.$LSPHistoryIdentities.{$Key}'))+
     iff(valid('$Object'),
       set('$Seed',ref('@$Object.seed'))+
@@ -32,7 +33,8 @@ export function generateHistoryEvents(h, c) {
     'other_seed','other_idcode','other_reference','other_name','other_faction','other_kind',
     'previous_seed','previous_idcode','previous_reference','previous_name','detail','detail_name','source_event','scope','identity_state','external_loss_watch'];
   const observe=lib('RecordHistoryEvent',{Subject:'null',Other:'null',Previous:'null',Type:null,Source:"'UNKNOWN'",Detail:'null',DetailName:'null',Data:'table[]',Relevant:'false',World:'false',AllowExternal:'false',Coalesce:'false',TrackOther:'false',NpcSeed:'null',NpcName:'null'},
-    iff('not md.$LSPReady or md.$LSPStopped or not md.$LSPHistoryIdentities?',ret('false'))+
+    iff(`not (${eventReady})`,ret('false'))+
+    iff('typeof @md.$LSPHistoryIdentities != datatype.table or typeof @md.$LSPHistoryContacts != datatype.table',ret('false'))+
     // Gate repeated notifications before names, factions, locations or escaping.
     iff('$Coalesce',iff('not $Relevant and not ('+owned('$Subject')+')',ret('false'))+
       set('$ContactKey',"'$contact:%s:%s:%s:%s'.[$Type,$Subject,$Other,$Detail]")+
@@ -68,6 +70,7 @@ export function generateHistoryEvents(h, c) {
     iff('$Coalesce',set('$Body',"$Body + '|coalescing_window_seconds=30|count=UNKNOWN'"))+
     run('Write',{Body:'$Body',EventTrace:'true'})+ret('true'));
   const trade=lib('RecordHistoryTrade',{Offer:null,Order:'null',Type:null,Source:null},
+    iff(`not (${eventReady})`,ret('false'))+
     set('$T','$Offer')+iff('@$Order.exists',set('$T','$Order'))+
     set('$Buyer','@$T.buyer')+set('$Seller','@$T.seller')+
     iff('$Buyer == null',set('$Buyer','@$Offer.buyer'))+iff('$Seller == null',set('$Seller','@$Offer.seller'))+
@@ -79,10 +82,12 @@ export function generateHistoryEvents(h, c) {
     run('RecordHistoryEvent',{Subject:'$Subject',Other:'$Other',Type:'$Type',Source:'$Source',Detail:'@$T.ware',DetailName:'@$T.ware.name',
       Data:"table[$trade_reference=$T,$buyer_reference=$Buyer,$seller_reference=$Seller,$offer_amount=@$Offer.amount,$order_amount=@$Order.amount,$transferred_amount=@$Order.transferredamount,$offer_unit_price=@$Offer.unitprice,$order_price=@$Order.price,$terms_basis='OBSERVED_TERMS_NOT_GUARANTEED_PROCEEDS']"})+ret('true'));
   const supply=lib('RecordHistorySupply',{Object:null,Wares:null,Type:null,Source:null},
+    iff(`not (${eventReady})`,ret('false'))+
     iff('not ('+owned('$Object')+') or typeof $Wares != datatype.table',ret('false'))+
     each('$Ware','$Wares.keys.list',run('RecordHistoryEvent',{Subject:'$Object',Type:'$Type',Source:'$Source',Detail:'$Ware',DetailName:'@$Ware.name',Data:'table[$amount=@$Wares.{$Ware}]'}))+ret('true'));
   const boarding=lib('RecordHistoryBoarding',{Operation:null,Type:null,Phase:'null',PreviousPhase:'null'},
-    iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
+    iff(`not (${eventReady})`,ret('false'))+
+    iff('typeof @md.$LSPHistoryOperationHosts != datatype.table or typeof @md.$LSPHistoryMarineStates != datatype.table',ret('false'))+
     set('$OpKey',"'$operation:%s'.[$Operation]")+set('$Target','@$Operation.boardee')+set('$Attacker','null')+set('$Subject','$Target')+
     set('$Attackers','@$Operation.attackers')+
     iff('typeof $Attackers == datatype.list',each('$A','$Attackers',iff(owned('$A'),set('$Attacker','$A'))))+
@@ -101,7 +106,8 @@ export function generateHistoryEvents(h, c) {
             tag('append_to_list',{name:'md.$LSPHistoryMarineQueue',exact:`[$Subject,$Target,$Seed,$Name,'${state.toUpperCase()}',$OpKey]`})))))+
       otherwise(run('Write',{Diagnostic:'true',Body:`'BOARDING_ROSTER_GAP|operation=%s|state=${state}|availability=UNAVAILABLE'.[$Operation]`}))).join('')+ret('true'));
   const tick=lib('ProcessHistoryWork',{},
-    iff('not md.$LSPHistoryIdentities?',ret('false'))+
+    iff(`not (${eventReady})`,ret('false'))+
+    iff('typeof @md.$LSPHistoryIdentities != datatype.table',ret('false'))+
     tag('do_all',{exact:String(c.discoveryPerTick)},iff('md.$LSPHistoryOutsiderIndex gt md.$LSPHistoryOutsiderQueue.count',tag('break'))+
       set('$W','md.$LSPHistoryOutsiderQueue.{md.$LSPHistoryOutsiderIndex}')+
       iff('player.age lt md.$LSPHistoryOutsiderExpiry.{$W.{2}} and '+valid('$W.{1}'),tag('break'))+

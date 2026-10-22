@@ -10,7 +10,7 @@ const asset=(code,owned=true,klass='ship')=>({__type:'component',ref:code,class:
 const setup=(ships=[],stations=[])=>{const h=harness(generateRecorder(config),{ships,stations,databaseState:'READY'});h.start();h.call('ProcessHistoryWork');return h;};
 const rows=h=>h.output.filter(x=>x.name.startsWith('profiles-')).map(x=>parseRecord(x.line));
 const events=h=>rows(h).filter(r=>r.kind==='ENTITY_EVENT');
-function emit(h,type,event){const i=profileEvents.findIndex(e=>e.type===type);assert.ok(i>=0,type);h.cueVariables('ProfileEvent'+i).event=event;h.cue('ProfileEvent'+i);}
+function emit(h,type,event){const i=profileEvents.findIndex(e=>e.type===type);assert.ok(i>=0,type);h.cueVariables('ProfileEventV2_'+i).event=event;h.cue('ProfileEventV2_'+i);}
 
 test('native combat listeners coalesce hits, preserve exact IDs/context, never scan personnel',()=>{
  const ship=asset('OUR-001'),enemy=asset('ARG-002',false),h=setup([ship]);Object.defineProperty(ship,'people',{get(){throw Error('No personnel reads');}});

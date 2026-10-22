@@ -96,7 +96,7 @@ test('DEBUG scalar write traces bracket the exact row without tracing whole prof
 test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
-  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', ...profileEvents.map(e=>e.name)]);
+  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_cue_signalled', ...profileEvents.map(e=>e.name), 'event_game_loaded']);
   assert.doesNotMatch(xml, /<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);

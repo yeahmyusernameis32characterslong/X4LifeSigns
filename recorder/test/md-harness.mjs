@@ -31,6 +31,7 @@ const show = value => value == null ? 'null' : value.__type === 'datatype' ? `da
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
 export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0, autoDatabase = true, databaseState = 'NEED_BASELINE' } = {}) {
   const tree = parseXml(source), md = {}, output = [], traces = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+  const pendingSignals = [], cancelledCues = new Set();
   let randomCounter = randomStart;
   function walk(node, parentCue) {
     // Native load-time syntax errors cannot be hidden by optional evaluation.
@@ -163,7 +164,9 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'do_all' || n.tag === 'do_for_each') {
         const items = n.tag === 'do_all' ? Array.from({ length: ev(a.exact) }, (_, i) => i + 1) : ev(a.in);
         for (const item of items) { if (a.counter) local[a.counter] = item; if (a.name) local[a.name] = item; const flow = execute(n.children, local); if (flow?.break) break; if (flow) return flow; }
-      } else if (n.tag === 'reset_cue') {} // Scheduling is outside this harness.
+      } else if (n.tag === 'cancel_cue') cancelledCues.add(a.cue);
+      else if (n.tag === 'reset_cue') cancelledCues.delete(a.cue);
+      else if (n.tag === 'signal_cue') pendingSignals.push({ cue:a.cue, param:a.param ? ev(a.param) : null });
       else throw new Error(`Unsupported action ${n.tag}`);
     }
   }
@@ -185,15 +188,26 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
   // Supplied saved variables model restoration only; this is not an X4 serializer.
   function context(name) { if (!contexts.has(name)) contexts.set(name, { ...structuredClone(savedCueState[name] || {}), parent: parents.get(name) ? context(parents.get(name)) : {} }); return contexts.get(name); }
   function cue(name) {
+    for (let parent=name; parent; parent=parents.get(parent)) if (cancelledCues.has(parent)) return false;
     const node = cues.get(name), local = context(name);
     const checks = node.children.find(x => x.tag === 'conditions')?.children.filter(x => x.tag === 'check_value') || [];
     if (!checks.every(x => evalx(x.attrs.value, local))) return false;
     const result = execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
-    if (name === 'Bootstrap' && md.$LSPReady) { cue('ProfileEventBus'); if (autoDatabase) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, databaseState, md.$LSPRecord] }); }
+    // Explicit test delivery after the initiating actions. This is not a model
+    // of native restore scheduling or condition/group registration.
+    if (name === 'Bootstrap' && md.$LSPReady) { deliverSignals(); if (autoDatabase) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, databaseState, md.$LSPRecord] }); }
     return result;
   }
+  function deliverSignals() {
+    for (const signal of pendingSignals.splice(0)) { context(signal.cue).event={param:signal.param}; cue(signal.cue); }
+  }
+  function patchCue(name, state, savedVersion=0) {
+    const patches=cues.get(name).children.filter(n=>n.tag==='patch' && Number(n.attrs.sinceversion)>savedVersion && (n.attrs.state || 'complete')===state);
+    for (const patch of patches) execute(patch.children,context(name));
+    return patches.length;
+  }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
-  function load() { cue('RunBoundary'); cue('Bootstrap'); }
+  function load() { cue('InvalidateLoadedRecorder'); cue('RunBoundary'); cue('Bootstrap'); }
   function start() { load(); }
-  return { md, player, output, traces, notifications, callCounts, call, cue, start, load, tree, cueVariables: context };
+  return { md, player, output, traces, notifications, callCounts, call, cue, start, load, tree, cueVariables: context, deliverSignals, patchCue, cancelledCues };
 }
