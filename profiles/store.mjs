@@ -175,6 +175,80 @@ export class ProfileStore {
   eventsAt(run = this.run, record = Number.MAX_SAFE_INTEGER) {
     return this.ancestry(run, record).reverse().flatMap(p => this.db.prepare('SELECT * FROM events WHERE run_id=? AND record_id<=? ORDER BY record_id').all(p.run, p.limit).map(e => ({...e, fields:JSON.parse(e.fields_json)})));
   }
+  historyForNpc(seed, {run=this.run, record=Number.MAX_SAFE_INTEGER, includeWorld=false}={}) {
+    if(typeof seed!=='string'||!/^\-?\d+$/.test(seed))throw Error('NPC seed must be exact integer text');
+    const chain=this.ancestry(run,record).reverse(),position=new Map(chain.map((p,i)=>[p.run,i]));
+    const compare=(a,b)=>position.get(a.run_id)-position.get(b.run_id)||a.record_id-b.record_id;
+    const npcProfiles=chain.flatMap(p=>this.db.prepare("SELECT * FROM profile_versions WHERE kind='NPC' AND seed=? AND run_id=? AND record_id<=? ORDER BY record_id").all(seed,p.run,p.limit));
+    const events=this.eventsAt(run,record);
+    // Asset identities are an offline read view, never a collector scan or mutable profile.
+    const assets=chain.flatMap(p=>this.db.prepare("SELECT kind,seed,idcode,reference,run_id,record_id FROM profile_versions WHERE kind IN ('SHIP','STATION') AND run_id=? AND record_id<=? ORDER BY record_id").all(p.run,p.limit));
+    const present=(f,k)=>f[k]?.state==='PRESENT'?f[k].value:null;
+    const meaningful=x=>typeof x==='string'&&x!==''&&x!=='null'&&x!=='UNAVAILABLE';
+    const resolve=(s,code,reference,point)=>{
+      if(meaningful(s))return {seed:s,idcode:meaningful(code)?code:null,reference:meaningful(reference)?reference:null};
+      const matches=assets.filter(a=>compare(a,point)<=0&&(meaningful(code)?a.idcode===code:meaningful(reference)&&a.run_id===point.run_id&&a.reference===reference));
+      const keys=new Set(matches.map(a=>a.seed||a.idcode));
+      if(keys.size===1){const a=matches.at(-1);return {seed:a.seed,idcode:a.idcode,reference:a.reference};}
+      return meaningful(code)?{seed:null,idcode:code,reference:null}:null;
+    };
+    const matches=(identity,e,prefix='subject')=>identity&&(identity.seed?e[prefix+'_seed']===identity.seed:identity.idcode&&e[prefix+'_idcode']===identity.idcode);
+    const direct=events.filter(e=>e.subject_kind==='NPC'&&e.subject_seed===seed);
+    const timeline=[...npcProfiles.map(p=>({...p,profile:JSON.parse(p.fields_json)})),...direct].sort(compare);
+    let assignment=null,presence=null,role=null,assignmentBasis='UNKNOWN',presenceBasis='UNKNOWN';
+    const states=[];
+    for(const item of timeline){
+      if(item.profile){const f=item.profile;
+        assignment=resolve(null,present(f,'assigned_ship_idcode'),present(f,'role_object_reference')||present(f,'assigned_controlled_reference'),item);
+        assignmentBasis=present(f,'assignment_basis')||'UNKNOWN';
+        presence=resolve(null,null,present(f,'container_reference'),item);
+        presenceBasis=presence?'ACTOR_CONTAINER_OBSERVED':'UNKNOWN';
+        if(!presence&&present(f,'location_basis')==='HOST_CURRENT_PERSONNEL_ENTRY'){
+          presence=resolve(null,present(f,'context_host_idcode'),present(f,'context_host_reference'),item);presenceBasis=presence?'HOST_AVAILABLE_PERSONNEL_ENTRY':'UNKNOWN';
+        }
+        role=present(f,'controlpost_name')||present(f,'role_name')||role;
+      }else{const f=item.fields;
+        // Requests, boarding roster membership and generic presence changes never promote/reassign a person.
+        if(['ASSIGNMENT_OBSERVED','CONTROL_ROLE_ASSIGNED','CONTROL_ROLE_REMOVED','CREW_ROLE_OBSERVED'].includes(item.event_type)){
+          const observed=resolve(f.assigned_seed,f.assigned_idcode,f.assigned_reference,item);
+          if(observed){assignment=observed;assignmentBasis=f.assignment_basis||'OBSERVED_RELATION';}
+          else if(f.assignment_state==='NONE'){assignment=null;assignmentBasis='OBSERVED_UNASSIGNED';}
+          else if(item.event_type==='CONTROL_ROLE_REMOVED'){assignment=null;assignmentBasis='UNKNOWN_AFTER_CONTROL_REMOVAL';}
+          if(meaningful(f.control_post)||meaningful(f.actual_role))role=meaningful(f.control_post)?f.control_post:f.actual_role;
+        }
+        const location=resolve(f.location_seed,f.location_idcode,f.location_reference,item);
+        if(location){presence=location;presenceBasis=f.location_basis||'OBSERVED_LOCATION';}
+        else if(['ENTITY_LEFT','EJECTED','RESCUED','ENTITY_ENTERED'].includes(item.event_type)){
+          presence=null;presenceBasis='UNKNOWN_AFTER_MOVEMENT';
+        }
+      }
+      states.push({run_id:item.run_id,record_id:item.record_id,game_time:item.game_time,assignment:assignment&&{...assignment},presence:presence&&{...presence},role,assignment_basis:assignmentBasis,presence_basis:presenceBasis});
+    }
+    const observations=[],contacts=[];let index=-1;
+    for(const e of events){while(index+1<states.length&&compare(states[index+1],e)<=0)index++;
+      const state=index>=0?states[index]:null;
+      if(e.subject_kind==='NPC'){
+        if(e.subject_seed===seed)observations.push({...e,relationship:'DIRECT_NPC_OBSERVATION'});
+        continue;
+      }
+      if(e.subject_kind==='UNIVERSE'){
+        if(includeWorld)observations.push({...e,relationship:'WORLD_CONTEXT_NOT_PERSONAL_KNOWLEDGE'});
+        continue;
+      }
+      let relationship=null;
+      if(state){
+        if(matches(state.presence,e)||matches(state.presence,e,'other'))relationship='LAST_OBSERVED_PRESENT_ON_RELATED_ASSET';
+        else if(matches(state.assignment,e)||matches(state.assignment,e,'other'))relationship=state.assignment_basis==='CONTEXT_HOST_ROSTER_ASSOCIATION'?'HOST_ROSTER_ASSOCIATION':'ASSIGNED_TO_RELATED_ASSET';
+      }
+      if(relationship){observations.push({...e,relationship,npc_role:state.role,assignment_basis:state.assignment_basis,presence_basis:state.presence_basis});
+        if(['ATTACKED','ATTACKING'].includes(e.event_type)&&meaningful(e.other_seed))contacts.push({seed:e.other_seed,event:e,relationship});
+      }else if(e.event_type==='RELATED_OBJECT_DESTROYED'){
+        const contact=contacts.findLast(c=>c.seed===e.subject_seed&&Number(e.game_time)>=Number(c.event.game_time)&&Number(e.game_time)-Number(c.event.game_time)<=120);
+        if(contact)observations.push({...e,relationship:'DERIVED_RELATED_CONTACT_OUTCOME',related_contact:{run_id:contact.event.run_id,record_id:contact.event.record_id},intent:'UNKNOWN'});
+      }
+    }
+    return {npc_seed:seed,run_id:run,record,service_observations:states,observations,knowledge:'FACTS_AND_RELATIONSHIPS_NOT_ASSERTED_PERSONAL_RECOLLECTION'};
+  }
   profilesAt(run = this.run, record = Number.MAX_SAFE_INTEGER) {
     const chain = this.ancestry(run, record);
     const objects = new Map();

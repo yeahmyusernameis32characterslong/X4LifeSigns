@@ -33,6 +33,11 @@ export function generateHistoryEvents(h, c) {
     'previous_seed','previous_idcode','previous_reference','previous_name','detail','detail_name','source_event','scope','identity_state','external_loss_watch'];
   const observe=lib('RecordHistoryEvent',{Subject:'null',Other:'null',Previous:'null',Type:null,Source:"'UNKNOWN'",Detail:'null',DetailName:'null',Data:'table[]',Relevant:'false',World:'false',AllowExternal:'false',Coalesce:'false',TrackOther:'false',NpcSeed:'null',NpcName:'null'},
     iff('not md.$LSPReady or md.$LSPStopped or not md.$LSPHistoryIdentities?',ret('false'))+
+    // Gate repeated notifications before names, factions, locations or escaping.
+    iff('$Coalesce',iff('not $Relevant and not ('+owned('$Subject')+')',ret('false'))+
+      set('$ContactKey',"'$contact:%s:%s:%s:%s'.[$Type,$Subject,$Other,$Detail]")+
+      iff('md.$LSPHistoryContacts.{$ContactKey}?',iff('player.age lt md.$LSPHistoryContacts.{$ContactKey}',ret('false')))+
+      set('md.$LSPHistoryContacts.{$ContactKey}','player.age + 30s'))+
     run('HistoryIdentity',{Object:'$Subject'},'$S')+
     iff('not $World and not $Relevant and not $AllowExternal and not $S.$known_player',ret('false'))+
     iff("not $World and $NpcSeed == null and not $AllowExternal and $Type != 'DESTROYED' and $Type != 'OWNER_CHANGED' and not ("+owned('$Subject')+')',ret('false'))+
@@ -40,10 +45,6 @@ export function generateHistoryEvents(h, c) {
     set('$Kind','$S.$kind')+set('$Scope',"if $AllowExternal then 'RELATED_EXTERNAL' else 'PLAYER_ASSET'")+
     iff('$World',set('$Kind',"'UNIVERSE'")+set('$Scope',"'WORLD_CONTEXT'"))+
     iff('$NpcSeed != null',set('$Kind',"'NPC'")+set('$Scope',"'BOARDING_PARTICIPANT'"))+
-    // Fixed-window first-contact observations. Never claim the window is an entire battle.
-    iff('$Coalesce',set('$ContactKey',"'$contact:%s:%s:%s:%s'.[$Type,$S.$reference,$O.$reference,$Detail]")+
-      iff('md.$LSPHistoryContacts.{$ContactKey}?',iff('player.age lt md.$LSPHistoryContacts.{$ContactKey}',ret('false')))+
-      set('md.$LSPHistoryContacts.{$ContactKey}','player.age + 30s'))+
     set('$external_loss_watch',"'NOT_REQUESTED'")+
     iff('$TrackOther and '+valid('$Other'),iff('not $O.$known_player and ($Other.isclass.ship or $Other.isclass.station)',
       // Explicit cap protects listener growth. Contact facts remain recorded beyond it.

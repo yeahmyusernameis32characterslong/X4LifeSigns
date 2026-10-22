@@ -4251,6 +4251,7 @@
 <set_value name="$assigned_idcode" exact="''" />
 <set_value name="$assigned_reference" exact="''" />
 <set_value name="$assignment_basis" exact="''" />
+<set_value name="$assignment_state" exact="''" />
 <set_value name="$location_seed" exact="''" />
 <set_value name="$location_idcode" exact="''" />
 <set_value name="$location_reference" exact="''" />
@@ -4346,12 +4347,18 @@
 <set_value name="$Assigned" exact="null" />
 <set_value name="$Location" exact="null" />
 <set_value name="$assignment_basis" exact="'UNKNOWN'" />
+<set_value name="$assignment_state" exact="'UNKNOWN'" />
 <set_value name="$location_basis" exact="'UNKNOWN'" />
 <do_if value="$Kind == 'NPC'">
 <do_if value="typeof $Subject == datatype.component and $Subject.exists">
 <set_value name="$Assigned" exact="@$Subject.roleobject" />
 <do_if value="$Assigned == null">
 <set_value name="$Assigned" exact="@$Subject.assignedcontrolled" />
+</do_if>
+<do_if value="$Subject.roleobject? and $Subject.assignedcontrolled?">
+<do_if value="$Subject.roleobject == null and $Subject.assignedcontrolled == null">
+<set_value name="$assignment_state" exact="'NONE'" />
+</do_if>
 </do_if>
 <set_value name="$assignment_basis" exact="'ACTOR_ROLE_OR_CONTROL_OBSERVED'" />
 <set_value name="$Location" exact="@$Subject.container" />
@@ -4380,6 +4387,7 @@
 <set_value name="$assigned_seed" exact="'%s'.[@$Assigned.seed]" />
 <set_value name="$assigned_idcode" exact="@$Assigned.idcode" />
 <set_value name="$assigned_reference" exact="'%s'.[$Assigned]" />
+<set_value name="$assignment_state" exact="'OBSERVED_RELATION'" />
 </do_if>
 <do_if value="typeof $Location == datatype.component and $Location.exists">
 <set_value name="$location_seed" exact="'%s'.[@$Location.seed]" />
@@ -4486,6 +4494,9 @@
 <run_actions ref="Escape" result="$assignment_basis">
 <param name="Value" value="$assignment_basis" />
 </run_actions>
+<run_actions ref="Escape" result="$assignment_state">
+<param name="Value" value="$assignment_state" />
+</run_actions>
 <run_actions ref="Escape" result="$location_seed">
 <param name="Value" value="$location_seed" />
 </run_actions>
@@ -4499,7 +4510,7 @@
 <param name="Value" value="$location_basis" />
 </run_actions>
 <run_actions ref="Write">
-<param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|subject_seed=%s|subject_idcode=%s|subject_reference=%s|host_seed=%s|host_idcode=%s|other_seed=%s|other_idcode=%s|other_reference=%s|previous_reference=%s|actual_role=%s|control_post=%s|requested_role=%s|detail=%s|detail_name=%s|subject_name=%s|subject_faction=%s|sector_name=%s|host_reference=%s|host_kind=%s|other_kind=%s|other_faction=%s|previous_seed=%s|previous_idcode=%s|assigned_seed=%s|assigned_idcode=%s|assigned_reference=%s|assignment_basis=%s|location_seed=%s|location_idcode=%s|location_reference=%s|location_basis=%s'.[$Type, $Kind, $Status, $subject_seed, $subject_idcode, $subject_reference, $host_seed, $host_idcode, $other_seed, $other_idcode, $other_reference, $previous_reference, $actual_role, $control_post, $requested_role, $detail, $detail_name, $subject_name, $subject_faction, $sector_name, $host_reference, $host_kind, $other_kind, $other_faction, $previous_seed, $previous_idcode, $assigned_seed, $assigned_idcode, $assigned_reference, $assignment_basis, $location_seed, $location_idcode, $location_reference, $location_basis]" />
+<param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|subject_seed=%s|subject_idcode=%s|subject_reference=%s|host_seed=%s|host_idcode=%s|other_seed=%s|other_idcode=%s|other_reference=%s|previous_reference=%s|actual_role=%s|control_post=%s|requested_role=%s|detail=%s|detail_name=%s|subject_name=%s|subject_faction=%s|sector_name=%s|host_reference=%s|host_kind=%s|other_kind=%s|other_faction=%s|previous_seed=%s|previous_idcode=%s|assigned_seed=%s|assigned_idcode=%s|assigned_reference=%s|assignment_basis=%s|assignment_state=%s|location_seed=%s|location_idcode=%s|location_reference=%s|location_basis=%s'.[$Type, $Kind, $Status, $subject_seed, $subject_idcode, $subject_reference, $host_seed, $host_idcode, $other_seed, $other_idcode, $other_reference, $previous_reference, $actual_role, $control_post, $requested_role, $detail, $detail_name, $subject_name, $subject_faction, $sector_name, $host_reference, $host_kind, $other_kind, $other_faction, $previous_seed, $previous_idcode, $assigned_seed, $assigned_idcode, $assigned_reference, $assignment_basis, $assignment_state, $location_seed, $location_idcode, $location_reference, $location_basis]" />
 <param name="EventTrace" value="true" />
 </run_actions>
 <return value="true" />
@@ -4914,6 +4925,18 @@
 <do_if value="not md.$LSPReady or md.$LSPStopped or not md.$LSPHistoryIdentities?">
 <return value="false" />
 </do_if>
+<do_if value="$Coalesce">
+<do_if value="not $Relevant and not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned)">
+<return value="false" />
+</do_if>
+<set_value name="$ContactKey" exact="'$contact:%s:%s:%s:%s'.[$Type,$Subject,$Other,$Detail]" />
+<do_if value="md.$LSPHistoryContacts.{$ContactKey}?">
+<do_if value="player.age lt md.$LSPHistoryContacts.{$ContactKey}">
+<return value="false" />
+</do_if>
+</do_if>
+<set_value name="md.$LSPHistoryContacts.{$ContactKey}" exact="player.age + 30s" />
+</do_if>
 <run_actions ref="HistoryIdentity" result="$S">
 <param name="Object" value="$Subject" />
 </run_actions>
@@ -4938,15 +4961,6 @@
 <do_if value="$NpcSeed != null">
 <set_value name="$Kind" exact="'NPC'" />
 <set_value name="$Scope" exact="'BOARDING_PARTICIPANT'" />
-</do_if>
-<do_if value="$Coalesce">
-<set_value name="$ContactKey" exact="'$contact:%s:%s:%s:%s'.[$Type,$S.$reference,$O.$reference,$Detail]" />
-<do_if value="md.$LSPHistoryContacts.{$ContactKey}?">
-<do_if value="player.age lt md.$LSPHistoryContacts.{$ContactKey}">
-<return value="false" />
-</do_if>
-</do_if>
-<set_value name="md.$LSPHistoryContacts.{$ContactKey}" exact="player.age + 30s" />
 </do_if>
 <set_value name="$external_loss_watch" exact="'NOT_REQUESTED'" />
 <do_if value="$TrackOther and typeof $Other == datatype.component and $Other.exists">

@@ -14,11 +14,19 @@ function emit(h,type,event){const i=profileEvents.findIndex(e=>e.type===type);as
 
 test('native combat listeners coalesce hits, preserve exact IDs/context, never scan personnel',()=>{
  const ship=asset('OUR-001'),enemy=asset('ARG-002',false),h=setup([ship]);Object.defineProperty(ship,'people',{get(){throw Error('No personnel reads');}});
+ let nameReads=0;const shipName=ship.knownname;Object.defineProperty(ship,'knownname',{get(){nameReads++;return shipName;}});
  for(let i=0;i<300;i++)emit(h,'ATTACKED',{object:ship,param:enemy});
+ assert.ok(nameReads<=2,'Coalesced hits must return before repeated text reads');
  assert.equal(events(h).length,1);let f=events(h)[0].fields;assert.equal(f.subject_seed,'9223372036854775807');assert.equal(f.other_faction,'argon');assert.equal(f.subject_name,ship.knownname);assert.equal(f.coalescing_window_seconds,'30');
  h.player.age+=31;emit(h,'ATTACKED',{object:ship,param:enemy});assert.equal(events(h).length,2);
  assert.deepEqual(rows(h).map(r=>Number(r.fields.record)),[1,2,3]);assert.equal(rows(h).some(r=>r.kind==='SNAPSHOT_BEGIN'),false);
  assert.equal(profileEvents.some(e=>/shield|hull/.test(e.name)),false);
+});
+
+test('outsider watches expire and free capacity without clearing active contact windows',()=>{
+ const ship=asset('OUR-001'),enemy=asset('ARG-002',false),h=setup([ship]);emit(h,'ATTACKED',{object:ship,param:enemy});assert.equal(h.md.$LSPHistoryOutsiders.length,1);
+ h.player.age+=121;h.call('ProcessHistoryWork');assert.equal(h.md.$LSPHistoryOutsiders.length,0);
+ emit(h,'ATTACKED',{object:ship,param:enemy});h.player.age+=1;h.call('ProcessHistoryWork');emit(h,'ATTACKED',{object:ship,param:enemy});assert.equal(events(h).length,2);
 });
 test('destroyed/former-owned references retain cached identity; counterpart destruction is contextual',()=>{
  const ship=asset('OUR-001'),enemy=asset('ARG-002',false),h=setup([ship]);emit(h,'ATTACKED',{object:ship,param:enemy});ship.exists=false;enemy.exists=false;

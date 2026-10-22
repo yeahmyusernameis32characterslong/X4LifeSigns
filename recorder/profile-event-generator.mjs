@@ -55,7 +55,7 @@ export function generateProfileEvents(h, c) {
     run('QueueNewProfile',{Object:'@$Host.tradenpc',Host:'$Host'})+run('QueueNewProfile',{Object:'@$Host.shiptrader',Host:'$Host'})+ret('true'));
   const fields = ['subject_seed','subject_idcode','subject_reference','host_seed','host_idcode','other_seed','other_idcode','other_reference','previous_reference','actual_role','control_post','requested_role','detail','detail_name',
     'subject_name','subject_faction','sector_name','host_reference','host_kind','other_kind','other_faction','previous_seed','previous_idcode',
-    'assigned_seed','assigned_idcode','assigned_reference','assignment_basis','location_seed','location_idcode','location_reference','location_basis'];
+    'assigned_seed','assigned_idcode','assigned_reference','assignment_basis','assignment_state','location_seed','location_idcode','location_reference','location_basis'];
   const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false',SeedText:"''",RoleText:"''"},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
     iff(valid('$Subject'),iff('$Subject.isclass.npc and not $Subject.isplayerowned',ret('false')))+
@@ -83,16 +83,17 @@ export function generateProfileEvents(h, c) {
     iff(valid('$Host'),set('$host_kind',"if $Host.isclass.station then 'STATION' else 'SHIP'"))+
     iff(valid('$Other'),set('$other_kind',"'ASSET'")+iff('$Other.isclass.station',set('$other_kind',"'STATION'"))+iff('$Other.isclass.npc',set('$other_kind',"'NPC'"))+iff('$Other.isclass.ship',set('$other_kind',"'SHIP'"))+set('$other_faction',"'%s'.[@$Other.owner]"))+
     iff(valid('$Previous'),set('$previous_seed',"'%s'.[@$Previous.seed]")+set('$previous_idcode','@$Previous.idcode'))+
-    set('$Assigned','null')+set('$Location','null')+set('$assignment_basis',"'UNKNOWN'")+set('$location_basis',"'UNKNOWN'")+
+    set('$Assigned','null')+set('$Location','null')+set('$assignment_basis',"'UNKNOWN'")+set('$assignment_state',"'UNKNOWN'")+set('$location_basis',"'UNKNOWN'")+
     iff("$Kind == 'NPC'",iff(valid('$Subject'),
       set('$Assigned','@$Subject.roleobject')+iff('$Assigned == null',set('$Assigned','@$Subject.assignedcontrolled'))+
+      iff('$Subject.roleobject? and $Subject.assignedcontrolled?',iff('$Subject.roleobject == null and $Subject.assignedcontrolled == null',set('$assignment_state',"'NONE'")))+
       set('$assignment_basis',"'ACTOR_ROLE_OR_CONTROL_OBSERVED'")+set('$Location','@$Subject.container')+set('$location_basis',"'ACTOR_CONTAINER_OBSERVED'"))+
       otherwise(iff(owned('$Host'),
         iff('typeof $Template == datatype.npctemplate',iff('@$Host.people.{$Template}.exists',
           set('$Assigned','$Host')+set('$assignment_basis',"'CONTEXT_ROSTER_ASSOCIATION'")+
           iff('@$Host.availablepeople.{$Template}.exists and not @$Host.people.{$Template}.isintransit',set('$Location','$Host')+set('$location_basis',"'HOST_AVAILABLE_PERSONNEL_ENTRY'"))))+
         iff("$SeedText != ''",set('$Assigned','$Host')+set('$assignment_basis',"'UI_ROLE_ON_HOST_OBSERVED'")))))+
-    iff(valid('$Assigned'),set('$assigned_seed',"'%s'.[@$Assigned.seed]")+set('$assigned_idcode','@$Assigned.idcode')+set('$assigned_reference',"'%s'.[$Assigned]"))+
+    iff(valid('$Assigned'),set('$assigned_seed',"'%s'.[@$Assigned.seed]")+set('$assigned_idcode','@$Assigned.idcode')+set('$assigned_reference',"'%s'.[$Assigned]")+set('$assignment_state',"'OBSERVED_RELATION'"))+
     iff(valid('$Location'),set('$location_seed',"'%s'.[@$Location.seed]")+set('$location_idcode','@$Location.idcode')+set('$location_reference',"'%s'.[$Location]"))+
     set('$detail','$Detail')+set('$detail_name','$DetailName')+
     iff("$Status == 'REQUESTED' or $Status == 'OBSERVED_AFTER_UI_CONFIRM'",set('$requested_role','$Detail'))+
