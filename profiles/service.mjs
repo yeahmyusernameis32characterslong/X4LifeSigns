@@ -9,10 +9,15 @@ import { ProfileStore, runId, universeId } from './store.mjs';
 import { checkPath } from '../bridge/src/session-path.js';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
+export class ReplyPublicationError extends Error {
+  constructor(cause) { super(`Profile reply publication failed: ${cause.message}`, { cause }); this.name='ReplyPublicationError'; }
+}
 export class ProfileConsumer {
-  constructor({ root = ROOT, replyDirectory }) {
+  constructor({ root = ROOT, replyDirectory, renameReply = fs.renameSync,
+    onReplyDelayed = (e) => console.error(`Profile reply publication delayed; retrying: ${e.code}`) }) {
     this.root = path.resolve(root); this.replyDirectory = path.resolve(replyDirectory);
     checkPath(this.replyDirectory, { directory: true }); this.stores = new Map();
+    this.pendingReplies = new Map(); this.renameReply=renameReply; this.onReplyDelayed=onReplyDelayed;
   }
   consume(lines) {
     const groups = new Map();
@@ -30,19 +35,55 @@ export class ProfileConsumer {
     }
     const statuses = [];
     for (const [run, rows] of groups) {
-      try { const status = this.stores.get(run).ingest(rows); this.reply(status); statuses.push(status); }
+      let status;
+      try { status = this.stores.get(run).ingest(rows); }
       catch (e) { const store = this.stores.get(run); this.reply({ universe: store.id, run, state: 'ERROR', record: 0 }); throw e; }
+      // A committed transaction and delivery of its acknowledgement are separate.
+      // Publication failure must not turn valid committed data into a log error.
+      this.reply(status); statuses.push(status);
     }
     return statuses;
   }
   reply({ universe, run, state, record }) {
     runId(run); if (!['READY', 'NEED_BASELINE', 'BUILDING', 'ERROR'].includes(state)) throw Error('Invalid reply');
-    const target = path.join(this.replyDirectory, run + '.reply');
-    checkPath(target, { missing: true });
-    const temp = path.join(this.replyDirectory, `${run}.${process.pid}.${randomUUID()}.tmp`);
-    const fd = fs.openSync(temp, 'wx');
-    try { fs.writeFileSync(fd, `LSDB1|${universe}|${run}|${state}|${record}|END\n`); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    fs.renameSync(temp, target); // Atomic replacement; Lua opens with FILE_SHARE_DELETE.
+    const pending=this.pendingReplies.get(run) || {};
+    pending.latest={ universe, run, state, record }; this.pendingReplies.set(run,pending);
+    return this.flushReplies(run);
+  }
+  flushReplies(onlyRun) {
+    let published=false;
+    for(const [run,pending] of this.pendingReplies) {
+      if(onlyRun && onlyRun!==run) continue;
+      try {
+        // Retain at most one owned temporary file per run while replacement is
+        // blocked. New commits supersede the desired ACK, not committed history.
+        // Only publish the newest desired ACK, including a later genuine ERROR.
+        const target=path.join(this.replyDirectory,run+'.reply');
+        checkPath(target,{missing:true});
+        if(pending.temp && JSON.stringify(pending.staged)!==JSON.stringify(pending.latest)) {
+          // This exact temporary file was created by this consumer; never
+          // discover/delete another process's retained evidence.
+          checkPath(pending.temp);fs.unlinkSync(pending.temp);pending.temp=null;
+        }
+        if(!pending.temp) {
+          const staged=pending.latest;
+          const temp=path.join(this.replyDirectory,`${run}.${process.pid}.${randomUUID()}.tmp`);
+          const fd=fs.openSync(temp,'wx');
+          try { fs.writeFileSync(fd,`LSDB1|${staged.universe}|${run}|${staged.state}|${staged.record}|END\n`);fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+          pending.temp=temp;pending.staged=staged;
+        }
+        checkPath(pending.temp);
+        try { this.renameReply(pending.temp,target); }
+        catch(e) {
+          if(!['EPERM','EACCES','EBUSY'].includes(e.code)) throw e;
+          if(!pending.delayed) { pending.delayed=true;this.onReplyDelayed(e,run); }
+          continue; // Retry on the next service poll without blocking the game.
+        }
+        published=true;pending.temp=null;
+        this.pendingReplies.delete(run);
+      } catch(e) { throw new ReplyPublicationError(e); }
+    }
+    return published;
   }
   close() { for (const s of this.stores.values()) s.close(); }
 }
@@ -77,6 +118,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
     if (stopped) return false;
     let progressed = false;
     try {
+      progressed=consumer.flushReplies();
       const names = fs.readdirSync(logDirectory).filter(n => /^profiles-session-\d+-\d+-loaded-[0-9_-]+\.log$/.test(n)).sort((a, b) => a.slice(a.indexOf('-loaded-')).localeCompare(b.slice(b.indexOf('-loaded-'))));
       for (const name of names) {
         if (failed.has(name)) continue;
@@ -97,6 +139,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
           }
           consumer.consume(lines);
         } catch (e) {
+          if(e instanceof ReplyPublicationError) throw e;
           failed.add(name);
           if (tail.startup) {
             const row = tail.startup, id = universeId(row.fields.lifesigns_universe_id); runId(row.run);
