@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
+import { generateHistoryEvents } from './history-event-generator.mjs';
 export const profileEvents = JSON.parse(readFileSync(new URL('./profile-events.json', import.meta.url)));
 
 export function generateProfileEvents(h, c) {
   const { tag, set, add, iff, otherwise, each, ret, run, lib, write, valid } = h;
+  const history=generateHistoryEvents(h,c);
   const owned = x => `${valid(x)} and ${x}.isplayerowned`;
   const eventWrite=body=>run('Write',{Body:body,EventTrace:'true'});
   const key = (kind, seed) => `'$%s:%s'.[${kind}, ${seed}]`;
@@ -14,7 +16,7 @@ export function generateProfileEvents(h, c) {
     ['NewIndex','SettleIndex','KnownIndex','CrewIndex','OrderIndex'].map(k=>set(`md.$LSP${k}`,'1')).join('')+
     set('md.$LSPQueuedKeys','table[]')+set('md.$LSPEventsReady','false')+
     iff('not UniverseIdentity.$KnownProfileSeeds?',set('UniverseIdentity.$KnownProfileSeeds','table[]'))+
-    tag('reset_cue',{cue:'ProfileEventBus'});
+    history.initialize+tag('reset_cue',{cue:'ProfileEventBus'});
   const observedSeed = iff("$Field == 'seed' and $State == 'PRESENT'",set('md.$LSPCurrentSeed',"'%s'.[$Value]"));
   const begin = kind => set('md.$LSPCurrentKind',`'${kind}'`)+set('md.$LSPCurrentSeed',"''");
   const end = iff("md.$LSPCurrentSeed != ''",tag('append_to_list',{name:'md.$LSPKnownPending',exact:`[md.$LSPRecord, ${key('md.$LSPCurrentKind','md.$LSPCurrentSeed')}]`}));
@@ -51,7 +53,9 @@ export function generateProfileEvents(h, c) {
     set('$Actors','@$Host.roleentities')+iff('typeof $Actors == datatype.list',each('$Actor','$Actors',run('QueueNewProfile',{Object:'$Actor',Host:'$Host'})))+
     run('QueueNewProfile',{Object:'@$Host.assignedaipilot',Host:'$Host'})+
     run('QueueNewProfile',{Object:'@$Host.tradenpc',Host:'$Host'})+run('QueueNewProfile',{Object:'@$Host.shiptrader',Host:'$Host'})+ret('true'));
-  const fields = ['subject_seed','subject_idcode','subject_reference','host_seed','host_idcode','other_seed','other_idcode','other_reference','previous_reference','actual_role','control_post','requested_role','detail','detail_name'];
+  const fields = ['subject_seed','subject_idcode','subject_reference','host_seed','host_idcode','other_seed','other_idcode','other_reference','previous_reference','actual_role','control_post','requested_role','detail','detail_name',
+    'subject_name','subject_faction','sector_name','host_reference','host_kind','other_kind','other_faction','previous_seed','previous_idcode',
+    'assigned_seed','assigned_idcode','assigned_reference','assignment_basis','location_seed','location_idcode','location_reference','location_basis'];
   const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false',SeedText:"''",RoleText:"''"},
     iff('not md.$LSPReady or md.$LSPStopped',ret('false'))+
     iff(valid('$Subject'),iff('$Subject.isclass.npc and not $Subject.isplayerowned',ret('false')))+
@@ -60,6 +64,7 @@ export function generateProfileEvents(h, c) {
       iff('$Subject.isclass.ship',set('$Kind',"'SHIP'"))+otherwise(iff('$Subject.isclass.station',set('$Kind',"'STATION'"))+otherwise(iff('$Subject.isclass.npc',set('$Kind',"'NPC'")))))+
     iff("$Kind == '' and $Npc and ($Subject == null or not ("+valid('$Subject')+')) and '+owned('$Host'),set('$Kind',"'NPC'"))+
     iff("$Kind == ''",ret('false'))+
+    run('HistoryIdentity',{Object:'$Subject'})+
     iff("$Kind != 'SHIP' and ($Type == 'ATTACKING' or $Type == 'ORDER_READY' or $Type == 'ORDER_RUNNING_OBSERVED' or $Type == 'COMMANDER_SET' or $Type == 'FLEET_ROLE_CHANGED')",ret('false'))+
     set('$subject_reference',"'%s'.[$Subject]")+
     iff(valid('$Subject'),
@@ -73,6 +78,22 @@ export function generateProfileEvents(h, c) {
     set('$other_reference',"'%s'.[$Other]")+set('$previous_reference',"'%s'.[$Previous]")+
     iff(valid('$Other'),set('$other_seed',"'%s'.[@$Other.seed]")+set('$other_idcode','@$Other.idcode'))+
     iff("$Kind == 'NPC' and $SeedText != ''",set('$subject_seed','$SeedText')+set('$actual_role','$RoleText'))+
+    iff(valid('$Subject'),set('$subject_name','@$Subject.knownname')+set('$subject_faction',"'%s'.[@$Subject.owner]")+set('$sector_name','@$Subject.sector.name'))+
+    set('$host_reference',"'%s'.[$Host]")+
+    iff(valid('$Host'),set('$host_kind',"if $Host.isclass.station then 'STATION' else 'SHIP'"))+
+    iff(valid('$Other'),set('$other_kind',"'ASSET'")+iff('$Other.isclass.station',set('$other_kind',"'STATION'"))+iff('$Other.isclass.npc',set('$other_kind',"'NPC'"))+iff('$Other.isclass.ship',set('$other_kind',"'SHIP'"))+set('$other_faction',"'%s'.[@$Other.owner]"))+
+    iff(valid('$Previous'),set('$previous_seed',"'%s'.[@$Previous.seed]")+set('$previous_idcode','@$Previous.idcode'))+
+    set('$Assigned','null')+set('$Location','null')+set('$assignment_basis',"'UNKNOWN'")+set('$location_basis',"'UNKNOWN'")+
+    iff("$Kind == 'NPC'",iff(valid('$Subject'),
+      set('$Assigned','@$Subject.roleobject')+iff('$Assigned == null',set('$Assigned','@$Subject.assignedcontrolled'))+
+      set('$assignment_basis',"'ACTOR_ROLE_OR_CONTROL_OBSERVED'")+set('$Location','@$Subject.container')+set('$location_basis',"'ACTOR_CONTAINER_OBSERVED'"))+
+      otherwise(iff(owned('$Host'),
+        iff('typeof $Template == datatype.npctemplate',iff('@$Host.people.{$Template}.exists',
+          set('$Assigned','$Host')+set('$assignment_basis',"'CONTEXT_ROSTER_ASSOCIATION'")+
+          iff('@$Host.availablepeople.{$Template}.exists and not @$Host.people.{$Template}.isintransit',set('$Location','$Host')+set('$location_basis',"'HOST_AVAILABLE_PERSONNEL_ENTRY'"))))+
+        iff("$SeedText != ''",set('$Assigned','$Host')+set('$assignment_basis',"'UI_ROLE_ON_HOST_OBSERVED'")))))+
+    iff(valid('$Assigned'),set('$assigned_seed',"'%s'.[@$Assigned.seed]")+set('$assigned_idcode','@$Assigned.idcode')+set('$assigned_reference',"'%s'.[$Assigned]"))+
+    iff(valid('$Location'),set('$location_seed',"'%s'.[@$Location.seed]")+set('$location_idcode','@$Location.idcode')+set('$location_reference',"'%s'.[$Location]"))+
     set('$detail','$Detail')+set('$detail_name','$DetailName')+
     iff("$Status == 'REQUESTED' or $Status == 'OBSERVED_AFTER_UI_CONFIRM'",set('$requested_role','$Detail'))+
     iff("$Kind == 'NPC' and $Type == 'ENTITY_LEFT'",iff(valid('$Other'),iff('$Other.isclass.spacesuit',set('$Type',"'EJECTED'"))))+
@@ -158,8 +179,8 @@ export function generateProfileEvents(h, c) {
       iff('@$Item.{3}.isrunning',run('RecordEntityEvent',{Subject:'$Item.{2}',Type:"'ORDER_RUNNING_OBSERVED'",Detail:'@$Item.{3}.id',DetailName:'@$Item.{3}.name'})))+
     iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',set('md.$LSPOrderChecks','[]')+set('md.$LSPOrderIndex','1'))+ret('true'));
   const listeners=profileEvents.map((e,i)=>tag('cue',{name:'ProfileEvent'+i,instantiate:'true',namespace:'this'},
-    tag('conditions',{},tag(e.name,e.selector))+tag('actions',{},run('HandleProfileEvent',{
+    tag('conditions',{},tag(e.name,e.selector))+tag('actions',{},e.handler?run(e.handler,e.params):run('HandleProfileEvent',{
       Subject:e.subject,Type:`'${e.type}'`,Host:e.host||'null',Other:e.other||'null',Previous:e.previous||'null',Detail:e.detail||'null',DetailName:e.detailName||'null',Target:e.target||'null',Order:e.order||'null',Create:String(Boolean(e.create)),Npc:String(Boolean(e.npc)),Assignment:String(Boolean(e.assignment))})))).join('');
   const cues=tag('cue',{name:'ProfileEventBus',checkinterval:'0.1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPReady? and md.$LSPReady and md.$LSPWatch?'}))+tag('actions',{},set('md.$LSPEventsReady','true'))+tag('cues',{},listeners));
-  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename, cues, crewListener, renameListener };
+  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
 }

@@ -141,7 +141,7 @@ export class ProfileStore {
           this.activeProfile = null;
         }
         if (row.kind === 'ENTITY_EVENT') {
-          if (!['SHIP', 'STATION', 'NPC'].includes(f.subject_kind) || !/^[A-Z][A-Z_]+$/.test(f.event_type)) throw Error('Invalid entity event');
+          if (!['SHIP', 'STATION', 'NPC', 'ASSET', 'UNIVERSE'].includes(f.subject_kind) || !/^[A-Z][A-Z_]+$/.test(f.event_type)) throw Error('Invalid entity event');
           const identifier = x => x && x !== 'null' && x !== 'UNAVAILABLE' ? x : null;
           db.prepare('INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(this.run, n, f.event_type, row.age, f.subject_kind, identifier(f.subject_seed), identifier(f.subject_idcode), identifier(f.subject_reference), identifier(f.host_seed), identifier(f.host_idcode), identifier(f.other_seed), identifier(f.other_idcode), JSON.stringify(f));
         }

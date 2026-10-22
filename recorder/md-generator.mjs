@@ -245,6 +245,7 @@ export function generateRecorder(config) {
     iff('player.age lt md.$LSPLastAge',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'"))+
       set('md.$LSPActive','false')+set('md.$LSPStopped','true')+set('md.$LSPReady','false')+ret('false'))+set('md.$LSPLastAge','player.age')+
     iff('md.$LSPStopped',ret('false'))+
+    run('ProcessHistoryWork')+
     iff("(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick",ret('false'))+
     iff("not md.$LSPActive or md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
     iff("md.$LSPDatabaseState != 'READY' and player.age ge md.$LSPDatabasePoll",

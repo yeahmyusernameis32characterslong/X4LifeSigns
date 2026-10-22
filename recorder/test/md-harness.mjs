@@ -155,8 +155,10 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'remove_value') assign(a.name, null, local, true);
       else if (n.tag === 'find_ship') assign(a.name, [...(a.trueowner ? ships : allShips)], local);
       else if (n.tag === 'find_station') assign(a.name, [...(a.trueowner ? stations : allStations)], local);
+      else if (n.tag === 'find_sector') assign(a.name, [], local); // Synthetic fixture contains no galaxy sectors.
       else if (n.tag === 'find_object_component') { const host = ev(a.object); assign(a.name, (host.componentNpcs || []).filter(x => x.class === 'npc' && x.isplayerowned), local); }
       else if (n.tag === 'create_group') assign(a.groupname, [], local);
+      else if (n.tag === 'remove_from_group') { const group=ev(a.group), object=ev(a.object), i=group.indexOf(object); if(i>=0)group.splice(i,1); }
       else if (n.tag === 'add_to_group') { let group; try { group = ev(a.groupname); } catch { group = []; } if (a.replace === 'true') group = []; const items = a.list ? ev(a.list) : [ev(a.object)]; for (const item of items) if (!group.includes(item)) group.push(item); assign(a.groupname, group, local); }
       else if (n.tag === 'do_all' || n.tag === 'do_for_each') {
         const items = n.tag === 'do_all' ? Array.from({ length: ev(a.exact) }, (_, i) => i + 1) : ev(a.in);

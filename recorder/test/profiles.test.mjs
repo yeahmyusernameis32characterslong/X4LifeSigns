@@ -100,7 +100,7 @@ test('generated database-aware artifact has the reviewed lifecycle and database 
   assert.doesNotMatch(xml, /<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);
-  assert.match(xml, /gameplay_listeners=17/);
+  assert.match(xml, new RegExp('gameplay_listeners='+profileEvents.length));
   assert.doesNotMatch(xml, /event_object_(?:shield|hull)_damaged/);
   assert.throws(() => validateConfig({ ...config, eventValueItems: 1 }));
   assert.throws(() => validateConfig({ ...config, profileValueItems: 16385 }));
