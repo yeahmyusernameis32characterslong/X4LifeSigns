@@ -93,3 +93,26 @@ Run `node --test recorder/test/*.test.mjs profiles/test/*.test.mjs` and
 `npm.cmd --prefix bridge test`, then the installed MD/addon and native-reader/Lua
 checks described in the project testing workflow. Native timing and performance
 remain separate owner-run gates.
+
+## Follow-up investigation: reload within one X4 process
+
+Owner-authorised research on 23 October 2026 reproduced two additional limits
+against `e2472b4`, using disposable synthetic data only:
+
+- The consumer filters by file creation time since **X4 process start**, not
+  since each save load. A log created during that process remains eligible.
+  A synthetic stale callback with the next contiguous ordinal is accepted into
+  the old session; a conflicting ordinal is rejected and prior SQL is preserved.
+  A subsequent valid run still opens at its explicitly supplied saved checkpoint.
+- In the generated-action harness, complete restored ready state accepts stale
+  callbacks before invalidation. After they advance the old record counter, an
+  old-run acknowledgement can pass `DatabaseReply` and advance the identity
+  checkpoint. Actual native ordering of that acknowledgement is **unverified**.
+
+These do not invalidate the verified separate-launch SQL comparisons. They do
+mean the existing launch filter is not a general save-load barrier. A correction
+must prevent stale writes **and** stale acknowledgement/checkpoint updates;
+additional saved flags or a version patch alone do not establish freshness.
+Qwen is investigating an earlier lifecycle boundary or nonpersistent runtime
+check. No implementation, deployment, database repair or new live test is part
+of this research checkpoint. Existing raw evidence and SQL history are preserved.
