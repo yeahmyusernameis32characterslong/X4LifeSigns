@@ -116,8 +116,8 @@ test('station then ship then independent NPC profiles collect identities without
   ship.commander = station; ship.assignment = { name: 'Defend Commander' };
   crew(ship);
   const h = setup({ stations: [station], ships: [ship] }); finish(h);
-  const p = profiles(h); assert.deepEqual(p.map(x => x.kind), ['STATION', 'SHIP', 'NPC', 'NPC', 'NPC']);
-  const [sp, sh] = p;
+  const p = profiles(h); assert.deepEqual(p.map(x => x.kind), ['PLAYER', 'STATION', 'SHIP', 'NPC', 'NPC', 'NPC']);
+  const [, sp, sh] = p;
   assert.equal(sp.fields.manager_seed.value, manager.seed.toString());
   assert.equal(sh.fields.captain_seed.value, captain.seed.toString());
   assert.equal(sh.fields.pilot_seed.value, captain.seed.toString());
@@ -315,7 +315,7 @@ test('profile budget is fresh per profile and stops getters after exhaustion', (
 
 test('readiness polling takes one initial snapshot and never schedules another', () => {
   const h = setup({ stations: [host('station','A')], ships: [host('ship','B')] }, { profilesPerTick: 1, discoveryPerTick: 1 });
-  h.call('Tick'); assert.equal(profiles(h).length, 1);
+  h.call('Tick'); assert.equal(profiles(h).length, 2);
   h.player.age += 1000; finish(h);
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
   h.call('Tick'); assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
@@ -585,7 +585,7 @@ test('actual database reply is required and an existing database suppresses the 
   assert.equal(h.call('BeginSnapshot'), false); assert.equal(h.notifications.length, 0);
   const reply = (state, record = h.md.$LSPRecord) => h.call('DatabaseReply', { Response: [h.md.$LSPRun, h.md.$LSPUniverseIdText, state, record] });
   assert.equal(reply('READY'), true); h.player.age += 100; h.call('Tick');
-  assert.equal(h.call('BeginSnapshot'), false); assert.equal(profiles(h).length, 0); assert.equal(h.notifications.length, 0);
+  assert.equal(h.call('BeginSnapshot'), false); assert.deepEqual(profiles(h).map(p=>p.kind), ['PLAYER']); assert.equal(h.notifications.length, 0);
   assert.equal(h.cueVariables('UniverseIdentity').$CheckpointRun, h.md.$LSPRun);
 });
 

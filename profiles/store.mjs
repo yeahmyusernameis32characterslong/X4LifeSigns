@@ -125,7 +125,7 @@ export class ProfileStore {
         db.prepare('INSERT INTO records VALUES(?,?,?,?,?)').run(this.run, n, row.kind, row.age, payload);
         if (row.kind === 'PROFILE_BEGIN') {
           if (this.activeProfile) throw Error('Nested profile');
-          if (!['STATION', 'SHIP', 'NPC'].includes(f.kind)) throw Error('Unknown profile kind');
+          if (!['STATION', 'SHIP', 'NPC', 'PLAYER'].includes(f.kind)) throw Error('Unknown profile kind');
           this.activeProfile = { number: f.profile, kind: f.kind, fields: {} };
         }
         if (row.kind === 'VALUE') {
@@ -135,13 +135,13 @@ export class ProfileStore {
         if (row.kind === 'PROFILE_END') {
           const p = this.activeProfile; if (!p || p.number !== f.profile) throw Error('Unmatched profile end');
           const present = key => p.fields[key]?.state === 'PRESENT' ? p.fields[key].value : null;
-          const seed = present('seed'), code = present('idcode') || (p.kind === 'NPC' ? /\(([A-Z]{3}-[0-9]{3})\)/.exec(present('debugname') || '')?.[1] || null : null), ref = present('reference') || present('actor_reference');
+          const seed = present('seed'), code = present('idcode') || (['NPC','PLAYER'].includes(p.kind) ? /\(([A-Z]{3}-[0-9]{3})\)/.exec(present('debugname') || '')?.[1] || null : null), ref = present('reference') || present('actor_reference');
           const key = seed ? `${p.kind}:seed:${seed}` : code ? `${p.kind}:idcode:${code}` : `${p.kind}:unresolved:${this.run}:${n}`;
           db.prepare('INSERT INTO profile_versions VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(this.run, n, p.number, key, p.kind, seed, code, ref, row.age, JSON.stringify(p.fields), f.partial === '1' || f.partial === 'true' ? 1 : 0);
           this.activeProfile = null;
         }
         if (row.kind === 'ENTITY_EVENT') {
-          if (!['SHIP', 'STATION', 'NPC', 'ASSET', 'UNIVERSE'].includes(f.subject_kind) || !/^[A-Z][A-Z_]+$/.test(f.event_type)) throw Error('Invalid entity event');
+          if (!['SHIP', 'STATION', 'NPC', 'PLAYER', 'ASSET', 'UNIVERSE'].includes(f.subject_kind) || !/^[A-Z][A-Z_]+$/.test(f.event_type)) throw Error('Invalid entity event');
           const identifier = x => x && x !== 'null' && x !== 'UNAVAILABLE' ? x : null;
           db.prepare('INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(this.run, n, f.event_type, row.age, f.subject_kind, identifier(f.subject_seed), identifier(f.subject_idcode), identifier(f.subject_reference), identifier(f.host_seed), identifier(f.host_idcode), identifier(f.other_seed), identifier(f.other_idcode), JSON.stringify(f));
         }

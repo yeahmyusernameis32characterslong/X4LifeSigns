@@ -55,3 +55,28 @@ feature must not waive ancestry validation to make an old save appear supported.
 
 This exercises adding a new profile type to an existing database. It does not
 by itself verify the separate native event hooks for newly created NPCs.
+
+
+## Profile/storage increment
+
+The separate `PLAYER` kind is implemented in the existing version-1 profile
+schema; no DDL or migration. Player identity, name/race/debug name, sector,
+pilot-seat ship, physical container, controlled object and spacesuit reference
+are recorded with the existing availability and value-budget conventions.
+The NPC discovery filters are unchanged. ID code, when present in debugname,
+is derived offline using the same rule as NPCs.
+
+At first database creation the player profile is part of the baseline count.
+For an existing ready database the serial processing tick adds one current
+player profile for that recorder run, without the welcome/completion panels or
+another whole asset snapshot. A saved newer checkpoint includes that profile;
+older checkpoints do not gain it retrospectively. Repeated loads refresh the
+observation, and the existing profile projection selects the latest version
+along that save's ancestry. Missing player component waits for a valid one.
+
+The focused initial/core gate passed 52 tests, including a real SQLite fixture
+created from an old NPC-only baseline, addition of PLAYER, another saved reload,
+exact 64-bit identities, schema version/integrity and historical exclusion.
+Generated MD validates against the pinned installed 9.00 schemas. Native
+control/location trigger wiring and complete regression checks follow in the
+next increment; no deployment or gameplay validation is claimed.

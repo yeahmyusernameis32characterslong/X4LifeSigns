@@ -1,6 +1,7 @@
 // Database-aware recorder compiler: scalar events and targeted new-object profiles.
 import { WELCOME, CREATED, DATABASE_ERROR } from './profile-messages.mjs';
 import { generateProfileEvents, profileEvents } from './profile-event-generator.mjs';
+import { generatePlayerProfile } from './player-profile-generator.mjs';
 const xml = v => String(v).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const tag = (name, attrs = {}, body) => `<${name}${Object.entries(attrs).map(([k,v]) => ` ${k}="${xml(v)}"`).join('')}${body === undefined ? ' />' : `>${body}</${name}>`}`;
 const set = (name, exact) => tag('set_value', {name, exact});
@@ -80,6 +81,7 @@ export function generateRecorder(config) {
     write("'VALUE|profile=%s|field=%s|type=%s|state=%s|render=ENGINE_TEXT_UNVERIFIED|value=%s'.[md.$LSPProfile, $FieldText, $TypeText, $State, $Text]")+ret('true'));
   const beginProfile=type=>events.begin(type)+set('md.$LSPProfilePartial','false')+set('md.$LSPValueLimit','false')+set('md.$LSPRemaining',String(c.profileValueItems))+add('md.$LSPProfile')+write(`'PROFILE_BEGIN|profile=%s|kind=${type}|atomic=false'.[md.$LSPProfile]`);
   const endProfile=write("'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]")+events.end+iff('md.$LSPProfilePartial',set('md.$LSPSnapshotPartial','true'))+ret('true');
+  const playerProfile=generatePlayerProfile({tag,set,iff,otherwise,ret,run,lib,write,valid,eventReady,value,missing,beginProfile,endProfile});
   const base=ref=>value('reference',ref,'true')+value('seed',`${ref}.seed`)+value('idcode',`${ref}.idcode`)+value('name',`${ref}.knownname`)+value('sector_name',`${ref}.sector.name`);
   const station=lib('StationProfile',{Station:null},beginProfile('STATION')+
     iff(`not md.$LSPStopped and ${valid('$Station')}`,base('$Station')+value('station_type','$Station.primarypurpose.name')+value('station_model_name','$Station.macro.name')+
@@ -206,6 +208,7 @@ export function generateRecorder(config) {
     find('station','md.$LSPStations',true)+find('ship','md.$LSPShips',true)+
     write(identityMetadata('SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED'))+
     iff('not md.$LSPStopped',completionPanel(WELCOME))+
+    iff('not md.$LSPStopped',run('ProcessPlayerObservation'))+
     write("'PASS_BEGIN|kind=STATIONS'"));
   const startNpc= set('md.$LSPHosts','md.$LSPStations.clone')+
     each('$Host','md.$LSPShips',iff('md.$LSPHosts.indexof.{$Host} == 0',tag('append_to_list',{name:'md.$LSPHosts',exact:'$Host'})))+
@@ -247,7 +250,7 @@ export function generateRecorder(config) {
     set('md.$LSPPass',"'IDLE'")+set('md.$LSPHostsVisited','0')+set('md.$LSPHostsSkipped','0')+set('md.$LSPHostCount','0')+set('md.$LSPNpcProfiles','0')+set('md.$LSPCandidates','[]')+
     set('md.$LSPPersonnelVersion','3')+set('md.$LSPNextAssetTick','player.age')+
     set('md.$LSPDiscoveryStage',"'HOST'")+set('md.$LSPEntry','1')+set('md.$LSPTypeEscapes','table[]')+
-    run('EnsureUniverseIdentity')+events.initialize+
+    run('EnsureUniverseIdentity')+events.initialize+playerProfile.initialize+
     set('md.$LSPStartupVersion','1')+set('md.$LSPInitialisedRun','md.$LSPRun')+set('md.$LSPStopped','false')+set('md.$LSPReady','true')+
     write(identityMetadata(`RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=${profileEvents.length}|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE`,['md.$LSPLoadedAt']))+
     run('Write',{Diagnostic:'true',Body:identityMetadata('RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s',['md.$LSPLoadedAt'])})+
@@ -259,6 +262,7 @@ export function generateRecorder(config) {
     iff('player.age lt md.$LSPLastAge',iff('md.$LSPActive',write("'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'"))+
       set('md.$LSPActive','false')+set('md.$LSPStopped','true')+set('md.$LSPReady','false')+ret('false'))+set('md.$LSPLastAge','player.age')+
     iff('md.$LSPStopped',ret('false'))+
+    iff("md.$LSPDatabaseState == 'READY' or md.$LSPActive",run('ProcessPlayerObservation'))+
     run('ProcessHistoryWork')+
     iff("(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick",ret('false'))+
     iff("not md.$LSPActive or md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
@@ -309,5 +313,5 @@ export function generateRecorder(config) {
         run('Write',{Diagnostic:'true',Body:"'DATABASE_TRANSPORT|stage=%s'.[event.param3.{3}]"}))))));
   const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
     tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:`${c.npcTickSeconds}s`},tag('conditions',{},tag('check_value',{value:'md.$LSPReady and not md.$LSPStopped'}))+tag('actions',{},run('Tick')))));
-  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${databaseListener}${databaseHealth}${events.crewListener}${events.renameListener}${polling}${events.cues}${loaded}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${invalidate}${initialize}${databaseReply}${tick}${events.libraries}</cues></mdscript>\n`.replaceAll('><','>\n<');
+  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${databaseListener}${databaseHealth}${events.crewListener}${events.renameListener}${polling}${events.cues}${loaded}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${invalidate}${initialize}${databaseReply}${tick}${events.libraries}${playerProfile.libraries}</cues></mdscript>\n`.replaceAll('><','>\n<');
 }
