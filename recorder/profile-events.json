@@ -660,5 +660,69 @@
       "Source": "'event_object_killed_object'",
       "Relevant": "true"
     }
+  },
+  {
+    "name": "event_player_started_control",
+    "type": "PLAYER_STARTED_CONTROL",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_STARTED_CONTROL'",
+      "Source": "'event_player_started_control'",
+      "Object": "event.param",
+      "Control": "true"
+    }
+  },
+  {
+    "name": "event_player_stopped_control",
+    "type": "PLAYER_STOPPED_CONTROL",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_STOPPED_CONTROL'",
+      "Source": "'event_player_stopped_control'",
+      "Object": "event.param",
+      "Control": "true"
+    }
+  },
+  {
+    "name": "event_player_changed_activity",
+    "type": "PLAYER_ACTIVITY_CHANGED",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_ACTIVITY_CHANGED'",
+      "Source": "'event_player_changed_activity'",
+      "Detail": "event.param",
+      "PreviousDetail": "event.param2"
+    }
+  },
+  {
+    "name": "event_player_teleport_successful",
+    "type": "PLAYER_TELEPORT_REPORTED",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_TELEPORT_REPORTED'",
+      "Source": "'event_player_teleport_successful'",
+      "Object": "event.param",
+      "Previous": "event.param2",
+      "Shortcut": "event.param3"
+    }
+  },
+  {
+    "name": "event_player_ejected",
+    "type": "PLAYER_EMERGENCY_EJECTED",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_EMERGENCY_EJECTED'",
+      "Source": "'event_player_ejected'"
+    }
   }
 ]

@@ -266,6 +266,7 @@ export function generateRecorder(config) {
     run('ProcessHistoryWork')+
     iff("(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick",ret('false'))+
     iff("not md.$LSPActive or md.$LSPPass != 'NPCS'",set('md.$LSPNextAssetTick','player.age + 1s'))+
+    iff("md.$LSPDatabaseState == 'READY' or md.$LSPActive",run('PollPlayerState'))+
     iff("md.$LSPDatabaseState != 'READY' and player.age ge md.$LSPDatabasePoll",
       set('md.$LSPDatabasePoll','player.age + 1s')+tag('raise_lua_event',{name:"'LifeSignsDatabaseRequest'",param:"'%s|%s'.[md.$LSPRun, md.$LSPUniverseIdText]"}))+
     iff("md.$LSPDatabaseState == 'WAITING' and player.age ge md.$LSPDatabaseDeadline",completionPanel(DATABASE_ERROR)+set('md.$LSPStopped','true')+ret('false'))+

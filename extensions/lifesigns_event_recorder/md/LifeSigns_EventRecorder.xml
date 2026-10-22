@@ -1193,6 +1193,70 @@
 </run_actions>
 </actions>
 </cue>
+<cue name="ProfileEventV2_48" instantiate="true" namespace="this">
+<conditions>
+<event_player_started_control />
+</conditions>
+<actions>
+<run_actions ref="RecordPlayerNativeEvent">
+<param name="Type" value="'PLAYER_STARTED_CONTROL'" />
+<param name="Source" value="'event_player_started_control'" />
+<param name="Object" value="event.param" />
+<param name="Control" value="true" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_49" instantiate="true" namespace="this">
+<conditions>
+<event_player_stopped_control />
+</conditions>
+<actions>
+<run_actions ref="RecordPlayerNativeEvent">
+<param name="Type" value="'PLAYER_STOPPED_CONTROL'" />
+<param name="Source" value="'event_player_stopped_control'" />
+<param name="Object" value="event.param" />
+<param name="Control" value="true" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_50" instantiate="true" namespace="this">
+<conditions>
+<event_player_changed_activity />
+</conditions>
+<actions>
+<run_actions ref="RecordPlayerNativeEvent">
+<param name="Type" value="'PLAYER_ACTIVITY_CHANGED'" />
+<param name="Source" value="'event_player_changed_activity'" />
+<param name="Detail" value="event.param" />
+<param name="PreviousDetail" value="event.param2" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_51" instantiate="true" namespace="this">
+<conditions>
+<event_player_teleport_successful />
+</conditions>
+<actions>
+<run_actions ref="RecordPlayerNativeEvent">
+<param name="Type" value="'PLAYER_TELEPORT_REPORTED'" />
+<param name="Source" value="'event_player_teleport_successful'" />
+<param name="Object" value="event.param" />
+<param name="Previous" value="event.param2" />
+<param name="Shortcut" value="event.param3" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_52" instantiate="true" namespace="this">
+<conditions>
+<event_player_ejected />
+</conditions>
+<actions>
+<run_actions ref="RecordPlayerNativeEvent">
+<param name="Type" value="'PLAYER_EMERGENCY_EJECTED'" />
+<param name="Source" value="'event_player_ejected'" />
+</run_actions>
+</actions>
+</cue>
 </cues>
 </cue>
 <cue name="InvalidateLoadedRecorder" instantiate="true">
@@ -4197,12 +4261,13 @@
 <set_value name="md.$LSPPlayerDirty" exact="true" />
 <set_value name="md.$LSPPlayerSource" exact="'RUN_START'" />
 <set_value name="md.$LSPPlayerPrevious" exact="null" />
+<set_value name="md.$LSPNextPlayerPoll" exact="player.age + 1s" />
 <set_value name="md.$LSPStartupVersion" exact="1" />
 <set_value name="md.$LSPInitialisedRun" exact="md.$LSPRun" />
 <set_value name="md.$LSPStopped" exact="false" />
 <set_value name="md.$LSPReady" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=48|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=53|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
@@ -4324,6 +4389,10 @@
 <do_if value="not md.$LSPActive or md.$LSPPass != 'NPCS'">
 <set_value name="md.$LSPNextAssetTick" exact="player.age + 1s" />
 </do_if>
+<do_if value="md.$LSPDatabaseState == 'READY' or md.$LSPActive">
+<run_actions ref="PollPlayerState">
+</run_actions>
+</do_if>
 <do_if value="md.$LSPDatabaseState != 'READY' and player.age ge md.$LSPDatabasePoll">
 <set_value name="md.$LSPDatabasePoll" exact="player.age + 1s" />
 <raise_lua_event name="'LifeSignsDatabaseRequest'" param="'%s|%s'.[md.$LSPRun, md.$LSPUniverseIdText]" />
@@ -4425,7 +4494,7 @@
 <do_if value="md.$LSPLevel ge 3">
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=48|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=53|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
 </do_if>
@@ -5788,6 +5857,48 @@
 <do_if value="typeof $State.$spacesuit == datatype.component and $State.$spacesuit.exists">
 <set_value name="$State.$mode" exact="'SPACESUIT'" />
 </do_if>
+<set_value name="$State.$occupied_seed" exact="''" />
+<set_value name="$State.$occupied_idcode" exact="''" />
+<set_value name="$State.$occupied_reference" exact="''" />
+<do_if value="typeof $State.$occupied == datatype.component and $State.$occupied.exists">
+<set_value name="$State.$occupied_reference" exact="'%s'.[$State.$occupied]" />
+<do_if value="$State.$occupied.seed?">
+<do_if value="$State.$occupied.seed != null">
+<set_value name="$State.$occupied_seed" exact="'%s'.[$State.$occupied.seed]" />
+</do_if>
+</do_if>
+<do_if value="$State.$occupied.idcode?">
+<set_value name="$State.$occupied_idcode" exact="@$State.$occupied.idcode" />
+</do_if>
+</do_if>
+<set_value name="$State.$container_seed" exact="''" />
+<set_value name="$State.$container_idcode" exact="''" />
+<set_value name="$State.$container_reference" exact="''" />
+<do_if value="typeof $State.$container == datatype.component and $State.$container.exists">
+<set_value name="$State.$container_reference" exact="'%s'.[$State.$container]" />
+<do_if value="$State.$container.seed?">
+<do_if value="$State.$container.seed != null">
+<set_value name="$State.$container_seed" exact="'%s'.[$State.$container.seed]" />
+</do_if>
+</do_if>
+<do_if value="$State.$container.idcode?">
+<set_value name="$State.$container_idcode" exact="@$State.$container.idcode" />
+</do_if>
+</do_if>
+<set_value name="$State.$controlled_seed" exact="''" />
+<set_value name="$State.$controlled_idcode" exact="''" />
+<set_value name="$State.$controlled_reference" exact="''" />
+<do_if value="typeof $State.$controlled == datatype.component and $State.$controlled.exists">
+<set_value name="$State.$controlled_reference" exact="'%s'.[$State.$controlled]" />
+<do_if value="$State.$controlled.seed?">
+<do_if value="$State.$controlled.seed != null">
+<set_value name="$State.$controlled_seed" exact="'%s'.[$State.$controlled.seed]" />
+</do_if>
+</do_if>
+<do_if value="$State.$controlled.idcode?">
+<set_value name="$State.$controlled_idcode" exact="@$State.$controlled.idcode" />
+</do_if>
+</do_if>
 <return value="$State" />
 </actions>
 </library>
@@ -6430,6 +6541,25 @@
 <return value="true" />
 </actions>
 </library>
+<library name="PollPlayerState" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not (((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) and md.$LSPPlayerVersion? and md.$LSPPlayerVersion == 1) or not md.$LSPPlayerObserved">
+<return value="false" />
+</do_if>
+<do_if value="player.age lt md.$LSPNextPlayerPoll">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPNextPlayerPoll" exact="player.age + 1s" />
+<run_actions ref="RequestPlayerObservation">
+<param name="Source" value="'PERIODIC_PLAYER_OBSERVATION'" />
+</run_actions>
+<run_actions ref="ProcessPlayerObservation">
+</run_actions>
+<return value="true" />
+</actions>
+</library>
 <library name="RecordPlayerStateChange" purpose="run_actions">
 <params>
 <param name="Current" />
@@ -6462,41 +6592,45 @@
 <set_value name="$previous_host_seed" exact="''" />
 <set_value name="$previous_host_idcode" exact="''" />
 <set_value name="$previous_host_reference" exact="''" />
+<set_value name="$previous_player_state" exact="''" />
 <set_value name="$controlled_seed" exact="''" />
 <set_value name="$controlled_idcode" exact="''" />
 <set_value name="$controlled_reference" exact="''" />
+<set_value name="$previous_controlled_seed" exact="''" />
+<set_value name="$previous_controlled_idcode" exact="''" />
+<set_value name="$previous_controlled_reference" exact="''" />
+<set_value name="$pilot_seat_observed" exact="''" />
+<set_value name="$container_observed" exact="''" />
+<set_value name="$controlled_object_observed" exact="''" />
 <set_value name="$source_event" exact="''" />
 <set_value name="$subject_seed" exact="'%s'.[@$Current.$entity.seed]" />
 <set_value name="$subject_reference" exact="'%s'.[$Current.$entity]" />
 <set_value name="$subject_name" exact="@player.name" />
 <set_value name="$sector_name" exact="@$Current.$sector.name" />
 <set_value name="$player_state" exact="$Current.$mode" />
+<set_value name="$previous_player_state" exact="$Previous.$mode" />
 <set_value name="$source_event" exact="$Source" />
-<do_if value="typeof $Current.$occupied == datatype.component and $Current.$occupied.exists">
-<set_value name="$occupied_ship_seed" exact="'%s'.[@$Current.$occupied.seed]" />
-<set_value name="$occupied_ship_idcode" exact="@$Current.$occupied.idcode" />
-<set_value name="$occupied_ship_reference" exact="'%s'.[$Current.$occupied]" />
-</do_if>
-<do_if value="typeof $Previous.$occupied == datatype.component and $Previous.$occupied.exists">
-<set_value name="$previous_occupied_ship_seed" exact="'%s'.[@$Previous.$occupied.seed]" />
-<set_value name="$previous_occupied_ship_idcode" exact="@$Previous.$occupied.idcode" />
-<set_value name="$previous_occupied_ship_reference" exact="'%s'.[$Previous.$occupied]" />
-</do_if>
-<do_if value="typeof $Current.$container == datatype.component and $Current.$container.exists">
-<set_value name="$host_seed" exact="'%s'.[@$Current.$container.seed]" />
-<set_value name="$host_idcode" exact="@$Current.$container.idcode" />
-<set_value name="$host_reference" exact="'%s'.[$Current.$container]" />
-</do_if>
-<do_if value="typeof $Previous.$container == datatype.component and $Previous.$container.exists">
-<set_value name="$previous_host_seed" exact="'%s'.[@$Previous.$container.seed]" />
-<set_value name="$previous_host_idcode" exact="@$Previous.$container.idcode" />
-<set_value name="$previous_host_reference" exact="'%s'.[$Previous.$container]" />
-</do_if>
-<do_if value="typeof $Current.$controlled == datatype.component and $Current.$controlled.exists">
-<set_value name="$controlled_seed" exact="'%s'.[@$Current.$controlled.seed]" />
-<set_value name="$controlled_idcode" exact="@$Current.$controlled.idcode" />
-<set_value name="$controlled_reference" exact="'%s'.[$Current.$controlled]" />
-</do_if>
+<set_value name="$pilot_seat_observed" exact="$Current.$occupied_known" />
+<set_value name="$container_observed" exact="$Current.$container_known" />
+<set_value name="$controlled_object_observed" exact="$Current.$controlled_known" />
+<set_value name="$occupied_ship_seed" exact="$Current.$occupied_seed" />
+<set_value name="$occupied_ship_idcode" exact="$Current.$occupied_idcode" />
+<set_value name="$occupied_ship_reference" exact="$Current.$occupied_reference" />
+<set_value name="$previous_occupied_ship_seed" exact="$Previous.$occupied_seed" />
+<set_value name="$previous_occupied_ship_idcode" exact="$Previous.$occupied_idcode" />
+<set_value name="$previous_occupied_ship_reference" exact="$Previous.$occupied_reference" />
+<set_value name="$host_seed" exact="$Current.$container_seed" />
+<set_value name="$host_idcode" exact="$Current.$container_idcode" />
+<set_value name="$host_reference" exact="$Current.$container_reference" />
+<set_value name="$previous_host_seed" exact="$Previous.$container_seed" />
+<set_value name="$previous_host_idcode" exact="$Previous.$container_idcode" />
+<set_value name="$previous_host_reference" exact="$Previous.$container_reference" />
+<set_value name="$controlled_seed" exact="$Current.$controlled_seed" />
+<set_value name="$controlled_idcode" exact="$Current.$controlled_idcode" />
+<set_value name="$controlled_reference" exact="$Current.$controlled_reference" />
+<set_value name="$previous_controlled_seed" exact="$Previous.$controlled_seed" />
+<set_value name="$previous_controlled_idcode" exact="$Previous.$controlled_idcode" />
+<set_value name="$previous_controlled_reference" exact="$Previous.$controlled_reference" />
 <do_if value="typeof $Current.$occupied == datatype.component and $Current.$occupied.exists">
 <set_value name="$occupied_ship_name" exact="@$Current.$occupied.knownname" />
 </do_if>
@@ -6560,6 +6694,9 @@
 <run_actions ref="Escape" result="$previous_host_reference">
 <param name="Value" value="$previous_host_reference" />
 </run_actions>
+<run_actions ref="Escape" result="$previous_player_state">
+<param name="Value" value="$previous_player_state" />
+</run_actions>
 <run_actions ref="Escape" result="$controlled_seed">
 <param name="Value" value="$controlled_seed" />
 </run_actions>
@@ -6569,12 +6706,126 @@
 <run_actions ref="Escape" result="$controlled_reference">
 <param name="Value" value="$controlled_reference" />
 </run_actions>
+<run_actions ref="Escape" result="$previous_controlled_seed">
+<param name="Value" value="$previous_controlled_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$previous_controlled_idcode">
+<param name="Value" value="$previous_controlled_idcode" />
+</run_actions>
+<run_actions ref="Escape" result="$previous_controlled_reference">
+<param name="Value" value="$previous_controlled_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$pilot_seat_observed">
+<param name="Value" value="$pilot_seat_observed" />
+</run_actions>
+<run_actions ref="Escape" result="$container_observed">
+<param name="Value" value="$container_observed" />
+</run_actions>
+<run_actions ref="Escape" result="$controlled_object_observed">
+<param name="Value" value="$controlled_object_observed" />
+</run_actions>
 <run_actions ref="Escape" result="$source_event">
 <param name="Value" value="$source_event" />
 </run_actions>
 <run_actions ref="Write">
 <param name="EventTrace" value="true" />
-<param name="Body" value="'ENTITY_EVENT|event_type=PLAYER_STATE_CHANGED|subject_kind=PLAYER|observation=DEFERRED_CURRENT_STATE|subject_seed=%s|subject_reference=%s|subject_name=%s|sector_name=%s|player_state=%s|occupied_ship_seed=%s|occupied_ship_idcode=%s|occupied_ship_name=%s|occupied_ship_reference=%s|previous_occupied_ship_seed=%s|previous_occupied_ship_idcode=%s|previous_occupied_ship_reference=%s|host_seed=%s|host_idcode=%s|host_reference=%s|host_name=%s|previous_host_seed=%s|previous_host_idcode=%s|previous_host_reference=%s|controlled_seed=%s|controlled_idcode=%s|controlled_reference=%s|source_event=%s'.[$subject_seed, $subject_reference, $subject_name, $sector_name, $player_state, $occupied_ship_seed, $occupied_ship_idcode, $occupied_ship_name, $occupied_ship_reference, $previous_occupied_ship_seed, $previous_occupied_ship_idcode, $previous_occupied_ship_reference, $host_seed, $host_idcode, $host_reference, $host_name, $previous_host_seed, $previous_host_idcode, $previous_host_reference, $controlled_seed, $controlled_idcode, $controlled_reference, $source_event]" />
+<param name="Body" value="'ENTITY_EVENT|event_type=PLAYER_STATE_CHANGED|subject_kind=PLAYER|observation=DEFERRED_CURRENT_STATE|subject_seed=%s|subject_reference=%s|subject_name=%s|sector_name=%s|player_state=%s|occupied_ship_seed=%s|occupied_ship_idcode=%s|occupied_ship_name=%s|occupied_ship_reference=%s|previous_occupied_ship_seed=%s|previous_occupied_ship_idcode=%s|previous_occupied_ship_reference=%s|host_seed=%s|host_idcode=%s|host_reference=%s|host_name=%s|previous_host_seed=%s|previous_host_idcode=%s|previous_host_reference=%s|previous_player_state=%s|controlled_seed=%s|controlled_idcode=%s|controlled_reference=%s|previous_controlled_seed=%s|previous_controlled_idcode=%s|previous_controlled_reference=%s|pilot_seat_observed=%s|container_observed=%s|controlled_object_observed=%s|source_event=%s'.[$subject_seed, $subject_reference, $subject_name, $sector_name, $player_state, $occupied_ship_seed, $occupied_ship_idcode, $occupied_ship_name, $occupied_ship_reference, $previous_occupied_ship_seed, $previous_occupied_ship_idcode, $previous_occupied_ship_reference, $host_seed, $host_idcode, $host_reference, $host_name, $previous_host_seed, $previous_host_idcode, $previous_host_reference, $previous_player_state, $controlled_seed, $controlled_idcode, $controlled_reference, $previous_controlled_seed, $previous_controlled_idcode, $previous_controlled_reference, $pilot_seat_observed, $container_observed, $controlled_object_observed, $source_event]" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="RecordPlayerNativeEvent" purpose="run_actions">
+<params>
+<param name="Type" />
+<param name="Source" />
+<param name="Object" default="null" />
+<param name="Previous" default="null" />
+<param name="Detail" default="null" />
+<param name="PreviousDetail" default="null" />
+<param name="Shortcut" default="null" />
+<param name="Control" default="false" />
+</params>
+<actions>
+<do_if value="not (((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) and md.$LSPPlayerVersion? and md.$LSPPlayerVersion == 1)">
+<return value="false" />
+</do_if>
+<run_actions ref="RequestPlayerObservation">
+<param name="Source" value="$Source" />
+</run_actions>
+<do_if value="not (typeof player.entity == datatype.component and player.entity.exists)">
+<return value="false" />
+</do_if>
+<set_value name="$subject_seed" exact="''" />
+<set_value name="$subject_reference" exact="''" />
+<set_value name="$subject_name" exact="''" />
+<set_value name="$host_seed" exact="''" />
+<set_value name="$host_idcode" exact="''" />
+<set_value name="$host_reference" exact="''" />
+<set_value name="$event_object_reference" exact="''" />
+<set_value name="$previous_event_object_reference" exact="''" />
+<set_value name="$detail" exact="''" />
+<set_value name="$previous_detail" exact="''" />
+<set_value name="$shortcut" exact="''" />
+<set_value name="$source_event" exact="''" />
+<do_if value="player.entity.seed?">
+<set_value name="$subject_seed" exact="'%s'.[player.entity.seed]" />
+</do_if>
+<set_value name="$subject_reference" exact="'%s'.[player.entity]" />
+<set_value name="$subject_name" exact="@player.name" />
+<set_value name="$event_object_reference" exact="'%s'.[$Object]" />
+<set_value name="$previous_event_object_reference" exact="'%s'.[$Previous]" />
+<set_value name="$detail" exact="$Detail" />
+<set_value name="$previous_detail" exact="$PreviousDetail" />
+<set_value name="$shortcut" exact="$Shortcut" />
+<set_value name="$source_event" exact="$Source" />
+<do_if value="$Control and typeof $Object == datatype.component and $Object.exists">
+<do_if value="$Object.seed?">
+<set_value name="$host_seed" exact="'%s'.[$Object.seed]" />
+</do_if>
+<do_if value="$Object.idcode?">
+<set_value name="$host_idcode" exact="$Object.idcode" />
+</do_if>
+<set_value name="$host_reference" exact="'%s'.[$Object]" />
+</do_if>
+<run_actions ref="Escape" result="$subject_seed">
+<param name="Value" value="$subject_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$subject_reference">
+<param name="Value" value="$subject_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$subject_name">
+<param name="Value" value="$subject_name" />
+</run_actions>
+<run_actions ref="Escape" result="$host_seed">
+<param name="Value" value="$host_seed" />
+</run_actions>
+<run_actions ref="Escape" result="$host_idcode">
+<param name="Value" value="$host_idcode" />
+</run_actions>
+<run_actions ref="Escape" result="$host_reference">
+<param name="Value" value="$host_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$event_object_reference">
+<param name="Value" value="$event_object_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$previous_event_object_reference">
+<param name="Value" value="$previous_event_object_reference" />
+</run_actions>
+<run_actions ref="Escape" result="$detail">
+<param name="Value" value="$detail" />
+</run_actions>
+<run_actions ref="Escape" result="$previous_detail">
+<param name="Value" value="$previous_detail" />
+</run_actions>
+<run_actions ref="Escape" result="$shortcut">
+<param name="Value" value="$shortcut" />
+</run_actions>
+<run_actions ref="Escape" result="$source_event">
+<param name="Value" value="$source_event" />
+</run_actions>
+<run_actions ref="Write">
+<param name="EventTrace" value="true" />
+<param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=PLAYER|observation=NATIVE_EVENT|subject_seed=%s|subject_reference=%s|subject_name=%s|host_seed=%s|host_idcode=%s|host_reference=%s|event_object_reference=%s|previous_event_object_reference=%s|detail=%s|previous_detail=%s|shortcut=%s|source_event=%s'.[$Type,$subject_seed, $subject_reference, $subject_name, $host_seed, $host_idcode, $host_reference, $event_object_reference, $previous_event_object_reference, $detail, $previous_detail, $shortcut, $source_event]" />
 </run_actions>
 <return value="true" />
 </actions>

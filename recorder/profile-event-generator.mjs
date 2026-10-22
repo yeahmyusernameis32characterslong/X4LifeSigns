@@ -193,7 +193,7 @@ export function generateProfileEvents(h, c) {
   const patches=['waiting','active','complete','cancelled'].map(state=>tag('patch',{sinceversion:'1',state},run('InvalidateRecorder'))).join('');
   // Reserve every old name in its original parent. Changing an existing cue's
   // parent is not supported by MD refresh; inactive placeholders have no events.
-  const retiredChildren=profileEvents.map((_,i)=>tag('cue',{name:'ProfileEvent'+i,instantiate:'false',onfail:'cancel',comment:'Deprecated; name reserved for saved games'},tag('conditions',{},tag('check_value',{value:'false'})))).join('');
+  const retiredChildren=profileEvents.slice(0,48).map((_,i)=>tag('cue',{name:'ProfileEvent'+i,instantiate:'false',onfail:'cancel',comment:'Deprecated; name reserved for saved games'},tag('conditions',{},tag('check_value',{value:'false'})))).join('');
   const retired=tag('cue',{name:'ProfileEventBus',version:'1',onfail:'cancel'},tag('conditions',{},tag('check_value',{value:'false'}))+patches+tag('cues',{},retiredChildren));
   const cues=retired+tag('cue',{name:'ProfileEventBusV2',version:'1'},
     tag('conditions',{},tag('event_cue_signalled',{cue:'ProfileEventBusV2'})+

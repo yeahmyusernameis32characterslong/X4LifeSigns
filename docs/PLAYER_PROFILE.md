@@ -80,3 +80,69 @@ exact 64-bit identities, schema version/integrity and historical exclusion.
 Generated MD validates against the pinned installed 9.00 schemas. Native
 control/location trigger wiring and complete regression checks follow in the
 next increment; no deployment or gameplay validation is claimed.
+
+## Control and location history increment
+
+The following native hooks are appended to the existing listener catalog. The
+original 48 retired cue names and all existing active listener indices remain
+stable; new hooks use new children of the current bus.
+
+| Native source (`libraries/common.xsd`) | Recorded player event | Captured native fact |
+| --- | --- | --- |
+| `event_player_started_control`, 15990–15998 | `PLAYER_STARTED_CONTROL` | Controlled object from `event.param`. |
+| `event_player_stopped_control`, 16001–16009 | `PLAYER_STOPPED_CONTROL` | Object whose control stopped, from `event.param`. |
+| `event_player_changed_activity`, 15265–15275 | `PLAYER_ACTIVITY_CHANGED` | New and previous activity. |
+| `event_player_teleport_successful`, 15315–15333 | `PLAYER_TELEPORT_REPORTED` | New/previous room and explicit shortcut flag; a shortcut is not asserted to be a real teleport. |
+| `event_player_ejected`, 15365–15374 | `PLAYER_EMERGENCY_EJECTED` | Emergency ejection notification; does not manufacture a new location. |
+
+Native facts are small `PLAYER` events at callback game time. They retain
+start/stop events even if several arrive before the next processing tick. A
+callback also requests a serial state observation, keeping profile emission
+out of the callback. The next observation independently reads pilot-seat ship,
+controlled object, physical container, spacesuit and sector. Getter timing
+relative to callbacks is not guaranteed by the inspected schemas.
+
+Changed observations emit `PLAYER_STATE_CHANGED` with
+`observation=DEFERRED_CURRENT_STATE`, including prior/current relationship
+identifiers and getter-availability flags. Rapid transitions can coalesce into
+one observed final state; intermediate seat/location states are not invented.
+Previous asset identifiers are cached when observed, so a later invalid or
+destroyed component does not erase the last observed link.
+
+A player-only fallback checks those same scalar relationships at most once per
+advancing game second, including during the finer NPC processing interval.
+Unchanged states emit no rows. It covers later-observed sector/container changes
+without scanning personnel or assets; it does not promise every transient
+transition or continuous coverage while paused. No repeated full player profile
+is emitted for each event. `profilesAt()` returns the session's profile
+observation; subsequent state changes remain in chronological `eventsAt()`.
+
+Qwen independently located the primary definitions. Its two tool passes ended
+without a prose answer; focused synthesis was partly truncated. Consequential
+claims were checked directly. The suggestion to set occupancy/location merely
+because ejection fired was rejected: only actual getters establish the observed
+state. No generic guaranteed state-consistency claim is made for the fallback.
+
+## Final automated gate and native limits
+
+- 96 Node collector/SQLite tests passed. Eight player tests cover old-database
+  addition/reload, exact seed text, escaping, unknown versus absent pilot seat,
+  native facts versus coalesced observations, destroyed previous references,
+  bounded idle checks, SQL event persistence and idempotent replay.
+- 112 bridge tests passed.
+- Generated MD and extension-root addon XML validated against pinned installed
+  X4 9.00 schemas.
+- The standalone installed LuaJIT/actual native-reader fixture passed. The tested
+  reader binary matches the installed binary; neither DLL nor Lua changed.
+
+The player fields, native delivery, callback/getter timing, player-seed continuity
+and performance still need owner-run X4 verification after an approved deployment.
+The earlier pre-invalidation startup limitation remains; this feature does not
+claim to fix it. Missing fields retain their availability states. No old NPC
+records are retroactively assigned to the player, and native creation-event
+coverage for newly introduced NPCs remains a separate unverified gate.
+
+Deployment must update both the optional MD and companion consumer, since an
+older consumer rejects the new `PLAYER` kind. No deployment was performed for
+this task. The slowdown idea remains parked, and no production component,
+database schema, saved lineage format, damage hook or launch setting changed.
