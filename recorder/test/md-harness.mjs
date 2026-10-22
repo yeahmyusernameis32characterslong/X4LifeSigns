@@ -35,7 +35,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
   let randomCounter = randomStart;
   function walk(node, parentCue) {
     // Native load-time syntax errors cannot be hidden by optional evaluation.
-    if (Object.values(node.attrs).some(v => /^@\s*(?:null\b|')/.test(v))) throw Error('Optional lookup operator requires a property lookup, not a literal');
+    if (Object.values(node.attrs).some(v => /^@\s*(?:null\b|true\b|false\b|')/.test(v))) throw Error('Optional lookup operator requires a property lookup, not a literal');
     if (node.tag === 'library') libraries.set(node.attrs.name, node);
     if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; }
     node.children.forEach(child => walk(child, parentCue));

@@ -5920,7 +5920,7 @@
 <do_if value="md.$LSPRemaining gt 0">
 <run_actions ref="Value">
 <param name="Field" value="'is_player'" />
-<param name="Value" value="@true" />
+<param name="Value" value="true" />
 <param name="Available" value="true" />
 <param name="State" value="'AUTO'" />
 </run_actions>

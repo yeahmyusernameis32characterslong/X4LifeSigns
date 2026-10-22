@@ -182,10 +182,14 @@ test('Personnel List discovery includes owned spacesuits and never scans foreign
 
 test('literal values compile without optional lookup syntax and property reads remain guarded', () => {
   const xml=generateRecorder(config);
-  assert.doesNotMatch(xml, /value="@(?:null\b|')/);
+  assert.doesNotMatch(xml, /value="@(?:null\b|true\b|false\b|')/);
+  assert.match(xml, /name="Value" value="true"/);
   assert.match(xml, /name="Value" value="@\$Actor.seed"/);
   assert.match(xml, /name="Value" value="'CONTEXT_HOST_ROSTER_ASSOCIATION'"/);
   assert.throws(()=>harness(xml.replace('value="null"','value="@null"')), /requires a property lookup/);
+  for(const literal of ['true','false']) {
+    assert.throws(()=>harness(xml.replace('name="Value" value="true"',`name="Value" value="@${literal}"`)), /requires a property lookup/);
+  }
   assert.throws(()=>harness(xml.replace('value="\'CONTEXT_HOST_ROSTER_ASSOCIATION\'"','value="@\'CONTEXT_HOST_ROSTER_ASSOCIATION\'"')), /requires a property lookup/);
   const ship=host('ship','SHIP'),station=host('station','STATION'); crew(ship);
   const h=setup({ships:[ship],stations:[station]}); finish(h);

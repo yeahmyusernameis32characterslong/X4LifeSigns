@@ -146,3 +146,29 @@ Deployment must update both the optional MD and companion consumer, since an
 older consumer rejects the new `PLAYER` kind. No deployment was performed for
 this task. The slowdown idea remains parked, and no production component,
 database schema, saved lineage format, damage hook or launch setting changed.
+
+## First owner gameplay check and boolean literal correction
+
+The owner-tested deployment at `1f567e1` added one PLAYER profile to an existing
+ready database without repeating the whole snapshot. All 5,115 new-run raw rows
+exactly matched contiguous SQLite records; integrity_check was ok. X4 and the
+SQLite worker closed normally. The owner remained aboard the fleet command ship
+outside its pilot seat, matching the recorded container and absent occupied ship.
+No player control/location events were recorded; those transition paths remain
+untested. One observed player seed matches an earlier ship pilot observation;
+this is not a universal identity-stability guarantee.
+
+Native parsing exposed `@true` in the generated `is_player` value. The optional
+lookup operator requires a property lookup, so that marker was null despite the
+other identity/location fields being captured. The generator now emits boolean
+literals directly. Generated XML, the harness and PowerShell validator include
+a regression guard for both boolean literals. All 96 collector/SQLite tests and
+installed X4 9.00 MD schema validation pass. This correction is source-only,
+not yet deployed or verified in X4. DLL, Lua, companion and schema are unchanged.
+
+The known pre-invalidation startup limit recurred: 177 restored NPC callbacks
+appended to an older raw log. Its original byte prefix and all 3,880 existing
+SQL rows remained unchanged; automatic old-file filtering excluded the appended
+rows. Do not treat those callbacks as confirmed new NPC births or replay the old
+file. Startup isolation remains open. The run also retained unrelated existing
+startup diagnostics; it is not classified as error-free.

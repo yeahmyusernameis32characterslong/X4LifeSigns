@@ -26,7 +26,7 @@ try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 
 [xml]$generated = Get-Content -LiteralPath $file
 foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
-    if ($parameter.GetAttribute('value') -match "^@\s*(null\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
+    if ($parameter.GetAttribute('value') -match "^@\s*(null\b|true\b|false\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
 $catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
