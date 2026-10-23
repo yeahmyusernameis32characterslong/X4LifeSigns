@@ -8,7 +8,9 @@ Copy-Item -LiteralPath (Join-Path $env:SystemRoot 'System32/ping.exe') -Destinat
 $state=Join-Path $Root 'state';$logs=Join-Path $Root 'logs';$extension=Join-Path $Root 'extension'
 foreach($p in @($state,$logs,$extension,(Join-Path $extension 'runtime'))){[IO.Directory]::CreateDirectory($p)|Out-Null}
 $config=Join-Path $Root 'config.json'
-@{version=1;files=@();gameExecutable=$fixture;nodeExecutable=$Node;serviceScript=(Join-Path $Repo 'profiles/service.mjs');databaseRoot=$Root;logDirectory=$logs;extensionDirectory=$extension;stateDirectory=$state}|ConvertTo-Json|Set-Content $config -Encoding UTF8
+$debugLog=Join-Path $Root 'debuglog.txt'
+[IO.File]::WriteAllText($debugLog,'')
+@{version=1;files=@();gameExecutable=$fixture;nodeExecutable=$Node;serviceScript=(Join-Path $Repo 'profiles/service.mjs');databaseRoot=$Root;logDirectory=$logs;debugLog=$debugLog;extensionDirectory=$extension;stateDirectory=$state}|ConvertTo-Json|Set-Content $config -Encoding UTF8
 $watcherScript=Join-Path $Repo 'profiles/watch-x4.ps1'
 $watchArgs='-NoProfile -NonInteractive -WindowStyle Hidden -File "'+$watcherScript+'" -Config "'+$config+'"'
 $watcher=$null;$game=$null;$serviceId=$null;$other=$null;$wrongGame=$null

@@ -1,8 +1,10 @@
 # Lua load boundary and external session closure
 
-Status: source-backed design with a passing disposable protocol proof,
-23 October 2026. Not integrated, deployed or verified inside X4.
-Baseline: `4e894da`, draft PR #20. See [startup evidence](RECORDER_STARTUP.md).
+Status: experimental implementation added at `0d367c1`, 23 October 2026;
+automated integration checks pass. Not deployed or verified inside X4.
+Owner explicitly approved implementation after the protocol proof at `4328f13`.
+See [startup evidence](RECORDER_STARTUP.md) and the
+[staged owner test](LUA_LOAD_FENCE_TEST.md).
 
 ## Goal and proposed sequence
 
@@ -66,11 +68,39 @@ existing native reader, with a simulated LoadGame function.
 | Stale acknowledgement / exact acknowledgement | No simulated load for stale reply; matching reply loads once, preserving arguments including nil. |
 | Timeout, cancellation, absent reader, original-call error | No automatic fallback or retry. |
 
-The model uses reserved fixture filenames and a synthetic control namespace.
-These are not final production protocol allocations. Log parsing, installed
-service integration, session inventory, interprocess ownership and menu input
-handling were not tested end to end. Proof code/evidence remains ignored local
-research material, indexed through the private handoff.
+Those original proof results remain separate from the implementation checks.
+The implementation now allocates canonical year-2000 control reply filenames
+with nonce pairs 0/1, 0/2 and 0/3 for CHALLENGE, FENCED and OPEN respectively;
+the service rejects those reserved names as profile runs. OPEN binds the new run,
+universe and rotated challenge before Lua resumes normal reply forwarding.
+The durable closure ledger is `local-data/profile-load-fence-v1.json`, outside
+universe databases. It retains closed run IDs across launches and bounds history
+at 10,000 entries; reaching capacity fails closed and requires reviewed maintenance.
+It is not a database migration or a general multiple-service lock.
+
+The service scans control before profiles, drains a fixed file-size boundary in
+bounded chunks, closes known sessions durably, suppresses pending old replies,
+then publishes the exact ACK. Restart reuses the challenge within a process and
+rotates it on a new process start. Replayed old intents cannot close a new run.
+Closed raw logs are preserved and skipped. The installer now requires an explicit
+debuglog path and pins the new service module with its other companion files.
+
+Lua wraps a visible global LoadGame and holds arguments until ACK, polling at
+most every 100ms while pending. Normal profile polling remains 250ms. It blocks
+duplicate load requests, times out after 15 UI-clock seconds, never falls back
+to an unfenced load and diagnoses missing/replaced hooks. Calls are asynchronous;
+known source callers ignore return values, but arbitrary callers are unverified.
+No global input setter is added: other menu controls remain interactive. During
+the short wait the test operator must not start another operation. Timeout/error
+requires exiting X4; this build does not silently reopen the closed old run.
+Where MD is active, failure requests a centred help panel. A main-menu failure
+may have no panel; debuglog records the reason. This UX limit is explicit.
+
+Real-service tests now cover old-row rejection, pending valid-row drain, control
+backlog, worker restart/replay, ledger/publication failure, ordinal enforcement
+and filename/run consistency. The actual Lua/native adapter test additionally
+covers challenge rotation, OPEN matching, duplicate/timeout/original-error paths.
+These do not prove native hook coverage or remove already queued MD callbacks.
 
 ## Smallest implementation and acceptance plan
 
@@ -94,8 +124,8 @@ research material, indexed through the private handoff.
    changes are necessary. Then use owner-run X4 evidence for route coverage,
    ordering, normal event continuity and checkpoint protection before promotion.
 
-The owner approved this investigation and previously allowed implementation and
-deployment when supported by strong evidence. Core protocol feasibility is now
-demonstrated; actual interception coverage and queued-ACK safety remain the
-deployment dependencies. No speculative installation or Codex gameplay launch
-is implied. Slowdown remains parked; existing production history is preserved.
+The owner approved implementation and test instructions after reviewing the
+proof. Earlier conditional deployment permission is retained. No deployment or
+Codex gameplay launch was performed for this implementation task. Native hook
+coverage and queued-ACK checkpoint safety remain experimental acceptance gates;
+do not report the complete startup defect fixed. Slowdown remains parked.

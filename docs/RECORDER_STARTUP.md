@@ -204,3 +204,12 @@ pass. This is protocol feasibility, not production integration or native load
 coverage. F9/global interception, asynchronous menu handling and already queued
 MD acknowledgements remain explicit deployment dependencies. No installation or
 production database was changed.
+
+### Experimental implementation
+
+The owner subsequently approved implementation and test instructions. Commit
+`0d367c1` integrates the Lua load holder and durable external closure ledger;
+the [implementation plan](LUA_LOAD_FENCE_PLAN.md) now records the actual protocol
+and limits. See the [staged owner test](LUA_LOAD_FENCE_TEST.md) before any launch.
+Automated service/Lua tests pass; F9/global visibility and already queued MD
+acknowledgements still require native acceptance. Implementation is not deployment.
