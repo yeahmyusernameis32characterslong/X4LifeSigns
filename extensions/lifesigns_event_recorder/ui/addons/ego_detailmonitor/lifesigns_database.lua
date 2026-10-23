@@ -45,6 +45,77 @@ function Adapter.parse(text, expectedRun, expectedUniverse)
     return { run, universe, state, n }
 end
 
+-- Load control uses separate bounded reply files, never normal READY payloads.
+local challengeRun = "session-0-1-loaded-2000-01-01_00-00-00"
+local fenceRun = "session-0-2-loaded-2000-01-01_00-00-00"
+local activeRun = "session-0-3-loaded-2000-01-01_00-00-00"
+local load = {state="IDLE", blocked=false}
+Adapter.loadFence = load
+local function control(text, file, stage)
+    if type(text) ~= "string" then return nil end
+    local actual, kind, token = text:match("^LSDB1|CONTROL|([^|]+)|([A-Z_]+)|([0-9a-f%-]+)|END\r?\n$")
+    if actual ~= file or kind ~= stage or not token then return nil end
+    local a,b,c,d,e = token:match("^([0-9a-f]+)%-([0-9a-f]+)%-([0-9a-f]+)%-([0-9a-f]+)%-([0-9a-f]+)$")
+    if a and #a==8 and #b==4 and #c==4 and #d==4 and #e==12 then return token end
+end
+local function loadDiagnostic(stage)
+    if type(DebugError)=="function" then pcall(DebugError,"LSLOAD1|"..stage.."|END") end
+end
+local function loadFailure(stage)
+    load.state=stage;load.pending=nil
+    loadDiagnostic(stage)
+    -- The existing world-side help panel handles failures where MD is active.
+    -- Main-menu failures are in debuglog; there is no invented UI API fallback.
+    pcall(AddUITriggeredEvent,"LifeSignsDatabase","load_error",stage)
+end
+function Adapter.installLoadFence()
+    if load.wrapper then
+        if LoadGame ~= load.wrapper and not load.replaced then load.replaced=true;loadDiagnostic("HOOK_REPLACED") end
+        return
+    end
+    if type(LoadGame) ~= "function" then
+        if not load.missing then load.missing=true;loadDiagnostic("HOOK_UNAVAILABLE") end
+        return
+    end
+    local original=LoadGame
+    load.wrapper=function(...)
+        if load.state ~= "IDLE" then loadDiagnostic("DUPLICATE_BLOCKED");return end
+        local token=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
+        load.blocked=true
+        if not token then loadFailure("CHALLENGE_UNAVAILABLE");return end
+        load.pending={token=token,args={n=select("#",...),...},deadline=getElapsedTime()+15}
+        load.state="WAITING"
+        loadDiagnostic("PREPARE|"..token)
+    end
+    load.original=original;LoadGame=load.wrapper;loadDiagnostic("HOOK_INSTALLED")
+end
+function Adapter.updateLoadFence(now)
+    Adapter.installLoadFence()
+    local p=load.pending
+    if not p then return end
+    if load.lastPoll and now>=load.lastPoll and now-load.lastPoll<0.1 then return end
+    load.lastPoll=now
+    if now>=p.deadline then loadFailure("TIMEOUT");return end
+    if control(Adapter.readReply(fenceRun),fenceRun,"FENCED") ~= p.token then return end
+    local nextToken=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
+    if not nextToken or nextToken==p.token then return end
+    load.pending=nil;load.expected=nextToken;load.state="DISPATCHED"
+    loadDiagnostic("DISPATCH|"..p.token)
+    local ok=pcall(load.original,unpack(p.args,1,p.args.n))
+    if not ok then loadFailure("ORIGINAL_LOAD_FAILED") end
+end
+function Adapter.loadAllows(run, universe)
+    if not load.blocked then return true end
+    if load.state ~= "DISPATCHED" or not load.expected then return false end
+    local text=Adapter.readReply(activeRun)
+    if type(text) ~= "string" then return false end
+    local file,newRun,newUniverse,token=text:match("^LSDB1|CONTROL|([^|]+)|OPEN|([^|]+)|([^|]+)|([0-9a-f%-]+)|END\r?\n$")
+    if file~=activeRun or newRun~=run or newUniverse~=universe or token~=load.expected then return false end
+    load.blocked=false;load.state="IDLE";load.expected=nil
+    loadDiagnostic("NEW_RUN_ACCEPTED")
+    return true
+end
+
 local current, lastText, lastPoll, lastHealth = nil, nil, 0, nil
 function Adapter.health(stage)
     if current and stage ~= lastHealth then
@@ -64,10 +135,12 @@ function Adapter.receive(_, request)
     Adapter.update()
 end
 function Adapter.update()
-    if not current then return end
     local now = getElapsedTime()
-    if now - lastPoll < 0.25 then return end
+    Adapter.updateLoadFence(now)
+    if not current then return end
+    if now >= lastPoll and now - lastPoll < 0.25 then return end
     lastPoll = now
+    if not Adapter.loadAllows(current.run,current.universe) then return end
     if not native then
         Adapter.health("NATIVE_READER_UNAVAILABLE")
         AddUITriggeredEvent("LifeSignsDatabase", "reply", {current.run,current.universe,"ERROR",0})
@@ -94,6 +167,7 @@ do
         DebugError("Life Signs native reader diagnostic: stage=" .. readerStage .. "; probe=" .. result .. "; detail=" .. readerDetail:gsub("[\r\n]", " "):sub(1, 400))
     end
 end
+Adapter.installLoadFence()
 RegisterEvent("LifeSignsDatabaseRequest", Adapter.receive)
 SetScript("onUpdate", Adapter.update)
 

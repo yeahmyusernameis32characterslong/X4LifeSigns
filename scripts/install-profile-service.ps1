@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory=$true)][string]$GameRoot,
     [Parameter(Mandatory=$true)][string]$LogDirectory,
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{40}$')][string]$ApprovedCommit,
+    [string]$DebugLog,
     [string]$NodeExecutable=(Get-Command node.exe -ErrorAction Stop).Source
 )
 $ErrorActionPreference='Stop'
@@ -26,6 +27,9 @@ if ($content.content.id -ne 'lifesigns_event_recorder') { throw 'Optional record
 if (Get-Process X4* -ErrorAction SilentlyContinue) { throw 'Close X4 before deployment' }
 if (@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'profiles[/\\]service\.mjs' }).Count) { throw 'Existing profile service must be reconciled before installation' }
 if (-not (Test-Path -LiteralPath $LogDirectory -PathType Container)) { throw 'Native log directory missing' }
+if (-not $DebugLog) { throw 'Explicit X4 debuglog path required for the experimental load boundary' }
+$DebugLog=[IO.Path]::GetFullPath($DebugLog)
+Ordinary $DebugLog
 $state=Join-Path $sourceRoot 'local-data/profile-service-lifecycle'
 $installs=Join-Path $sourceRoot 'local-data/profile-service-install'
 foreach ($p in @($state,$installs)) { if (-not (Test-Path -LiteralPath $p)) { New-Item -ItemType Directory -Path $p | Out-Null }; Ordinary $p }
@@ -60,7 +64,7 @@ if (Test-Path -LiteralPath $oldConfig) {
 $deployment=Join-Path $installs ($ApprovedCommit.Substring(0,12)+'-'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fffffff'))
 New-Item -ItemType Directory -Path $deployment | Out-Null
 foreach ($p in @($shortcutPath,$oldConfig,(Join-Path $state 'watcher-state.local.json'))) { if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p -Destination (Join-Path $deployment ('prior-'+[IO.Path]::GetFileName($p))) } }
-$files=@('profiles/service.mjs','profiles/store.mjs','profiles/watch-x4.ps1','recorder/log-format.mjs','bridge/src/session-path.js','bridge/src/session-key.js','bridge/package.json')
+$files=@('profiles/service.mjs','profiles/store.mjs','profiles/load-fence.mjs','profiles/watch-x4.ps1','recorder/log-format.mjs','bridge/src/session-path.js','bridge/src/session-key.js','bridge/package.json')
 $manifest=@()
 foreach ($relative in $files) {
     $from=Join-Path $sourceRoot $relative; Ordinary $from
@@ -71,7 +75,7 @@ foreach ($relative in $files) {
     if ($hash -ne (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'Companion copy hash mismatch' }
     $manifest+=@{path=$to;sha256=$hash}
 }
-$config=@{version=1;approvedCommit=$ApprovedCommit;gameExecutable=$gameExecutable;nodeExecutable=[IO.Path]::GetFullPath($NodeExecutable);serviceScript=(Join-Path $deployment 'profiles/service.mjs');databaseRoot=$sourceRoot;logDirectory=[IO.Path]::GetFullPath($LogDirectory);extensionDirectory=$extension;stateDirectory=$state;files=$manifest}
+$config=@{version=1;approvedCommit=$ApprovedCommit;gameExecutable=$gameExecutable;nodeExecutable=[IO.Path]::GetFullPath($NodeExecutable);serviceScript=(Join-Path $deployment 'profiles/service.mjs');databaseRoot=$sourceRoot;logDirectory=[IO.Path]::GetFullPath($LogDirectory);debugLog=$DebugLog;extensionDirectory=$extension;stateDirectory=$state;files=$manifest}
 $config | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $oldConfig -Encoding UTF8
 $stopFile=Join-Path $state 'stop-watcher.local'
 if (Test-Path -LiteralPath $stopFile) { Ordinary $stopFile; Remove-Item -LiteralPath $stopFile }

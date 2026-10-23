@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix="lifesigns-native-test-") as temporary:
     try:
         execute("callbacks={}; emitted={}; health={}; diagnostic={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function GetUISafeModeOption() return false end; function DebugError(s) diagnostic[#diagnostic+1]=s end; function AddUITriggeredEvent(s,c,p) if c=='health' then health[#health+1]=p else emitted[#emitted+1]={s,c,p} end end")
         execute(source_text)
-        execute("assert(#diagnostic==1 and diagnostic[1]:find('stage=NATIVE_MODULE_READY; probe=PASS',1,true)); assert(#emitted==0 and #health==0)")
+        execute("assert(#diagnostic==2 and diagnostic[1]:find('stage=NATIVE_MODULE_READY; probe=PASS',1,true)); assert(#emitted==0 and #health==0)")
         execute("probe_source=" + json.dumps(source_text))
         execute("""
 local function failure(packageValue,safe,expected)
@@ -68,7 +68,7 @@ local function failure(packageValue,safe,expected)
     RegisterEvent=function() end,SetScript=function() end,DebugError=function(s) messages[#messages+1]=s end},{__index=_G})
   local chunk=assert(loadstring(probe_source));setfenv(chunk,env);chunk()
   assert(env.LifeSignsDatabaseAdapter.readerStatus()==expected)
-  assert(#messages==1 and messages[1]:find(expected,1,true))
+  assert(#messages==2 and messages[1]:find(expected,1,true))
 end
 failure(false,false,'NATIVE_LOADER_UNAVAILABLE')
 failure({loadlib=function() return nil,'synthetic missing DLL' end},false,'NATIVE_MODULE_LOAD_FAILED')
@@ -186,6 +186,39 @@ failure({loadlib=function() error('must not load with unknown policy') end},'thr
         os.rmdir(runtime)
         saved_runtime.rename(runtime)
         execute("assert(native.readReply(run)); assert(health[1][3]=='REQUEST_RECEIVED' and health[2][3]=='REPLY_FORWARDED')")
+        # Real reader and production adapter control path; never call X4 LoadGame.
+        challenge_run="session-0-1-loaded-2000-01-01_00-00-00"
+        fence_run="session-0-2-loaded-2000-01-01_00-00-00"
+        active_run="session-0-3-loaded-2000-01-01_00-00-00"
+        first="11111111-1111-4111-8111-111111111111"
+        second="22222222-2222-4222-8222-222222222222"
+        stale="33333333-3333-4333-8333-333333333333"
+        def control_file(name, body):
+            (runtime/(name+'.reply')).write_bytes(('LSDB1|CONTROL|'+name+'|'+body+'|END\n').encode('ascii'))
+        control_file(challenge_run,'CHALLENGE|'+first)
+        control_file(fence_run,'FENCED|'+stale)
+        execute("loadCalls={};function LoadGame(...) loadCalls[#loadCalls+1]={n=select('#',...),...} end; LifeSignsDatabaseAdapter.installLoadFence(); clock=10; LoadGame('synthetic-save',nil,7); assert(LifeSignsDatabaseAdapter.loadFence.blocked);callbacks.onUpdate(); assert(#loadCalls==0);LoadGame('duplicate');assert(#loadCalls==0)")
+        # Matching fence without challenge rotation must still not dispatch.
+        control_file(fence_run,'FENCED|'+first)
+        execute("clock=10.2; callbacks.onUpdate();assert(#loadCalls==0)")
+        control_file(challenge_run,'CHALLENGE|'+second)
+        execute("clock=10.4;callbacks.onUpdate();clock=10.6;callbacks.onUpdate();assert(#loadCalls==1 and loadCalls[1].n==3 and loadCalls[1][1]=='synthetic-save' and loadCalls[1][2]==nil and loadCalls[1][3]==7);assert(LifeSignsDatabaseAdapter.loadFence.blocked)")
+        # An old ACTIVE and old ordinary READY cannot reopen forwarding.
+        control_file(active_run,'OPEN|'+run+'|'+universe+'|'+first)
+        reply.write_text(text.replace('NEED_BASELINE|1','READY|101'),encoding='ascii')
+        execute("local n=#emitted;clock=11;callbacks.onUpdate();assert(#emitted==n and LifeSignsDatabaseAdapter.loadFence.blocked)")
+        control_file(active_run,'OPEN|'+run+'|'+universe+'|'+second)
+        execute("clock=11.3;callbacks.onUpdate();assert(not LifeSignsDatabaseAdapter.loadFence.blocked and LifeSignsDatabaseAdapter.loadFence.state=='IDLE');assert(emitted[#emitted][3][4]==101)")
+        # A missing service times out without a second original load or fallback.
+        execute("clock=12;LoadGame('timeout');clock=28;callbacks.onUpdate();assert(#loadCalls==1 and LifeSignsDatabaseAdapter.loadFence.state=='TIMEOUT' and LifeSignsDatabaseAdapter.loadFence.blocked);LoadGame('retry-denied');assert(#loadCalls==1)")
+        execute("local a=LifeSignsDatabaseAdapter;a.loadFence.state='IDLE';a.loadFence.original=function() error('synthetic original load error') end")
+        control_file(challenge_run,'CHALLENGE|'+first)
+        execute("clock=30;LoadGame('failed')")
+        control_file(challenge_run,'CHALLENGE|'+second)
+        execute("clock=30.2;callbacks.onUpdate();assert(LifeSignsDatabaseAdapter.loadFence.state=='ORIGINAL_LOAD_FAILED');clock=31;callbacks.onUpdate();assert(#loadCalls==1)")
+        (runtime/(challenge_run+'.reply')).unlink()
+        execute("LifeSignsDatabaseAdapter.loadFence.state='IDLE';clock=32;LoadGame('unavailable');assert(LifeSignsDatabaseAdapter.loadFence.state=='CHALLENGE_UNAVAILABLE' and #loadCalls==1)")
+        print('PASS: production load holder, actual reader control files, stale ACK and ACTIVE rejection, rotated challenge, exact-once arguments including nil, timeout/inactive/original-error failure without fallback. X4 route coverage/queued MD ACKs remain owner-test gates.')
         print('PASS: actual compiled Lua module, Unicode path, bounded read-only replies, loader failure/protected-mode gates, traversal/argument/size/content/hard-link/junction rejection, handle closure, real DLL-to-adapter replies and crew callback preservation. Native X4 loading still requires owner probe.')
     finally:
         lua.lua_close(state)

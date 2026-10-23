@@ -98,6 +98,10 @@ try {
         if ($null -ne $gameKey -and $installed -and $null -eq $child -and $attempts -lt 3 -and [DateTime]::UtcNow -ge $nextAttempt) {
             VerifyCode
             $arguments=@($settings.serviceScript,'--logs',$settings.logDirectory,'--replies',(Join-Path $settings.extensionDirectory 'runtime'),'--since',$games[0].started.ToString('o'),'--control-stdin','--root',$settings.databaseRoot)
+            if ($settings.PSObject.Properties.Name -contains 'debugLog') {
+                if (-not [IO.Path]::IsPathRooted($settings.debugLog) -or $settings.debugLog -match '["\r\n]') { throw 'Invalid debuglog path' }
+                $arguments+=@('--load-control',$settings.debugLog)
+            }
             $info=New-Object Diagnostics.ProcessStartInfo
             $info.FileName=$settings.nodeExecutable
             $info.Arguments=($arguments | ForEach-Object { '"'+$_+'"' }) -join ' '

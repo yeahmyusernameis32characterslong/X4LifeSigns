@@ -41,6 +41,14 @@
 </do_if>
 </actions>
 </cue>
+<cue name="DatabaseLoadError" instantiate="true">
+<conditions>
+<event_ui_triggered screen="'LifeSignsDatabase'" control="'load_error'" />
+</conditions>
+<actions>
+<show_help custom="'Life Signs could not safely prepare this save load.\nPlease exit X4 and report the problem.\nDo not save over your existing save.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
+</actions>
+</cue>
 <cue name="PersonnelRoleResponse" instantiate="true">
 <conditions>
 <event_ui_triggered screen="'LifeSignsPersonnel'" control="'role_changed'" />
