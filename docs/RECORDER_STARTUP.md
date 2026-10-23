@@ -149,3 +149,46 @@ that permission remains an open design dependency. Moving all writes through
 a runtime-owned bridge would be a larger alternative, not an approved change.
 Do not add per-event disk reads or UI traffic to compensate for an unproved gate.
 No implementation or deployment follows from these source findings alone.
+
+### Conditional-deployment investigation: evidence assessment
+
+The owner subsequently authorised further investigation and implementation/
+deployment **if strong evidence supports a solution**. That condition has not
+been met by the source evidence below. No recorder implementation or installation
+was changed in this investigation.
+
+| Option | Established evidence | Remaining deployment dependency |
+| --- | --- | --- |
+| Direct MD runtime marker | Existing saved flags, cue versions and process-only markers cannot identify every reload. No suitable getter was established in the scoped investigation. | A documented synchronously readable value that distinguishes every load; this is not a global API-absence finding. |
+| UI load-start observer and runtime permission | The two source-shown pre-LoadGame routes exist. | Optional-addon visibility, quickload/other route coverage, and an enforceable check covering both writes and acknowledgements. |
+| Deferred listener actions and acknowledgements | MD supports delayed actions and cancelling/resetting cue instances. | Ordering of restored active/due delays versus load notifications, unchanged event facts, queue/instance cost and checkpoint protection. |
+
+The [official Mission Director Guide](https://wiki.egosoft.com/X%20Rebirth%20Wiki/Modding%20support/Mission%20Director%20Guide/)
+describes delayed actions and refresh of saved cue state; it does not establish
+the required restoration-order guarantee. Installed9.00 md.xsd1680-1688 and
+4687-4695 support the delay mechanism. Its cancel/reset contracts at2520-2530
+and3241-3251 take effect after the executing action block. Neither schema
+validity nor a simulated scheduler proves actual loading order.
+
+Delaying object getters could lose transient destruction/assignment facts.
+Although the documented event keyword has no time member in
+scriptproperties.xml3204-3210, cue.time at2198 exposes activation time and is a
+possible way to retain the timestamp. This improves the candidate; it does not
+resolve restoration ordering or preserve every other mutable field.
+The event_npc_created element is in md.xsd2068-2077, not common.xsd. It exposes
+the NPC actor; its eventcondition/condition attribute groups add no documented
+load-origin filter. A failed search in the wrong file is not evidence.
+
+Before implementing the deferred option, an isolated native diagnostic must
+exercise waiting cues receiving restoration events, already-active saved delay
+instances, due timers, old replies and cancelled instances. It must show no old
+write or checkpoint advance, exact retained event time/facts and bounded cost,
+then demonstrate normal new-run capture. Cover fresh process and same-process
+menu/Continue/quickload routes, cancellation/failure, paused gameplay and a
+save with pending work. The test must observe the proposed mechanism, not merely
+repeat the already verified fact that current load notifications are late.
+A runtime-check diagnostic must additionally prove access and route coverage.
+
+This is a source-assessed proposal, not a deployed fix or native validation.
+Existing separate-launch continuity findings remain valid. No database repair,
+replay relaxation, slowdown, recurring baseline or production change is implied.
