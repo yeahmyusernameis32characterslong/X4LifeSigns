@@ -192,3 +192,15 @@ A runtime-check diagnostic must additionally prove access and route coverage.
 This is a source-assessed proposal, not a deployed fix or native validation.
 Existing separate-launch continuity findings remain valid. No database repair,
 replay relaxation, slowdown, recurring baseline or production change is implied.
+
+### Lua and external service handshake proof
+
+Subsequent owner-requested work with Qwen established a concrete
+[load-boundary implementation plan](LUA_LOAD_FENCE_PLAN.md). A disposable proof
+passed with real SQLite, the installed Lua runtime and the unchanged native
+reader: durable old-session closure precedes a matching acknowledgement; stale
+replies cannot dispatch the simulated load; restart/replay and ordinal checks
+pass. This is protocol feasibility, not production integration or native load
+coverage. F9/global interception, asynchronous menu handling and already queued
+MD acknowledgements remain explicit deployment dependencies. No installation or
+production database was changed.
