@@ -116,3 +116,36 @@ additional saved flags or a version patch alone do not establish freshness.
 Qwen is investigating an earlier lifecycle boundary or nonpersistent runtime
 check. No implementation, deployment, database repair or new live test is part
 of this research checkpoint. Existing raw evidence and SQL history are preserved.
+
+### Source-supported candidate and next evidence gate
+
+Qwen independently located an earlier UI route in installed X4 9.00:
+`ui/addons/ego_gameoptions/gameoptions.lua:408` registers `loadSave`;
+2956-2964 handles that request and schedules `LoadGame(filename)`.
+The normal menu path at8022-8046 schedules the same call directly, and
+8050-8064 routes Continue through that menu path. Observing only `loadSave`
+therefore does not establish coverage of all these call sites, let alone F9.
+Codex verified the cited source locations. This establishes candidate call
+sites, not that the optional detailmonitor addon can safely intercept them.
+
+`ui/core/lua/loading.lua:240` registers a loading-completion event, and269
+reads a value named loadCount. Neither proves a monotonic per-load identity,
+optional-addon accessibility or ordering before restored MD callbacks.
+A process-only marker also cannot distinguish reloads in the same process.
+No synchronously readable MD-to-Lua freshness contract was established.
+
+Proposed next step: verify optional-addon access and lifecycle context, then
+prepare a bounded observational diagnostic of the actual load invocation and
+runtime generation against the first restored callback, write and ACK. Include
+fresh launch, normal load, Continue, same-process reload and quickload, plus
+cancelled/failed load behaviour. Pass only if every covered load changes or
+closes runtime permission before stale writes/checkpoint updates, and reopens
+for the matching new run. Resetting a saved MD flag before restoration is not
+sufficient: restoration can overwrite it. Keep early-event coverage explicit.
+
+The proposed correction would use runtime-owned permission for each load,
+protecting both file writes and reply/checkpoint acceptance. How MD accesses
+that permission remains an open design dependency. Moving all writes through
+a runtime-owned bridge would be a larger alternative, not an approved change.
+Do not add per-event disk reads or UI traffic to compensate for an unproved gate.
+No implementation or deployment follows from these source findings alone.
