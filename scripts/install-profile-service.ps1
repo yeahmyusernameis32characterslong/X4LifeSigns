@@ -29,7 +29,17 @@ if (@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and
 if (-not (Test-Path -LiteralPath $LogDirectory -PathType Container)) { throw 'Native log directory missing' }
 if (-not $DebugLog) { throw 'Explicit X4 debuglog path required for the experimental load boundary' }
 $DebugLog=[IO.Path]::GetFullPath($DebugLog)
-Ordinary $DebugLog
+# Read-only game input can carry cloud-file reparse attributes without being a
+# link/redirection. Use the existing ancestor/realpath/single-link input guard;
+# installation destinations continue to use the stricter Ordinary check above.
+Push-Location $sourceRoot
+try {
+    @'
+import { checkPath } from './bridge/src/session-path.js';
+checkPath(process.argv[2]);
+'@ | & $NodeExecutable --input-type=module - $DebugLog
+    if ($LASTEXITCODE -ne 0) { throw 'Unsafe or missing debuglog input' }
+} finally { Pop-Location }
 $state=Join-Path $sourceRoot 'local-data/profile-service-lifecycle'
 $installs=Join-Path $sourceRoot 'local-data/profile-service-install'
 foreach ($p in @($state,$installs)) { if (-not (Test-Path -LiteralPath $p)) { New-Item -ItemType Directory -Path $p | Out-Null }; Ordinary $p }
