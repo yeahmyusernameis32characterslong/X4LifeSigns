@@ -1,11 +1,12 @@
 # Experimental load-boundary test
 
-Status: owner clarified the earlier `0010aa4` run used Continue. A subsequent
-two-load Load Game menu test passed recreation, same-process sealing and saved
-branch isolation; see the [menu reload result](LUA_LOAD_FENCE_PLAN.md#confirmed-load-game-menu-reload-within-one-process).
-F9 and universal queued-ACK ordering remain pending review. Startup control-log
-retry recurred and recovered. The matrix below is not an automatic instruction
-to launch more tests; earlier partial/native results remain preserved.
+Status: installed `0010aa4` passed owner-tested Continue, Load Game menu,
+same-process reload and [F9 quickload](LUA_LOAD_FENCE_PLAN.md#owner-confirmed-f9-result).
+The quicksave's checkpoint excluded the first unsaved rename as intended.
+The planned route matrix is complete for these observations; universal queued-ACK
+ordering and the earlier recovered startup reset remain separate follow-ups.
+The procedure below is retained for regression, not an instruction for another
+owner run. No event pruning or database deletion is implied.
 
 ## Preparation
 

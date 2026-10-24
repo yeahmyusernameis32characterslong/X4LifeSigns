@@ -1,9 +1,9 @@
 # Lua load boundary and external session closure
 
-Status: deployed `0010aa4` passed recreation via owner-clarified Continue and
-two confirmed Load Game menu loads in one X4 process on 24 October 2026.
-Same-process sealing/branch isolation observed; F9 and universal queued-ACK
-ordering remain unverified. Recovered startup control-log retry remains open.
+Status: deployed `0010aa4` passed the planned Continue, Load Game menu,
+same-process reload and F9 tests on 24 October 2026. Sealing and saved-branch
+isolation observed. Universal queued-ACK ordering is not proved; earlier recovered
+startup control-log retry remains a separate reliability follow-up.
 Owner explicitly approved implementation after the protocol proof at `4328f13`.
 See [startup evidence](RECORDER_STARTUP.md) and the
 [staged owner test](LUA_LOAD_FENCE_TEST.md).
@@ -102,6 +102,23 @@ Startup again had one control-log truncation worker failure and automatic recove
 before the two loads; final worker exit0/stderr empty, X4/service closed and watcher
 IDLE. This confirms the tested menu/same-process boundary and ancestry behaviour,
 not universal proof for already queued MD ACKs. F9 remains a separate route gate.
+
+### Owner-confirmed F9 result
+
+Owner created a quicksave before renaming, then used F9. Both loads reached the
+hook and matching service acknowledgement, with recreated BLOCKED->ACCEPTED gates.
+First run32records, second69records, all101exact contiguous raw/SQL payloads.
+The second run points to the first run's saved checkpoint31; the first unsaved
+rename at32 is excluded by actual read-only ancestry/eventsAt, while the new
+session's rename is included. First run is sealed and final OPEN matches the
+second run/generation. Prior92,469SQL rows unchanged, integrityok, no baseline.
+
+An older retained raw log grew233restoration lines, excluded from SQL; the sealed
+first run stayed32raw/SQL. This launch needed no service restart: one worker,
+empty stderr, exit0 and idle watcher with X4/SQLite closed. The earlier startup
+truncation is not disproved by its absence in this run. Planned route coverage
+is complete for the owner-tested cases, not exhaustive proof of every queued
+callback/interleaving. No pruning, repair or code/deployment change occurred.
 
 Make the external service stop accepting the previous session **before** Lua
 invokes the actual save load. Computer timestamps alone cannot establish this
