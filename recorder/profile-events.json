@@ -1,0 +1,728 @@
+[
+  {
+    "name": "event_object_attacked",
+    "type": "ATTACKED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "other": "event.param",
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Other": "event.param",
+      "Type": "'ATTACKED'",
+      "Source": "'event_object_attacked'",
+      "Relevant": "true",
+      "Coalesce": "true",
+      "TrackOther": "true"
+    }
+  },
+  {
+    "name": "event_object_attacked_object",
+    "type": "ATTACKING",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "other": "event.param",
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Other": "event.param",
+      "Type": "'ATTACKING'",
+      "Source": "'event_object_attacked_object'",
+      "Relevant": "true",
+      "Coalesce": "true",
+      "TrackOther": "true"
+    }
+  },
+  {
+    "name": "event_object_order_ready",
+    "type": "ORDER_READY",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "detail": "@event.param.id",
+    "detailName": "@event.param.name",
+    "order": "event.param"
+  },
+  {
+    "name": "event_object_commander_set",
+    "type": "COMMANDER_SET",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.object",
+    "other": "event.param",
+    "previous": "event.param2",
+    "detail": "event.param3",
+    "detailName": "@event.param3.name"
+  },
+  {
+    "name": "event_object_changed_assignment",
+    "type": "FLEET_ROLE_CHANGED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "other": "@event.param.commander",
+    "previous": "event.param2",
+    "detail": "event.param3",
+    "detailName": "@event.param3.name"
+  },
+  {
+    "name": "event_player_built_ship",
+    "type": "CREATED",
+    "selector": {},
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_player_built_station",
+    "type": "CREATED",
+    "selector": {},
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_god_created_ship",
+    "type": "CREATED",
+    "selector": {
+      "space": "player.galaxy"
+    },
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_god_created_station",
+    "type": "CREATED",
+    "selector": {
+      "space": "player.galaxy"
+    },
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_contained_object_changed_true_owner",
+    "type": "ACQUIRED",
+    "selector": {
+      "space": "player.galaxy",
+      "owner": "faction.player"
+    },
+    "subject": "event.param",
+    "create": true
+  },
+  {
+    "name": "event_npc_created",
+    "type": "NPC_CREATED",
+    "selector": {},
+    "subject": "event.param",
+    "create": true,
+    "npc": true
+  },
+  {
+    "name": "event_control_entity_added",
+    "type": "CONTROL_ROLE_ASSIGNED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.object",
+    "npc": true,
+    "create": true
+  },
+  {
+    "name": "event_control_entity_removed",
+    "type": "CONTROL_ROLE_REMOVED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.object",
+    "npc": true
+  },
+  {
+    "name": "event_entity_entered",
+    "type": "ENTITY_ENTERED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.param2",
+    "previous": "event.param3",
+    "npc": true,
+    "create": true
+  },
+  {
+    "name": "event_entity_left",
+    "type": "ENTITY_LEFT",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "subject": "event.param",
+    "host": "event.object",
+    "other": "event.param2",
+    "previous": "event.param3",
+    "npc": true
+  },
+  {
+    "name": "event_player_assigned_hired_actor",
+    "type": "ASSIGNMENT_REQUESTED",
+    "selector": {},
+    "subject": "event.param",
+    "target": "event.param2",
+    "detail": "event.param3",
+    "npc": true,
+    "create": true,
+    "assignment": true,
+    "detailName": "@event.param3.name"
+  },
+  {
+    "name": "event_contained_entity_changed_true_owner",
+    "type": "NPC_ACQUIRED",
+    "selector": {
+      "space": "player.galaxy",
+      "owner": "faction.player"
+    },
+    "subject": "event.param",
+    "npc": true,
+    "create": true
+  },
+  {
+    "name": "event_object_order_finished",
+    "type": "ORDER_FINISHED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'ORDER_FINISHED'",
+      "Source": "'event_object_order_finished'",
+      "Relevant": "true",
+      "Detail": "@event.param.id",
+      "DetailName": "@event.param.name"
+    }
+  },
+  {
+    "name": "event_object_order_cancelled",
+    "type": "ORDER_CANCELLED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'ORDER_CANCELLED'",
+      "Source": "'event_object_order_cancelled'",
+      "Relevant": "true",
+      "Detail": "@event.param.id",
+      "DetailName": "@event.param.name",
+      "Data": "table[$immediate=event.param2]"
+    }
+  },
+  {
+    "name": "event_object_changed_subordinategroup",
+    "type": "FLEET_GROUP_CHANGED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.param",
+      "Type": "'FLEET_GROUP_CHANGED'",
+      "Source": "'event_object_changed_subordinategroup'",
+      "Relevant": "true",
+      "Detail": "event.param3",
+      "Previous": "@event.param.commander",
+      "Data": "table[$previous_group=event.param2,$new_group=event.param3]"
+    }
+  },
+  {
+    "name": "event_object_subordinate_promoted",
+    "type": "COMMAND_SHIP_REPLACED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'COMMAND_SHIP_REPLACED'",
+      "Source": "'event_object_subordinate_promoted'",
+      "Relevant": "true",
+      "Other": "event.param"
+    }
+  },
+  {
+    "name": "event_object_destroyed",
+    "type": "DESTROYED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'DESTROYED'",
+      "Source": "'event_object_destroyed'",
+      "Relevant": "true",
+      "Other": "event.param",
+      "Detail": "event.param2",
+      "Data": "table[$parent_killed=event.param3]"
+    }
+  },
+  {
+    "name": "event_object_abandoned",
+    "type": "ABANDONED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'ABANDONED'",
+      "Source": "'event_object_abandoned'",
+      "Relevant": "true"
+    }
+  },
+  {
+    "name": "event_object_changed_owner",
+    "type": "OWNER_CHANGED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'OWNER_CHANGED'",
+      "Source": "'event_object_changed_owner'",
+      "Relevant": "true",
+      "Data": "table[$new_owner=event.param,$previous_owner=event.param2]"
+    }
+  },
+  {
+    "name": "event_object_docked",
+    "type": "DOCKED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'DOCKED'",
+      "Source": "'event_object_docked'",
+      "Relevant": "true",
+      "Other": "event.param",
+      "Data": "table[$zone=event.param2,$docking_bay=event.param3]"
+    }
+  },
+  {
+    "name": "event_object_undocked",
+    "type": "UNDOCKED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'UNDOCKED'",
+      "Source": "'event_object_undocked'",
+      "Relevant": "true",
+      "Other": "event.param",
+      "Data": "table[$zone=event.param2,$docking_bay=event.param3]"
+    }
+  },
+  {
+    "name": "event_object_changed_sector",
+    "type": "SECTOR_CHANGED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'SECTOR_CHANGED'",
+      "Source": "'event_object_changed_sector'",
+      "Relevant": "true",
+      "Other": "event.param",
+      "Previous": "event.param2"
+    }
+  },
+  {
+    "name": "event_object_entered_gate",
+    "type": "GATE_ENTERED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'GATE_ENTERED'",
+      "Source": "'event_object_entered_gate'",
+      "Relevant": "true",
+      "Other": "event.param",
+      "Previous": "event.param2"
+    }
+  },
+  {
+    "name": "event_object_collected_ware",
+    "type": "CARGO_COLLECTED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'CARGO_COLLECTED'",
+      "Source": "'event_object_collected_ware'",
+      "Relevant": "true",
+      "Other": "event.param3",
+      "Detail": "event.param",
+      "DetailName": "@event.param.name",
+      "Data": "table[$amount=event.param2]",
+      "Coalesce": "true"
+    }
+  },
+  {
+    "name": "event_supply_orders_added",
+    "type": "SUPPLY_REQUEST_ADDED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistorySupply",
+    "params": {
+      "Object": "event.object",
+      "Wares": "event.param",
+      "Type": "'SUPPLY_REQUEST_ADDED'",
+      "Source": "'event_supply_orders_added'"
+    }
+  },
+  {
+    "name": "event_supply_orders_removed",
+    "type": "SUPPLY_REQUEST_REMOVED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistorySupply",
+    "params": {
+      "Object": "event.object",
+      "Wares": "event.param",
+      "Type": "'SUPPLY_REQUEST_REMOVED'",
+      "Source": "'event_supply_orders_removed'"
+    }
+  },
+  {
+    "name": "event_build_started",
+    "type": "BUILD_STARTED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'BUILD_STARTED'",
+      "Source": "'event_build_started'",
+      "Relevant": "true",
+      "Other": "@event.param3.buildobject",
+      "Data": "table[$build_reference=event.param3,$task_kind='UNKNOWN',$is_ship=@event.param3.isshipbuild,$is_expansion=@event.param3.isexpansion,$is_upgrade=@event.param3.isupgrade,$is_restock=@event.param3.isrestock]"
+    }
+  },
+  {
+    "name": "event_build_finished",
+    "type": "BUILD_FINISHED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'BUILD_FINISHED'",
+      "Source": "'event_build_finished'",
+      "Relevant": "true",
+      "Other": "@event.param3.buildobject",
+      "Data": "table[$build_reference=event.param3,$task_kind='UNKNOWN',$is_ship=@event.param3.isshipbuild,$is_expansion=@event.param3.isexpansion,$is_upgrade=@event.param3.isupgrade,$is_restock=@event.param3.isrestock]"
+    }
+  },
+  {
+    "name": "event_build_cancelled",
+    "type": "BUILD_CANCELLED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'BUILD_CANCELLED'",
+      "Source": "'event_build_cancelled'",
+      "Relevant": "true",
+      "Other": "@event.param.buildobject",
+      "Data": "table[$build_reference=event.param,$task_kind='UNKNOWN',$is_ship=@event.param.isshipbuild,$is_expansion=@event.param.isexpansion,$is_upgrade=@event.param.isupgrade,$is_restock=@event.param.isrestock]"
+    }
+  },
+  {
+    "name": "event_trade_completed",
+    "type": "TRADE_COMPLETED",
+    "selector": {
+      "space": "player.galaxy"
+    },
+    "handler": "RecordHistoryTrade",
+    "params": {
+      "Offer": "event.param",
+      "Order": "event.param2",
+      "Type": "'TRADE_COMPLETED'",
+      "Source": "'event_trade_completed'"
+    }
+  },
+  {
+    "name": "event_trade_cancelled",
+    "type": "TRADE_CANCELLED",
+    "selector": {
+      "space": "player.galaxy"
+    },
+    "handler": "RecordHistoryTrade",
+    "params": {
+      "Offer": "event.param",
+      "Order": "null",
+      "Type": "'TRADE_CANCELLED'",
+      "Source": "'event_trade_cancelled'"
+    }
+  },
+  {
+    "name": "event_region_asteroid_mined",
+    "type": "MINING_OBSERVED",
+    "selector": {
+      "group": "md.$LSPHistorySectors"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.param2",
+      "Other": "event.param",
+      "Type": "'MINING_OBSERVED'",
+      "Source": "'event_region_asteroid_mined'",
+      "Coalesce": "true"
+    }
+  },
+  {
+    "name": "event_scan_finished",
+    "type": "SCANNED_OBJECT",
+    "selector": {
+      "scanner": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'SCANNED_OBJECT'",
+      "Source": "'event_scan_finished'",
+      "Relevant": "true",
+      "Other": "event.param"
+    }
+  },
+  {
+    "name": "event_scan_finished",
+    "type": "WAS_SCANNED",
+    "selector": {
+      "scanned": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'WAS_SCANNED'",
+      "Source": "'event_scan_finished'",
+      "Relevant": "true",
+      "Other": "event.param"
+    }
+  },
+  {
+    "name": "event_boarding_operation_created",
+    "type": "BOARDING_CREATED",
+    "selector": {},
+    "handler": "RecordHistoryBoarding",
+    "params": {
+      "Operation": "event.param",
+      "Type": "'BOARDING_CREATED'",
+      "Phase": "null",
+      "PreviousPhase": "null"
+    }
+  },
+  {
+    "name": "event_boarding_operation_started",
+    "type": "BOARDING_STARTED",
+    "selector": {},
+    "handler": "RecordHistoryBoarding",
+    "params": {
+      "Operation": "event.param",
+      "Type": "'BOARDING_STARTED'",
+      "Phase": "null",
+      "PreviousPhase": "null"
+    }
+  },
+  {
+    "name": "event_boarding_phase_changed",
+    "type": "BOARDING_PHASE_CHANGED",
+    "selector": {},
+    "handler": "RecordHistoryBoarding",
+    "params": {
+      "Operation": "event.param",
+      "Type": "'BOARDING_PHASE_CHANGED'",
+      "Phase": "event.param2",
+      "PreviousPhase": "event.param3"
+    }
+  },
+  {
+    "name": "event_boarding_operation_removed",
+    "type": "BOARDING_REMOVED",
+    "selector": {},
+    "handler": "RecordHistoryBoarding",
+    "params": {
+      "Operation": "event.param",
+      "Type": "'BOARDING_REMOVED'",
+      "Phase": "null",
+      "PreviousPhase": "null"
+    }
+  },
+  {
+    "name": "event_object_destroyed",
+    "type": "RELATED_OBJECT_DESTROYED",
+    "selector": {
+      "group": "md.$LSPHistoryOutsiders"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Type": "'RELATED_OBJECT_DESTROYED'",
+      "Source": "'event_object_destroyed'",
+      "Relevant": "false",
+      "Other": "event.param",
+      "Detail": "event.param2",
+      "AllowExternal": "true"
+    }
+  },
+  {
+    "name": "event_player_discovered_object",
+    "type": "PLAYER_DISCOVERED_OBJECT",
+    "selector": {},
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "null",
+      "Type": "'PLAYER_DISCOVERED_OBJECT'",
+      "Source": "'event_player_discovered_object'",
+      "Relevant": "false",
+      "Other": "event.param",
+      "World": "true",
+      "Detail": "event.param2"
+    }
+  },
+  {
+    "name": "event_player_relation_changed",
+    "type": "PLAYER_RELATION_CHANGED",
+    "selector": {},
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "null",
+      "Type": "'PLAYER_RELATION_CHANGED'",
+      "Source": "'event_player_relation_changed'",
+      "Relevant": "false",
+      "World": "true",
+      "Other": "event.object",
+      "Data": "table[$faction=event.param,$new_relation=@event.param2.{1},$previous_relation=@event.param2.{2},$reason=event.param3]"
+    }
+  },
+  {
+    "name": "event_faction_relation_changed",
+    "type": "FACTION_RELATION_CHANGED",
+    "selector": {},
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "null",
+      "Type": "'FACTION_RELATION_CHANGED'",
+      "Source": "'event_faction_relation_changed'",
+      "Relevant": "false",
+      "World": "true",
+      "Data": "table[$faction=event.param,$related_faction=event.param2,$new_relation=@event.param3.{1},$previous_relation=@event.param3.{2},$reason=@event.param3.{3}]"
+    }
+  },
+  {
+    "name": "event_object_killed_object",
+    "type": "KILLED_OBJECT",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordHistoryEvent",
+    "params": {
+      "Subject": "event.object",
+      "Other": "event.param",
+      "Type": "'KILLED_OBJECT'",
+      "Detail": "event.param2",
+      "Source": "'event_object_killed_object'",
+      "Relevant": "true"
+    }
+  },
+  {
+    "name": "event_player_started_control",
+    "type": "PLAYER_STARTED_CONTROL",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_STARTED_CONTROL'",
+      "Source": "'event_player_started_control'",
+      "Object": "event.param",
+      "Control": "true"
+    }
+  },
+  {
+    "name": "event_player_stopped_control",
+    "type": "PLAYER_STOPPED_CONTROL",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_STOPPED_CONTROL'",
+      "Source": "'event_player_stopped_control'",
+      "Object": "event.param",
+      "Control": "true"
+    }
+  },
+  {
+    "name": "event_player_changed_activity",
+    "type": "PLAYER_ACTIVITY_CHANGED",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_ACTIVITY_CHANGED'",
+      "Source": "'event_player_changed_activity'",
+      "Detail": "event.param",
+      "PreviousDetail": "event.param2"
+    }
+  },
+  {
+    "name": "event_player_teleport_successful",
+    "type": "PLAYER_TELEPORT_REPORTED",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_TELEPORT_REPORTED'",
+      "Source": "'event_player_teleport_successful'",
+      "Object": "event.param",
+      "Previous": "event.param2",
+      "Shortcut": "event.param3"
+    }
+  },
+  {
+    "name": "event_player_ejected",
+    "type": "PLAYER_EMERGENCY_EJECTED",
+    "selector": {},
+    "player": true,
+    "handler": "RecordPlayerNativeEvent",
+    "params": {
+      "Type": "'PLAYER_EMERGENCY_EJECTED'",
+      "Source": "'event_player_ejected'"
+    }
+  }
+]

@@ -225,7 +225,9 @@ Treat assertions in handoff files as claims to check against their evidence.
 ## Database rules
 
 The controlled docking experiment uses Node's built-in SQLite and a version-1
-docking_events table. See DATABASE.md. Wider persistence remains planned. Use a
+docking_events table. See DATABASE.md. Wider memory remains planned. The separate
+optional profile store is documented in docs/SQLITE_PROFILE_COMPLETION.md; keep
+its universe/session history distinct from docking v1/v2 files. Use a
 fresh manual database for another save/universe or game reload. Opt-in automatic
 routing uses owned schema-v2 files and is verified live in X4 9.00 with Node.js
 v24.21.0 under the approved practical local single-player `s1` assumption;

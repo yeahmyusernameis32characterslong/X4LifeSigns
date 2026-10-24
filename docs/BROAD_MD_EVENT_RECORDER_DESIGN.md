@@ -1,5 +1,11 @@
 # Broad MD event recorder: source-checked design proposal
 
+> **Historical PR #18 research/design.** Later owner-approved requirements and
+> the implemented PR #20 SQLite profile collector supersede the operating
+> instructions below. See [current scope, verification and limitations](SQLITE_PROFILE_COMPLETION.md).
+> Earlier broad event snapshots, periodic/hotkey designs and row caps are
+> retained as research provenance, not current collection requirements.
+
 Research state: 17 October 2026, PR #18. **Proposed, not implemented or live
 verified.** Read [the workstream findings](BROAD_MD_EVENT_CAPTURE_FINDINGS.md)
 for the owner requirements and historical PR #17 boundary. Agent owns the

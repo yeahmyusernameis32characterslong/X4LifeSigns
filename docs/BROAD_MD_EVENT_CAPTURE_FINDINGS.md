@@ -1,5 +1,11 @@
 # Broad native MD event capture: research findings and Agent planning input
 
+> **Historical PR #18 research/design.** Later owner-approved requirements and
+> the implemented PR #20 SQLite profile collector supersede the operating
+> instructions below. See [current scope, verification and limitations](SQLITE_PROFILE_COMPLETION.md).
+> Earlier broad event snapshots, periodic/hotkey designs and row caps are
+> retained as research provenance, not current collection requirements.
+
 Research recorded: 2026-10-17. **Status: In Progress, source investigation and design; capture implementation and live verification pending.** This is a research input for Agent, Qwen and Codex; it is not an Agent implementation brief, acceptance approval, deployment instruction or permission to merge.
 
 The [source-checked recorder design proposal](BROAD_MD_EVENT_RECORDER_DESIGN.md)

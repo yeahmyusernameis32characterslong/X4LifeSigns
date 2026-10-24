@@ -147,3 +147,14 @@ If voice-related data is stored, it should preferably be limited to useful metad
 Voice data should only be retained when it serves a clear gameplay or debugging purpose.
 
 Temporary generated audio should normally be treated as cache data rather than persistent Life Signs data.
+
+## Optional object profiles (PR #20)
+
+The optional profile test adds an isolated schema-v1 application-owned store in
+ignored local-data/profiles, separate from docking v1/v2 files. It routes by the
+saved lsu1 Life Signs ID, retains immutable profile/event versions and saved
+session ancestry, and publishes a universe database only after baseline commit
+and readback. No existing docking database is migrated. See
+[the completion record](docs/SQLITE_PROFILE_COMPLETION.md) and
+[historical test plan](docs/SQLITE_PROFILE_TEST_PLAN.md) for protocol, ownership,
+identity limitations, ancestry-aware queries and first-test requirements.

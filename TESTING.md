@@ -2,7 +2,19 @@
 
 ## Current status
 
-The owner-reported Windows automated bridge/persistence/routing suite passed
+The optional SQLite profile integration has scoped owner-run X4 9.00 verification
+on Windows / Node.js v24.21.0: latest applicable recorder/profile suite 102/102
+and bridge full recheck 112/112. Native Lua/reader, Continue/menu/F9 and
+saved-branch results remain distinct from automated results. See
+[completed scope and retained follow-ups](docs/SQLITE_PROFILE_COMPLETION.md).
+These are prior verified results, not a new Windows run during integration.
+
+Integration also corrects the POSIX lock-test fixture: take its byte snapshot
+before acquiring the SQLite lock, since closing another descriptor can release
+process-owned advisory locks. Production bridge code is unchanged.
+
+
+The historical initial Windows automated bridge/persistence/routing suite passed
 **97/97 tests, zero failures or skips**, on Node.js v24.21.0 with built-in
 `node:sqlite`. This automated validation is separate from live X4 verification.
 **Experimental docking bridge verified in live X4.** Optional SQLite persistence
@@ -212,3 +224,27 @@ Testing should include scenarios where X4, Ollama, faster-whisper and Kokoro are
 The voice system should fail gracefully.
 
 A failure in speech recognition or speech synthesis must not crash the Node.js server or prevent unrelated Life Signs events from continuing.
+
+## Experimental SQLite profile test
+
+The owner accepted the integration objective; see the
+[PR #20 completion summary](docs/SQLITE_PROFILE_COMPLETION.md) for the final
+verification scope and remaining follow-ups. The consolidated private SQL test
+catalogue is `sqlite-profiles/SQLITE_PROFILES_CODEX_SQL_TEST_RESULTS.md`.
+
+Draft PR20 adds collector/real SQLite integration tests, a scoped merged-addon
+schema check and an installed LuaJIT standalone adapter test. Commands and
+remaining native owner-test gates are in the
+[PR20 test plan](docs/SQLITE_PROFILE_TEST_PLAN.md#repeatable-checks).
+Automated callbacks do not establish native X4 UI/event dispatch.
+
+The adapter recreation regression also crosses actual service/native-reader/Lua
+boundaries with synthetic data and three independent Lua states:
+
+```powershell
+python profiles/test/load_permission_lua_test.py '<installed lua51_64.dll>' '<built reader DLL>'
+```
+
+It must reject old READY after recreation and missing/mismatched service permission,
+while allowing current NEED_BASELINE/READY. This is not an in-game test; see the
+[load-boundary test plan](docs/LUA_LOAD_FENCE_TEST.md) for native acceptance.

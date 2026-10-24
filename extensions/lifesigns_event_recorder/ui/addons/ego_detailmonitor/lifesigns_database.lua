@@ -1,0 +1,275 @@
+-- Optional read-only profile status adapter. File bytes are never evaluated.
+local Adapter = {}
+LifeSignsDatabaseAdapter = Adapter
+local ok, ffi = pcall(require, "ffi") -- Existing game scalar getters only; no OS FFI.
+local native
+local readerStage, readerDetail = "NATIVE_MODULE_UNAVAILABLE", ""
+local policyKnown, safe = false, nil
+if type(GetUISafeModeOption) == "function" then
+    local read, value = pcall(GetUISafeModeOption)
+    policyKnown, safe = read and type(value) == "boolean", value
+end
+if not policyKnown then
+    readerStage = "NATIVE_MODULE_POLICY_UNAVAILABLE"
+elseif safe then
+    readerStage = "NATIVE_MODULE_PROTECTED_MODE"
+elseif type(package) ~= "table" or type(package.loadlib) ~= "function" then
+    readerStage = "NATIVE_LOADER_UNAVAILABLE"
+else
+    local loaded, factory, loadError = pcall(package.loadlib,
+        "./extensions/lifesigns_event_recorder/native/lifesigns_status.dll", "luaopen_lifesigns_status")
+    if not loaded or type(factory) ~= "function" then
+        readerStage, readerDetail = "NATIVE_MODULE_LOAD_FAILED", tostring(loaded and loadError or factory)
+    else
+        local created, module = pcall(factory)
+        if created and type(module) == "table" and type(module.readReply) == "function" then
+            native = module; readerStage = "NATIVE_MODULE_READY"
+        else readerStage, readerDetail = "NATIVE_MODULE_INTERFACE_FAILED", tostring(module) end
+    end
+end
+function Adapter.readerStatus() return readerStage, readerDetail end
+function Adapter.readReply(run)
+    if not native then return nil, "MODULE_UNAVAILABLE" end
+    local success, text, reason = pcall(native.readReply, run)
+    if not success then return nil, "MODULE_CALL_FAILED" end
+    return text, reason
+end
+
+function Adapter.parse(text, expectedRun, expectedUniverse)
+    if type(text) ~= "string" then return nil end
+    local universe, run, state, number = text:match("^LSDB1|([^|]+)|([^|]+)|([A-Z_]+)|(%d+)|END\r?\n$")
+    if run ~= expectedRun or universe ~= expectedUniverse then return nil end
+    if state ~= "READY" and state ~= "NEED_BASELINE" and state ~= "BUILDING" and state ~= "ERROR" then return nil end
+    local n = tonumber(number)
+    if not n or n > 9007199254740991 or n % 1 ~= 0 then return nil end
+    return { run, universe, state, n }
+end
+
+-- Load control uses separate bounded reply files, never normal READY payloads.
+local challengeRun = "session-0-1-loaded-2000-01-01_00-00-00"
+local fenceRun = "session-0-2-loaded-2000-01-01_00-00-00"
+local activeRun = "session-0-3-loaded-2000-01-01_00-00-00"
+-- X4 recreates this chunk during loading. Local state is never permission.
+local load = {state="IDLE", blocked=true}
+Adapter.loadFence = load
+local function control(text, file, stage)
+    if type(text) ~= "string" then return nil end
+    local actual, kind, token = text:match("^LSDB1|CONTROL|([^|]+)|([A-Z_]+)|([0-9a-f%-]+)|END\r?\n$")
+    if actual ~= file or kind ~= stage or not token then return nil end
+    local a,b,c,d,e = token:match("^([0-9a-f]+)%-([0-9a-f]+)%-([0-9a-f]+)%-([0-9a-f]+)%-([0-9a-f]+)$")
+    if a and #a==8 and #b==4 and #c==4 and #d==4 and #e==12 then return token end
+end
+local function loadDiagnostic(stage)
+    if type(DebugError)=="function" then pcall(DebugError,"LSLOAD1|"..stage.."|END") end
+end
+local function loadFailure(stage)
+    load.state=stage;load.pending=nil
+    loadDiagnostic(stage)
+    -- The existing world-side help panel handles failures where MD is active.
+    -- Main-menu failures are in debuglog; there is no invented UI API fallback.
+    pcall(AddUITriggeredEvent,"LifeSignsDatabase","load_error",stage)
+end
+function Adapter.installLoadFence()
+    if load.wrapper then
+        if LoadGame ~= load.wrapper and not load.replaced then load.replaced=true;loadDiagnostic("HOOK_REPLACED") end
+        return
+    end
+    if type(LoadGame) ~= "function" then
+        if not load.missing then load.missing=true;loadDiagnostic("HOOK_UNAVAILABLE") end
+        return
+    end
+    local original=LoadGame
+    load.wrapper=function(...)
+        if load.state ~= "IDLE" then loadDiagnostic("DUPLICATE_BLOCKED");return end
+        local token=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
+        load.blocked=true
+        if not token then loadFailure("CHALLENGE_UNAVAILABLE");return end
+        load.pending={token=token,args={n=select("#",...),...},deadline=getElapsedTime()+15}
+        load.state="WAITING"
+        loadDiagnostic("PREPARE|"..token)
+    end
+    load.original=original;LoadGame=load.wrapper;loadDiagnostic("HOOK_INSTALLED")
+end
+function Adapter.updateLoadFence(now)
+    Adapter.installLoadFence()
+    local p=load.pending
+    if not p then return end
+    if load.lastPoll and now>=load.lastPoll and now-load.lastPoll<0.1 then return end
+    load.lastPoll=now
+    if now>=p.deadline then loadFailure("TIMEOUT");return end
+    if control(Adapter.readReply(fenceRun),fenceRun,"FENCED") ~= p.token then return end
+    local nextToken=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
+    if not nextToken or nextToken==p.token then return end
+    load.pending=nil;load.expected=nextToken;load.state="DISPATCHED"
+    loadDiagnostic("DISPATCH|"..p.token)
+    local ok=pcall(load.original,unpack(p.args,1,p.args.n))
+    if not ok then loadFailure("ORIGINAL_LOAD_FAILED") end
+end
+function Adapter.loadAllows(run, universe)
+    local function denied()
+        load.blocked=true;load.permission=nil
+        if not load.waitReported then load.waitReported=true;loadDiagnostic("SESSION_PERMISSION_BLOCKED") end
+        return false
+    end
+    if load.state ~= "IDLE" and load.state ~= "DISPATCHED" then return denied() end
+    -- A new interpreter has no expected token from before LoadGame. Re-read the
+    -- service-owned generation and OPEN on every forwarding attempt instead.
+    local challenge=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
+    if not challenge or (load.expected and challenge~=load.expected) then return denied() end
+    local text=Adapter.readReply(activeRun)
+    if type(text) ~= "string" then return denied() end
+    local file,newRun,newUniverse,token=text:match("^LSDB1|CONTROL|([^|]+)|OPEN|([^|]+)|([^|]+)|([0-9a-f%-]+)|END\r?\n$")
+    if file~=activeRun or newRun~=run or newUniverse~=universe or token~=challenge then return denied() end
+    local permission=run.."|"..universe.."|"..token
+    if load.permission~=permission then loadDiagnostic("NEW_RUN_ACCEPTED") end
+    load.permission=permission;load.waitReported=false
+    load.blocked=false;load.state="IDLE";load.expected=nil
+    return true
+end
+
+local current, lastText, lastPoll, lastHealth = nil, nil, 0, nil
+function Adapter.health(stage)
+    if current and stage ~= lastHealth then
+        lastHealth = stage
+        AddUITriggeredEvent("LifeSignsDatabase", "health", {current.run, current.universe, stage})
+    end
+end
+function Adapter.receive(_, request)
+    if type(request) ~= "string" then return end
+    local run, universe = request:match("^([a-z0-9_-]+)|([a-z0-9_-]+)$")
+    if not run or not run:match("^session%-%d+%-%d+%-loaded%-%d%d%d%d%-%d%d%-%d%d_%d%d%-%d%d%-%d%d$") or
+       not universe:match("^lsu1%-%d%d%d%d%-%d%d%-%d%d_%d%d%-%d%d%-%d%d%-%d+%-%d+%-%d+%-%d+$") then return end
+    if not current or current.run ~= run then
+        current = { run = run, universe = universe }; lastText = nil; lastPoll = 0; lastHealth = nil
+        Adapter.health("REQUEST_RECEIVED")
+    end
+    Adapter.update()
+end
+function Adapter.update()
+    local now = getElapsedTime()
+    Adapter.updateLoadFence(now)
+    if not current then return end
+    if now >= lastPoll and now - lastPoll < 0.25 then return end
+    lastPoll = now
+    if not Adapter.loadAllows(current.run,current.universe) then Adapter.health("WAITING_FOR_SESSION_PERMISSION");return end
+    if not native then
+        Adapter.health("NATIVE_READER_UNAVAILABLE")
+        AddUITriggeredEvent("LifeSignsDatabase", "reply", {current.run,current.universe,"ERROR",0})
+        current = nil
+        return
+    end
+    local text, reason = Adapter.readReply(current.run)
+    if not text then Adapter.health(reason == "MISSING" and "WAITING_FOR_REPLY_FILE" or "REPLY_READ_FAILED"); return end
+    if text == lastText then return end
+    local response = Adapter.parse(text, current.run, current.universe)
+    if response then
+        lastText = text; Adapter.health("REPLY_FORWARDED")
+        AddUITriggeredEvent("LifeSignsDatabase", "reply", response)
+    else Adapter.health("INVALID_OR_MISMATCHED_REPLY") end
+end
+-- Owned synthetic probe is local only: it never sends READY or changes MD state.
+do
+    local run = "session-0-0-loaded-2026-01-01_00-00-00"
+    local universe = "lsu1-2026-01-01_00-00-00-0-0-0-0"
+    local text, reason = Adapter.readReply(run)
+    local parsed = text and Adapter.parse(text, run, universe)
+    local result = parsed and parsed[3] == "READY" and parsed[4] == 0 and "PASS" or reason or "INVALID"
+    if type(DebugError) == "function" then
+        DebugError("Life Signs native reader diagnostic: stage=" .. readerStage .. "; probe=" .. result .. "; detail=" .. readerDetail:gsub("[\r\n]", " "):sub(1, 400))
+    end
+end
+Adapter.installLoadFence()
+RegisterEvent("LifeSignsDatabaseRequest", Adapter.receive)
+SetScript("onUpdate", Adapter.update)
+
+-- Observe the existing confirmation callback, never call a gameplay setter ourselves.
+-- Capture before MapMenu clears its pending list; publish only after it returns.
+local function pack(...) return { n = select("#", ...), ... } end
+function Adapter.readPersonRole(seed, host)
+    return ffi.string(ffi.C.GetPersonRole(seed, host))
+end
+function Adapter.installPersonnelObserver(menus)
+    for _, menu in ipairs(menus or {}) do
+        if menu.name == "MapMenu" and type(menu.infoSubmenuConfirmCrewChanges) == "function" and not menu.lifeSignsPersonnelObserver then
+            local original = menu.infoSubmenuConfirmCrewChanges
+            menu.infoSubmenuConfirmCrewChanges = function(instance, ...)
+                local observations = {}
+                local captured = pcall(function()
+                    local host = ConvertStringToLuaID(tostring(menu.infoSubmenuObject))
+                    local crew = menu.infoTablePersistentData[instance].crew
+                    for _, role in ipairs(crew.reassigned.roles) do
+                        for _, tier in ipairs(role.tiers) do
+                            for _, person in ipairs(tier.persons) do
+                                local seed = tostring(person.person):gsub("ULL$", "")
+                                if seed:match("^%d+$") and type(person.newrole) == "string" then
+                                    observations[#observations + 1] = {host, seed, person.newrole, person.person, menu.infoSubmenuObject}
+                                end
+                            end
+                        end
+                    end
+                end)
+                local result = pack(original(instance, ...))
+                if captured then
+                    for _, observation in ipairs(observations) do
+                        local read, role = pcall(Adapter.readPersonRole, observation[4], observation[5])
+                        pcall(AddUITriggeredEvent, "LifeSignsPersonnel", "role_changed", {observation[1],observation[2],observation[3],read and role or "UNAVAILABLE"})
+                    end
+                end
+                return unpack(result, 1, result.n)
+            end
+            menu.lifeSignsPersonnelObserver = true
+        end
+    end
+end
+Adapter.installPersonnelObserver(Menus)
+
+-- Passive observers of the two MapMenu component-name setter routes.
+-- Fleet labels are separate from ship/station names and are deliberately excluded.
+function Adapter.readComponentName(object)
+    return ffi.string(ffi.C.GetComponentName(object))
+end
+local function captureRename(object, requested, source)
+    if object == nil or type(requested) ~= "string" then return nil end
+    local converted, id = pcall(function() return ConvertStringToLuaID(tostring(object)) end)
+    if not converted or id == nil then return nil end
+    local read, before = pcall(Adapter.readComponentName, object)
+    local known = read and type(before) == "string"
+    return {id, known and before or "", known and "PRESENT" or "UNKNOWN", requested, source}
+end
+local function publishRename(observation)
+    if observation then pcall(AddUITriggeredEvent, "LifeSignsProfiles", "name_changed", observation) end
+end
+function Adapter.installRenameObservers(menus)
+    for _, menu in ipairs(menus or {}) do
+        if menu.name == "MapMenu" then
+            if type(menu.buttonRenameConfirm) == "function" and not menu.lifeSignsRenameConfirmObserver then
+                local original = menu.buttonRenameConfirm
+                menu.buttonRenameConfirm = function(isconfirmed, ...)
+                    local observation
+                    pcall(function()
+                        local data = menu.contextMenuData
+                        if isconfirmed and data and not data.fleetrename then
+                            observation = captureRename(data.component, data.newtext, "MAP_RENAME_DIALOG")
+                        end
+                    end)
+                    local result = pack(original(isconfirmed, ...))
+                    publishRename(observation)
+                    return unpack(result, 1, result.n)
+                end
+                menu.lifeSignsRenameConfirmObserver = true
+            end
+            if type(menu.infoChangeObjectName) == "function" and not menu.lifeSignsInfoNameObserver then
+                local original = menu.infoChangeObjectName
+                menu.infoChangeObjectName = function(object, text, textchanged, ...)
+                    local observation
+                    if textchanged then pcall(function() observation = captureRename(object, text, "MAP_INFO_EDIT") end) end
+                    local result = pack(original(object, text, textchanged, ...))
+                    publishRename(observation)
+                    return unpack(result, 1, result.n)
+                end
+                menu.lifeSignsInfoNameObserver = true
+            end
+        end
+    end
+end
+Adapter.installRenameObservers(Menus)

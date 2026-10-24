@@ -4,6 +4,8 @@ import test from 'node:test';
 import { generateRecorder, validateConfig } from '../md-generator.mjs';
 import { parseRecord, escapeValue, unescapeValue } from '../log-format.mjs';
 import { harness } from './md-harness.mjs';
+import { WELCOME, CREATED } from '../profile-messages.mjs';
+import { profileEvents } from '../profile-event-generator.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../config.json', import.meta.url)));
 const sector = { __type: 'component', exists: true, class: 'sector', name: 'Synthetic sector', ref: 'sector' };
@@ -38,14 +40,68 @@ function profiles(h) {
   return result;
 }
 
-test('generated snapshot-only artifact has exactly one lifecycle hook and no gameplay capture', () => {
+test('observed ship/station renames emit escaped identity/time deltas without profiling',()=>{
+  const ship=host('ship','SYN-001'),station=host('station','SYN-002');
+  const h=setup({ships:[ship],stations:[station]});finish(h);
+  const beforeProfiles=profiles(h).length,beforeCalls=h.callCounts.NpcProfile||0;
+  Object.defineProperty(ship,'people',{get(){throw Error('Rename must not read personnel');}});
+  const old=ship.knownname;ship.knownname='New | 100% 船\nname';h.player.age+=7;
+  h.call('RecordNameObservation',{Object:ship,Before:old,BeforeState:'PRESENT',Requested:'requested text',Source:'MAP_INFO_EDIT'});
+  const e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(e.fields.event_type,'NAME_CHANGED');assert.equal(e.fields.subject_kind,'SHIP');
+  assert.equal(e.fields.old_name,old);assert.equal(e.fields.new_name,ship.knownname);assert.equal(e.fields.subject_seed,String(ship.seed));assert.equal(e.fields.subject_idcode,'SYN-001');assert.equal(e.age,String(h.player.age));
+  const previous=station.knownname;station.knownname='Station renamed';
+  h.call('RecordNameObservation',{Object:station,Before:previous,BeforeState:'PRESENT',Requested:station.knownname,Source:'MAP_RENAME_DIALOG'});
+  assert.equal(rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1).fields.subject_kind,'STATION');
+  assert.equal(profiles(h).length,beforeProfiles);assert.equal(h.callCounts.NpcProfile||0,beforeCalls);
+});
+
+test('rename no-ops/foreign objects are ignored and missing names stay explicitly unverified',()=>{
+  const ship=host('ship','SYN-001');const h=setup({ships:[ship]});finish(h);
+  const emit=(o,b,s='PRESENT')=>h.call('RecordNameObservation',{Object:o,Before:b,BeforeState:s,Requested:'new',Source:'MAP_INFO_EDIT'});
+  emit(ship,ship.knownname);const foreign=host('ship','FOREIGN',false);emit(foreign,'old');
+  emit(actor('NPC',ship),'old');const dead=host('ship','DEAD');dead.exists=false;emit(dead,'old');
+  assert.equal(rows(h).filter(r=>r.kind==='ENTITY_EVENT').length,0);
+  emit(ship,'','UNKNOWN');let e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(e.fields.event_type,'NAME_OBSERVED');assert.equal(e.fields.old_name_state,'UNKNOWN');assert.equal(e.fields.new_name,ship.knownname);
+  delete ship.knownname;emit(ship,'old');e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(e.fields.event_type,'NAME_CHANGE_REQUESTED');assert.equal(e.fields.new_name_state,'UNKNOWN');assert.equal(e.fields.requested_name,'new');
+});
+
+test('native Lua component payloads pass directly through rename and personnel UI listeners',()=>{
+  const ship=host('ship','SYN-001');const h=setup({ships:[ship]});finish(h);
+  const before=ship.knownname;ship.knownname='Native component rename';
+  h.cueVariables('ProfileNameResponse').event={param3:[ship,before,'PRESENT',ship.knownname,'MAP_INFO_EDIT']};
+  h.cue('ProfileNameResponse');let events=rows(h).filter(r=>r.kind==='ENTITY_EVENT');
+  assert.equal(events.at(-1).fields.event_type,'NAME_CHANGED');assert.equal(events.at(-1).fields.new_name,ship.knownname);
+  const count=events.length;
+  h.cueVariables('ProfileNameResponse').event={param3:['not a component',before,'PRESENT','ignored','MAP_INFO_EDIT']};
+  h.cue('ProfileNameResponse');assert.equal(rows(h).filter(r=>r.kind==='ENTITY_EVENT').length,count);
+  h.cueVariables('PersonnelRoleResponse').event={param3:[ship,'9223372036854775807','marine','Marine']};
+  h.cue('PersonnelRoleResponse');events=rows(h).filter(r=>r.kind==='ENTITY_EVENT');
+  assert.equal(events.at(-1).fields.event_type,'CREW_ROLE_OBSERVED');assert.equal(events.at(-1).fields.subject_seed,'9223372036854775807');
+});
+
+test('DEBUG scalar write traces bracket the exact row without tracing whole profiles or changing ordinals',()=>{
+  const ship=host('ship','SYN-001'),h=setup({ships:[ship]});finish(h);
+  assert.deepEqual(h.traces,[]);const before=h.md.$LSPRecord;
+  h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY',Detail:'Patrol'});
+  const e=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1),raw=h.output.find(r=>r.line.includes('|record='+e.fields.record+'|END')).line;
+  assert.equal(h.md.$LSPRecord,before+1);assert.equal(h.traces.length,2);
+  assert.ok(h.traces[0].includes('phase=BEFORE|'));assert.ok(h.traces[1].includes('phase=AFTER|'));
+  assert.ok(h.traces.every(t=>t.endsWith('row='+raw)));
+  h.md.$LSPLevel=2;h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY'});assert.equal(h.traces.length,2);
+});
+
+test('generated database-aware artifact has the reviewed lifecycle and database reply hooks', () => {
   const xml = generateRecorder(config);
   assert.equal(xml, readFileSync(new URL('../../extensions/lifesigns_event_recorder/md/LifeSigns_EventRecorder.xml', import.meta.url), 'utf8').replaceAll('\r\n', '\n'));
-  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated']);
-  assert.doesNotMatch(xml, /event\.(?:object|param)|<create_npc|roleentity\.\{/);
+  assert.deepEqual([...xml.matchAll(/<(event_[a-z_]+)/g)].map(m=>m[1]), ['event_universe_generated', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_ui_triggered', 'event_cue_signalled', ...profileEvents.map(e=>e.name), 'event_game_loaded']);
+  assert.doesNotMatch(xml, /<create_npc|roleentity\.\{/);
   assert.doesNotMatch(xml, /<find_object_component/);
   assert.doesNotMatch(xml, /name="Capture"|name="Listen\d|eventValueItems|EVENT_BEGIN/);
-  assert.match(xml, /gameplay_listeners=0/);
+  assert.match(xml, new RegExp('gameplay_listeners='+profileEvents.length));
+  assert.doesNotMatch(xml, /event_object_(?:shield|hull)_damaged/);
   assert.throws(() => validateConfig({ ...config, eventValueItems: 1 }));
   assert.throws(() => validateConfig({ ...config, profileValueItems: 16385 }));
   assert.throws(() => validateConfig({ ...config, profilesPerTick: 0 }));
@@ -60,8 +116,8 @@ test('station then ship then independent NPC profiles collect identities without
   ship.commander = station; ship.assignment = { name: 'Defend Commander' };
   crew(ship);
   const h = setup({ stations: [station], ships: [ship] }); finish(h);
-  const p = profiles(h); assert.deepEqual(p.map(x => x.kind), ['STATION', 'SHIP', 'NPC', 'NPC', 'NPC']);
-  const [sp, sh] = p;
+  const p = profiles(h); assert.deepEqual(p.map(x => x.kind), ['PLAYER', 'STATION', 'SHIP', 'NPC', 'NPC', 'NPC']);
+  const [, sp, sh] = p;
   assert.equal(sp.fields.manager_seed.value, manager.seed.toString());
   assert.equal(sh.fields.captain_seed.value, captain.seed.toString());
   assert.equal(sh.fields.pilot_seed.value, captain.seed.toString());
@@ -126,10 +182,14 @@ test('Personnel List discovery includes owned spacesuits and never scans foreign
 
 test('literal values compile without optional lookup syntax and property reads remain guarded', () => {
   const xml=generateRecorder(config);
-  assert.doesNotMatch(xml, /value="@(?:null\b|')/);
+  assert.doesNotMatch(xml, /value="@(?:null\b|true\b|false\b|')/);
+  assert.match(xml, /name="Value" value="true"/);
   assert.match(xml, /name="Value" value="@\$Actor.seed"/);
   assert.match(xml, /name="Value" value="'CONTEXT_HOST_ROSTER_ASSOCIATION'"/);
   assert.throws(()=>harness(xml.replace('value="null"','value="@null"')), /requires a property lookup/);
+  for(const literal of ['true','false']) {
+    assert.throws(()=>harness(xml.replace('name="Value" value="true"',`name="Value" value="@${literal}"`)), /requires a property lookup/);
+  }
   assert.throws(()=>harness(xml.replace('value="\'CONTEXT_HOST_ROSTER_ASSOCIATION\'"','value="@\'CONTEXT_HOST_ROSTER_ASSOCIATION\'"')), /requires a property lookup/);
   const ship=host('ship','SHIP'),station=host('station','STATION'); crew(ship);
   const h=setup({ships:[ship],stations:[station]}); finish(h);
@@ -259,7 +319,7 @@ test('profile budget is fresh per profile and stops getters after exhaustion', (
 
 test('readiness polling takes one initial snapshot and never schedules another', () => {
   const h = setup({ stations: [host('station','A')], ships: [host('ship','B')] }, { profilesPerTick: 1, discoveryPerTick: 1 });
-  h.call('Tick'); assert.equal(profiles(h).length, 1);
+  h.call('Tick'); assert.equal(profiles(h).length, 2);
   h.player.age += 1000; finish(h);
   assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
   h.call('Tick'); assert.equal(rows(h).filter(x => x.kind === 'SNAPSHOT_BEGIN').length, 1);
@@ -281,7 +341,7 @@ test('each load gets separate timestamped session files even at the same game ag
   assert.deepEqual(h.output.slice(0,before.length),before);
   assert.equal(h.output.slice(before.length).some(o=>o.name===oldFile),false);
   const starts=rows(h).filter(r=>r.kind==='RUN_BEGIN'&&r.file.startsWith('profiles-'));
-  assert.equal(starts.length,2); assert.equal(starts[1].fields.snapshot_schedule,'INITIAL_ONLY');
+  assert.equal(starts.length,2); assert.equal(starts[1].fields.snapshot_schedule,'DATABASE_INITIAL_ONLY');
   assert.equal(starts[1].fields.max_rows,'NONE');
   assert.equal(starts[1].fields.loaded_at,'2000-01-01_00-00-00');
   assert.equal(rows(h).filter(r=>r.kind==='SNAPSHOT_END').length,2);
@@ -407,34 +467,32 @@ test('old persisted discovery state waits for lifecycle reset without touching o
   assert.equal(h.output.slice(before).some(r=>r.name===oldFile), false);
   finish(h);
   assert.equal(rows(h).filter(r => r.kind === 'SNAPSHOT_END').length, 1);
-  assert.equal(h.notifications.filter(n => n.text.includes('completed')).length, 1);
+  assert.equal(h.notifications.filter(n => n.text === CREATED).length, 1);
 });
 
-test('begun ticker and centred closable completion panel bracket the snapshot once without periodic repetition', () => {
+test('exact owner welcome and committed-database help panels are centred and closable', () => {
   const h = setup({}, { profilesPerTick: 1, discoveryPerTick: 1 });
   h.call('Tick');
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+  assert.deepEqual(h.notifications.map(n => n.text), [WELCOME]);
   assert.equal(rows(h)[h.notifications[0].afterRows - 1].kind, 'SNAPSHOT_BEGIN');
-  assert.equal(h.notifications[0].timeout, 5); assert.equal(h.notifications[0].priority, 1);
-  assert.equal(h.notifications[0].kind, 'ticker');
+  assert.equal(h.notifications[0].kind, 'help');
   finish(h);
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed.']);
-  assert.equal(rows(h)[h.notifications[1].afterRows - 1].kind, 'SNAPSHOT_END');
-  assert.deepEqual(h.notifications[1], { kind: 'help', text: 'Life Signs: Snapshot completed.', position: 4, halign: 'center', allowclose: true, timeout: false, log: false, afterRows: h.notifications[1].afterRows });
+  assert.deepEqual(h.notifications.map(n => n.text), [WELCOME, CREATED]);
+  assert.equal(CREATED, "Your Life Signs database has now been created and it's Life Signs ID generated\nPlease save your game immediately");
+  for (const n of h.notifications) assert.deepEqual({position:n.position,halign:n.halign,allowclose:n.allowclose,timeout:n.timeout,log:n.log}, {position:4,halign:'center',allowclose:true,timeout:false,log:false});
   assert.equal(rows(h).filter(r => r.kind === 'PASS_END').length, 3);
-  h.call('Tick'); assert.equal(h.notifications.length, 2);
-  h.player.age += 86400; finish(h);
+  h.call('Tick'); h.player.age += 86400; finish(h);
   assert.equal(h.notifications.length, 2);
 });
 
-test('finished partial snapshots say partial data and interrupted snapshots never say completed', () => {
+test('partial field flags remain recorded and interrupted collections never announce database creation', () => {
   const stale = host('ship', 'STALE'); stale.exists = false;
   const partial = setup({ ships: [stale] }); finish(partial);
-  assert.deepEqual(partial.notifications.at(-1), { kind: 'help', text: 'Life Signs: Snapshot completed — partial data.', position: 4, halign: 'center', allowclose: true, timeout: false, log: false, afterRows: partial.notifications.at(-1).afterRows });
+  assert.equal(partial.notifications.at(-1).text, CREATED);
   assert.equal(rows(partial).find(r => r.kind === 'SNAPSHOT_END').fields.partial, 'true');
   const interrupted = setup({ ships: [host('ship', 'SHIP')] }, { profilesPerTick: 1 });
   interrupted.call('Tick'); interrupted.player.age = 0; interrupted.call('Tick');
-  assert.deepEqual(interrupted.notifications.map(n => n.text), ['Life Signs: Snapshot begun.']);
+  assert.deepEqual(interrupted.notifications.map(n => n.text), [WELCOME]);
 });
 
 test('removed schedule and row-cap configuration are rejected rather than silently used', () => {
@@ -522,7 +580,105 @@ test('uncapped collection completes beyond old test thresholds and OFF suppresse
   assert.equal(raw.at(-1).kind, 'SNAPSHOT_END'); assert.equal(raw.filter(x => x.kind === 'LIMIT').length, 0);
   assert.equal(rows(h).filter(x => x.file.startsWith('profile-diagnostics-')).length, 0);
   assert.equal(h.md.$LSPStopped, false);
-  assert.deepEqual(h.notifications.map(n => n.text), ['Life Signs: Snapshot begun.', 'Life Signs: Snapshot completed — partial data.']);
+  assert.deepEqual(h.notifications.map(n => n.text), [WELCOME, CREATED]);
+});
+
+test('actual database reply is required and an existing database suppresses the whole snapshot', () => {
+  const h = setup({ autoDatabase: false, ships: [host('ship', 'SHIP')] });
+  h.call('Tick'); assert.equal(rows(h).some(r => r.kind === 'SNAPSHOT_BEGIN'), false);
+  assert.equal(h.call('BeginSnapshot'), false); assert.equal(h.notifications.length, 0);
+  const reply = (state, record = h.md.$LSPRecord) => h.call('DatabaseReply', { Response: [h.md.$LSPRun, h.md.$LSPUniverseIdText, state, record] });
+  assert.equal(reply('READY'), true); h.player.age += 100; h.call('Tick');
+  assert.equal(h.call('BeginSnapshot'), false); assert.deepEqual(profiles(h).map(p=>p.kind), ['PLAYER']); assert.equal(h.notifications.length, 0);
+  assert.equal(h.cueVariables('UniverseIdentity').$CheckpointRun, h.md.$LSPRun);
+});
+
+test('database-created help waits for final committed record and stale/future replies are rejected', () => {
+  const h = setup({ autoDatabase: false });
+  for (const response of [['stale',h.md.$LSPUniverseIdText,'NEED_BASELINE',1],[h.md.$LSPRun,'other','READY',1],[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',999]]) assert.equal(h.call('DatabaseReply',{Response:response}),false);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'NEED_BASELINE',1]});
+  for (let i=0;i<200&&!h.md.$LSPAwaitCommit;i++){h.player.age+=0.1;h.call('Tick');}
+  assert.equal(h.md.$LSPAwaitCommit,true);assert.deepEqual(h.notifications.map(n=>n.text),[WELCOME]);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPEndRecord-1]});
+  assert.equal(h.notifications.length,1);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPEndRecord]});
+  assert.deepEqual(h.notifications.map(n=>n.text),[WELCOME,CREATED]);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPEndRecord]});assert.equal(h.notifications.length,2);
+});
+
+test('failed or absent database connection cannot claim successful creation', () => {
+  for(const state of ['ERROR','TIMEOUT']){
+    const h=setup({autoDatabase:false});
+    if(state==='ERROR'){h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'BUILDING',1]});h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'ERROR',0]});}
+    else {h.player.age+=31;h.call('Tick');}
+    assert.equal(h.md.$LSPStopped,true);assert.equal(h.notifications.some(n=>n.text===CREATED),false);assert.equal(profiles(h).length,0);
+  }
+});
+
+test('attack, order and fleet events emit small subject-owned records without profiling or personnel reads', () => {
+  const ship=host('ship','SHIP'), station=host('station','STATION'), enemy=host('ship','ENEMY',false);
+  const h=setup({ships:[ship],stations:[station]});finish(h);const before=profiles(h).length,remaining=h.md.$LSPRemaining;
+  Object.defineProperty(ship,'people',{get(){throw Error('Attack event must not scan personnel');}});
+  for(const type of ['ATTACKED','ATTACKING','ORDER_READY','COMMANDER_SET','FLEET_ROLE_CHANGED'])h.call('HandleProfileEvent',{Subject:ship,Other:enemy,Type:type,Detail:'Patrol',DetailName:'Patrolling'});
+  h.call('HandleProfileEvent',{Subject:station,Other:enemy,Type:'ATTACKED'});
+  const events=rows(h).filter(r=>r.kind==='ENTITY_EVENT');assert.equal(events.length,6);
+  assert.equal(events.at(-1).fields.subject_kind,'STATION');assert.equal(events[0].fields.subject_idcode,'SHIP');
+  assert.equal(events[0].fields.other_idcode,'ENEMY');assert.equal(events[2].fields.detail_name,'Patrolling');
+  assert.equal(profiles(h).length,before);assert.equal(h.md.$LSPRemaining,remaining);
+  assert.equal(profileEvents.some(e=>/shield|hull/.test(e.name)),false);
+});
+
+test('order readiness records running only after the native running property is observed', () => {
+  const ship=host('ship','ORDER');const h=setup({ships:[ship]});finish(h);
+  Object.defineProperty(ship,'people',{get(){throw Error('Order observation must not scan crew');}});
+  const order={id:'Patrol',name:'Patrolling',isrunning:false};
+  h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY',Order:order});h.player.age+=2;h.call('Tick');
+  assert.equal(rows(h).some(r=>r.fields.event_type==='ORDER_RUNNING_OBSERVED'),false);
+  order.isrunning=true;h.call('HandleProfileEvent',{Subject:ship,Type:'ORDER_READY',Order:order});h.player.age+=2;h.call('Tick');
+  const event=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);assert.equal(event.fields.event_type,'ORDER_RUNNING_OBSERVED');assert.equal(event.fields.detail_name,'Patrolling');
+});
+
+test('a later created ship profiles only that ship and its new individual personnel, never another whole baseline', () => {
+  const original=host('ship','OLD');const h=setup({ships:[original]});finish(h);const before=profiles(h).length;
+  const fresh=host('ship','NEW');fresh.seed=101n;const t=crew(fresh,'new-crew');fresh.people.get(t).seed=102n;
+  h.call('HandleProfileEvent',{Subject:fresh,Type:'CREATED',Create:true});h.player.age+=1;h.call('Tick');
+  assert.deepEqual(profiles(h).slice(before).map(p=>p.kind),['SHIP','NPC']);
+  assert.equal(rows(h).filter(r=>r.kind==='SNAPSHOT_BEGIN').length,1);
+  h.call('DatabaseReply',{Response:[h.md.$LSPRun,h.md.$LSPUniverseIdText,'READY',h.md.$LSPRecord]});
+  h.call('HandleProfileEvent',{Subject:fresh,Type:'CREATED',Create:true});h.player.age+=1;h.call('Tick');
+  assert.equal(profiles(h).length,before+2);assert.equal(h.notifications.filter(n=>n.text===WELCOME).length,1);
+});
+
+test('contextual NPC assignment records request and later observed role with shared identity and target links', () => {
+  const from=host('ship','FROM'),target=host('ship','TARGET');target.seed=2n;const t=crew(from);const person=from.people.get(t);
+  const h=setup({ships:[from,target]});finish(h);const before=profiles(h).length;
+  h.call('HandleProfileEvent',{Subject:[from,t],Target:target,Type:'ASSIGNMENT_REQUESTED',Detail:'Marine',Npc:true,Assignment:true,Create:true});
+  const request=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);assert.equal(request.fields.subject_kind,'NPC');assert.equal(request.fields.subject_seed,person.seed.toString());
+  assert.equal(request.fields.requested_role,'Marine');assert.equal(request.fields.observation,'REQUESTED');assert.equal(request.fields.other_idcode,'TARGET');
+  from.people.delete(t);person.role={name:'Marine'};target.people.set(t,person);
+  h.player.age+=2;h.call('Tick');const settled=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(settled.fields.event_type,'ASSIGNMENT_OBSERVED');assert.equal(settled.fields.subject_seed,request.fields.subject_seed);
+  assert.equal(settled.fields.actual_role,'Marine');assert.equal(settled.fields.host_idcode,'TARGET');assert.equal(profiles(h).length,before);
+});
+
+test('NPC spacesuit movement records ejection and rescue without inferring death or profiling old crew', () => {
+  const ship=host('ship','SHIP'),suit=host('spacesuit','SUIT');suit.seed=3n;const npc=actor('npc',ship);const h=setup({ships:[ship]});finish(h);
+  h.call('HandleProfileEvent',{Subject:npc,Host:ship,Other:suit,Type:'ENTITY_LEFT',Npc:true});
+  h.call('HandleProfileEvent',{Subject:npc,Host:ship,Other:ship,Previous:suit,Type:'ENTITY_ENTERED',Npc:true});
+  assert.deepEqual(rows(h).filter(r=>r.kind==='ENTITY_EVENT').map(r=>r.fields.event_type),['EJECTED','RESCUED']);
+});
+
+test('bulk crew role observation finds only the changed seed and leaves existing profiles intact', () => {
+  const ship=host('ship','CREW'); const t=crew(ship); const person=ship.people.get(t);
+  const h=setup({ships:[ship]});finish(h); const before=profiles(h).length;
+  person.role={name:'Marine'};
+  Object.defineProperty(ship,'people',{get(){throw Error('Known crew role changes must not scan host personnel');}});
+  h.call('QueueCrewRoleObservation',{Host:ship,Seed:person.seed.toString(),Role:'marine',ActualRole:'Marine'});
+  h.player.age+=1;h.call('Tick');
+  const event=rows(h).filter(r=>r.kind==='ENTITY_EVENT').at(-1);
+  assert.equal(event.fields.event_type,'CREW_ROLE_OBSERVED');assert.equal(event.fields.subject_seed,person.seed.toString());
+  assert.equal(event.fields.subject_kind,'NPC');assert.equal(event.fields.actual_role,'Marine');assert.equal(event.fields.host_idcode,'CREW');
+  assert.equal(profiles(h).length,before);assert.equal(h.md.$LSPCrewChanges.length,0);
 });
 
 test('text framing preserves reserved characters and rejects malformed rows', () => {

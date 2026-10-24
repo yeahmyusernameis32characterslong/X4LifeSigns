@@ -274,3 +274,14 @@ a separate future decision.
 
 See [LOCAL_LLM_DEVELOPMENT.md](docs/LOCAL_LLM_DEVELOPMENT.md#standing-owner-approved-research-workflow)
 and [the demonstrated method](docs/QWEN_ONE_QUESTION_RESEARCH_METHOD_2026-10-16.md).
+
+## 2026-10-24: integrate completed optional SQLite profile work
+
+The owner authorises ancestry-preserving integration of PRs #18, #19 and #20.
+Later PR #20 baseline/reuse, selective-event and saved-checkpoint behaviour
+supersedes earlier broad full-snapshot and polling-only requirements. Preserve
+the research and failure history; keep PR #17's superseded disposable probe
+unmerged and its branch retained. See [current scope and limitations](docs/SQLITE_PROFILE_COMPLETION.md).
+No deployment, database/log mutation, repair or history pruning accompanies
+integration. The standing Qwen workflow and wider identity status are unchanged;
+no permanent NPC identity or universal native coverage is established.

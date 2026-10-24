@@ -26,9 +26,22 @@ try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 
 [xml]$generated = Get-Content -LiteralPath $file
 foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
-    if ($parameter.GetAttribute('value') -match "^@\s*(null\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
+    if ($parameter.GetAttribute('value') -match "^@\s*(null\b|true\b|false\b|')") { throw 'Invalid optional lookup operator before a literal Value expression.' }
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
-if ($listeners.Count -ne 1 -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[0].ParentNode.ParentNode.LocalName -ne 'cue' -or $listeners[0].ParentNode.ParentNode.GetAttribute('name') -ne 'RunBoundary') { throw 'Snapshot collector permits only its single universe lifecycle boundary; no gameplay/UI listeners.' }
+$catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
+if ($listeners.Count -ne (8 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+if ($listeners[4].GetAttribute('screen') -ne "'LifeSignsPersonnel'" -or $listeners[4].GetAttribute('control') -ne "'role_changed'") { throw 'Unexpected personnel observer listener.' }
+if ($listeners[3].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[3].GetAttribute('control') -ne "'load_error'") { throw 'Unexpected load error listener.' }
+if ($listeners[2].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[2].GetAttribute('control') -ne "'health'") { throw 'Unexpected database health listener.' }
+if ($listeners[5].LocalName -ne 'event_ui_triggered' -or $listeners[5].GetAttribute('screen') -ne "'LifeSignsProfiles'" -or $listeners[5].GetAttribute('control') -ne "'name_changed'") { throw 'Unexpected rename observer listener.' }
+if ($listeners[6].LocalName -ne 'event_cue_signalled' -or $listeners[6].GetAttribute('cue') -ne 'ProfileEventBusV2' -or $listeners[-1].LocalName -ne 'event_game_loaded') { throw 'Unexpected staged startup lifecycle.' }
+if ($generated.SelectNodes('//cue[@name="ProfileEventBus"]//*[starts-with(name(),"event_")]').Count -ne 0) { throw 'Retired bus must not register listeners.' }
+for ($i=0; $i -lt $catalog.Count; $i++) {
+    $listener = $listeners[$i+7]
+    if ($listener.ParentNode.ParentNode.GetAttribute('name') -ne "ProfileEventV2_$i") { throw 'New listeners must use fresh cue names instead of reparenting saved cues.' }
+    if ($listener.LocalName -ne $catalog[$i].name -or $listener.LocalName -match '(shield|hull).*damag') { throw 'Event catalog mismatch or forbidden damage event.' }
+    foreach ($selector in $catalog[$i].selector.PSObject.Properties) { if ($listener.GetAttribute($selector.Name) -ne $selector.Value) { throw 'Event selector mismatch.' } }
+}
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }
-Write-Output 'Validated generated snapshot-only MD against hash-checked installed X4 9.00 schemas; one universe lifecycle hook, no gameplay/UI listeners or NPC creation actions. This is not runtime verification.'
+Write-Output 'Validated generated database-aware MD against hash-checked installed X4 9.00 schemas; reviewed universe/database-reply hooks, no NPC creation. This is not runtime verification.'

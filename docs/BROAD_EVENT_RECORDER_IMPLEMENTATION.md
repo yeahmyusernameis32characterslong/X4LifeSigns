@@ -1,11 +1,10 @@
 # Broad native recorder implementation
 
-> **Historical implementation below.** The owner's 2026-10-18 instruction
-> replaces this draft branch's experimental collector with a snapshot-only
-> [independent object profile collector](OBJECT_PROFILE_COLLECTOR_IMPLEMENTATION.md).
-> That implementation has zero event listeners, including lifecycle/UI
-> listeners. Earlier event settings, tests and deployment statements below
-> describe previous revisions; they do not describe the current source.
+The event-recorder implementation below is historical. PR #19 independent
+profiles and then PR #20 database-aware baseline/selective events supersede it.
+See [current implementation and verification](SQLITE_PROFILE_COMPLETION.md).
+Earlier zero-listener, recurring-snapshot and row-cap statements describe their
+recorded revisions, not the current source.
 
 Baseline: owner-approved PR #18 commit
 `6553cf973430ba533ba9f66b42d10d83c53981ba`, reconciled with the latest

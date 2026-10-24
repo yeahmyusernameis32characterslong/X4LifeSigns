@@ -219,9 +219,12 @@ for (const kind of ['empty', 'v1', 'corrupt', 'owner', 'directory', 'lock']) {
       if (kind === 'owner') {
         locker.prepare('UPDATE session_metadata SET session_key=?').run(other);
         locker.close(); locker = undefined;
-      } else locker.exec('BEGIN IMMEDIATE');
+      }
     } else await writeFile(f.filename(), kind === 'corrupt' ? 'broken sqlite' : '');
     const before = kind === 'directory' ? undefined : await readFile(f.filename());
+    // On POSIX, closing another descriptor for this file releases this process's
+    // advisory locks. Read the byte snapshot before acquiring the test lock.
+    if (kind === 'lock') locker.exec('BEGIN IMMEDIATE');
     try {
       const running = await writer(f);
       await appendFile(f.log, v2());

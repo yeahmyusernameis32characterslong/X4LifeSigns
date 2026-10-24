@@ -29,18 +29,19 @@ function split(s, delimiter) {
 const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0 } = {}) {
-  const tree = parseXml(source), md = {}, output = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0, autoDatabase = true, databaseState = 'NEED_BASELINE', playerState = {} } = {}) {
+  const tree = parseXml(source), md = {}, output = [], traces = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
+  const pendingSignals = [], cancelledCues = new Set();
   let randomCounter = randomStart;
   function walk(node, parentCue) {
     // Native load-time syntax errors cannot be hidden by optional evaluation.
-    if (Object.values(node.attrs).some(v => /^@\s*(?:null\b|')/.test(v))) throw Error('Optional lookup operator requires a property lookup, not a literal');
+    if (Object.values(node.attrs).some(v => /^@\s*(?:null\b|true\b|false\b|')/.test(v))) throw Error('Optional lookup operator requires a property lookup, not a literal');
     if (node.tag === 'library') libraries.set(node.attrs.name, node);
     if (node.tag === 'cue') { cues.set(node.attrs.name, node); parents.set(node.attrs.name, parentCue); parentCue = node.attrs.name; }
     node.children.forEach(child => walk(child, parentCue));
   }
   walk(tree);
-  const player = { age, entity: { __type: 'component', exists: true }, galaxy: { __type: 'component', exists: true }, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
+  const player = { age, entity: { __type: 'component', exists: true, ref:'synthetic-player', class:'player', seed:1234567890123456789n, debugname:'Synthetic player', race:{name:'Synthetic race'} }, name:'Synthetic player', sector:null, container:null, occupiedship:null, controlled:null, spacesuit:null, ...playerState, galaxy: { __type: 'component', exists: true }, systemtime: { '%Y-%m-%d_%H-%M-%S': '2000-01-01_00-00-00' } };
   function get(value, key) {
     if (value == null && key === 'exists') return false;
     if (value == null) throw new Error(`Unavailable ${key}`);
@@ -147,19 +148,25 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'run_actions') { const args = Object.fromEntries(n.children.map(p => [p.attrs.name, ev(p.attrs.value)])); const result = call(a.ref, args); if (a.result) assign(a.result, result, local); }
       else if (n.tag === 'substitute_text') { let text = a.source ? ev(a.source) : ev(a.text); for (const r of n.children) text = text.split(ev(r.attrs.string)).join(ev(r.attrs.with)); assign(a.text, text, local); }
       else if (n.tag === 'debug_to_file') output.push({ name: ev(a.name), line: ev(a.text) });
+      else if (n.tag === 'debug_text') traces.push(ev(a.text));
       else if (n.tag === 'show_notification') notifications.push({ kind: 'ticker', text: ev(a.text), timeout: ev(a.timeout), priority: ev(a.priority), afterRows: output.length });
       else if (n.tag === 'show_help') notifications.push({ kind: 'help', text: ev(a.custom), position: ev(a.position), halign: ev(a.halign), allowclose: ev(a.allowclose), timeout: ev(a.timeout), log: ev(a.log), afterRows: output.length });
+      else if (n.tag === 'raise_lua_event') {} // Real UI/file/SQLite transport is tested separately.
       else if (n.tag === 'append_to_list') ev(a.name).push(ev(a.exact));
       else if (n.tag === 'remove_value') assign(a.name, null, local, true);
       else if (n.tag === 'find_ship') assign(a.name, [...(a.trueowner ? ships : allShips)], local);
       else if (n.tag === 'find_station') assign(a.name, [...(a.trueowner ? stations : allStations)], local);
+      else if (n.tag === 'find_sector') assign(a.name, [], local); // Synthetic fixture contains no galaxy sectors.
       else if (n.tag === 'find_object_component') { const host = ev(a.object); assign(a.name, (host.componentNpcs || []).filter(x => x.class === 'npc' && x.isplayerowned), local); }
       else if (n.tag === 'create_group') assign(a.groupname, [], local);
+      else if (n.tag === 'remove_from_group') { const group=ev(a.group), object=ev(a.object), i=group.indexOf(object); if(i>=0)group.splice(i,1); }
       else if (n.tag === 'add_to_group') { let group; try { group = ev(a.groupname); } catch { group = []; } if (a.replace === 'true') group = []; const items = a.list ? ev(a.list) : [ev(a.object)]; for (const item of items) if (!group.includes(item)) group.push(item); assign(a.groupname, group, local); }
       else if (n.tag === 'do_all' || n.tag === 'do_for_each') {
         const items = n.tag === 'do_all' ? Array.from({ length: ev(a.exact) }, (_, i) => i + 1) : ev(a.in);
         for (const item of items) { if (a.counter) local[a.counter] = item; if (a.name) local[a.name] = item; const flow = execute(n.children, local); if (flow?.break) break; if (flow) return flow; }
-      } else if (n.tag === 'reset_cue') {} // Scheduling is outside this harness.
+      } else if (n.tag === 'cancel_cue') cancelledCues.add(a.cue);
+      else if (n.tag === 'reset_cue') cancelledCues.delete(a.cue);
+      else if (n.tag === 'signal_cue') pendingSignals.push({ cue:a.cue, param:a.param ? ev(a.param) : null });
       else throw new Error(`Unsupported action ${n.tag}`);
     }
   }
@@ -173,18 +180,34 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (p.attrs.default !== undefined) local[key] = evalx(p.attrs.default, local);
       else throw new Error(`Missing ${p.attrs.name}`);
     }
-    return execute(library.children.find(x => x.tag === 'actions').children, local)?.return;
+    const result = execute(library.children.find(x => x.tag === 'actions').children, local)?.return;
+    // Explicit synthetic database fixture; never evidence of native or SQL success.
+    if (autoDatabase && name === 'Tick' && md.$LSPAwaitCommit) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, 'READY', md.$LSPRecord] });
+    return result;
   }
   // Supplied saved variables model restoration only; this is not an X4 serializer.
   function context(name) { if (!contexts.has(name)) contexts.set(name, { ...structuredClone(savedCueState[name] || {}), parent: parents.get(name) ? context(parents.get(name)) : {} }); return contexts.get(name); }
   function cue(name) {
+    for (let parent=name; parent; parent=parents.get(parent)) if (cancelledCues.has(parent)) return false;
     const node = cues.get(name), local = context(name);
     const checks = node.children.find(x => x.tag === 'conditions')?.children.filter(x => x.tag === 'check_value') || [];
     if (!checks.every(x => evalx(x.attrs.value, local))) return false;
-    return execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
+    const result = execute(node.children.find(x => x.tag === 'actions')?.children || [], local);
+    // Explicit test delivery after the initiating actions. This is not a model
+    // of native restore scheduling or condition/group registration.
+    if (name === 'Bootstrap' && md.$LSPReady) { deliverSignals(); if (autoDatabase) call('DatabaseReply', { Response: [md.$LSPRun, md.$LSPUniverseIdText, databaseState, md.$LSPRecord] }); }
+    return result;
+  }
+  function deliverSignals() {
+    for (const signal of pendingSignals.splice(0)) { context(signal.cue).event={param:signal.param}; cue(signal.cue); }
+  }
+  function patchCue(name, state, savedVersion=0) {
+    const patches=cues.get(name).children.filter(n=>n.tag==='patch' && Number(n.attrs.sinceversion)>savedVersion && (n.attrs.state || 'complete')===state);
+    for (const patch of patches) execute(patch.children,context(name));
+    return patches.length;
   }
   // Explicit synthetic event delivery/readiness progression, not an MD scheduler.
-  function load() { cue('RunBoundary'); cue('Bootstrap'); }
+  function load() { cue('InvalidateLoadedRecorder'); cue('RunBoundary'); cue('Bootstrap'); }
   function start() { load(); }
-  return { md, player, output, notifications, callCounts, call, cue, start, load, tree, cueVariables: context };
+  return { md, player, output, traces, notifications, callCounts, call, cue, start, load, tree, cueVariables: context, deliverSignals, patchCue, cancelledCues };
 }

@@ -76,6 +76,12 @@ The experimental bridge captures completed dockings while the player is personal
 
 **Automatic session separation is Verified live in X4 9.00 with Node.js v24.21.0**, under the approved practical local single-player `s1` session-key assumption. Opt-in `--auto-db` routes V2 dockings into owned per-session databases; the [owner-run production acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record) passed. This does not establish guaranteed key uniqueness or continuity across sessions. Manual `--db` still needs a fresh database after a game reload or for another save/universe. Permanent entity identity, AI, voice and return communication remain unverified.
 
+The optional object-profile collector now has owner-tested SQLite baseline,
+event history and save/load branch isolation on X4 9.00 with Node.js v24.21.0.
+It reuses ready universe databases and records selective lightweight events.
+See [completed scope and remaining limitations](docs/SQLITE_PROFILE_COMPLETION.md).
+This does not verify permanent NPC identity or exhaustive event coverage.
+
 See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
 
 **Persistent entity identity is In Progress**, beginning with the disposable

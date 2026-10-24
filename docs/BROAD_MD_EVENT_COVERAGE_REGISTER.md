@@ -1,5 +1,11 @@
 # Broad event capture: initial source coverage register
 
+> **Historical PR #18 research/design.** Later owner-approved requirements and
+> the implemented PR #20 SQLite profile collector supersede the operating
+> instructions below. See [current scope, verification and limitations](SQLITE_PROFILE_COMPLETION.md).
+> Earlier broad event snapshots, periodic/hotkey designs and row caps are
+> retained as research provenance, not current collection requirements.
+
 Research state: 17 October 2026, PR #18. **Installed-schema candidates,
 not a complete listener set or runtime coverage claim.** This initial slice
 records the eight `event_player_owned_*` conditions Qwen found in the
