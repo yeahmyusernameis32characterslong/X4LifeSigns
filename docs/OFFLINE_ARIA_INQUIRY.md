@@ -77,3 +77,32 @@ research framework or runtime Aria implementation.
 
 Aria remains unimplemented. Persistent entity identity remains In Progress.
 No deployment, database writes, pruning or merge accompanies this work.
+
+## Owner-authorised wider follow-up
+
+The owner subsequently requested a second simulation over the wider retained
+incident history. Ordinary captains retain their personal/command-ship boundary.
+The fleet commander may additionally consult subordinate reports where recorded
+command chains support access at the observation point. These are report access,
+not personal eyewitness memories or proof of an actual in-game communication.
+Unknown, ambiguous, cyclic or invalidated command links deny that report access.
+
+Aria may follow a commander-discovered outside-ship lead by interviewing its
+captain directly. The clerk must resolve the actual ship and recorded
+captain/pilot association at that point; an unresolved external captain remains
+a gap. A new witness receives a fresh own-history context, not the commander's
+fleet permission. Quoted accounts remain heard claims, not independent evidence.
+
+The first inquiry is frozen separately. The wider inquiry is explicitly not
+blind: earlier interviews and separately disclosed audit leads are already
+known. It does not silently revise the first transcript or feed a database
+oracle into Aria's questioning.
+
+Large-history tool attempts encountered lookup, context/generation and service
+failures before completing testimony. Those attempts are retained. The host
+then presents readable, deduplicated excerpts within the same grants; witnesses
+may request further authorised records. Failed or empty outputs are not
+testimony, and a permission/access check is not a truth or model-accuracy test.
+The private execution report distinguishes these interruptions from completed
+answers. Local helpers remain ignored experiment artefacts. Production Aria,
+gameplay integration, existing databases and installations are unchanged.
