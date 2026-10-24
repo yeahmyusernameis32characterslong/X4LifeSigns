@@ -1,8 +1,8 @@
 # Lua load boundary and external session closure
 
-Status: experimental implementation deployed at `0203a30`; first owner-run
-normal-load test on 24 October 2026 is a **partial result, not acceptance**.
-Automated integration checks pass; native UI lifetime exposed a remaining defect.
+Status: adapter recreation correction implemented at `3a556d2`, following the
+partial owner test of `0203a30`. Automated recreation/integration checks pass;
+corrected-build native acceptance remains pending a verified deployment and test.
 Owner explicitly approved implementation after the protocol proof at `4328f13`.
 See [startup evidence](RECORDER_STARTUP.md) and the
 [staged owner test](LUA_LOAD_FENCE_TEST.md).
@@ -25,12 +25,38 @@ table with blocked=false. Its post-load inhibition therefore does not survive
 the observed adapter recreation. Normal capture succeeding does not prove the
 OPEN gate protected replies. Already queued MD ACKs remain a separate open risk.
 
-Hold further Continue/reload/F9 acceptance tests. Next correction must establish
-service-owned reply permission on adapter startup/request, independent of an
-in-memory flag created before LoadGame; test with separate Lua instances sharing
-control files. Preserve normal pre-load handshaking and strict database checks.
-Actual queued-MD-ACK ordering still needs explicit native evidence. No corrective
-implementation or redeployment is part of this result checkpoint.
+This initially held further Continue/reload/F9 acceptance tests. The correction
+below addresses adapter recreation; actual queued-MD-ACK ordering still needs
+explicit native evidence. The historical first run is not retroactively a pass.
+
+### Correction: permission survives interpreter replacement
+
+Every adapter instance starts blocked. Before forwarding a database reply it
+reads the current service CHALLENGE and OPEN files and requires agreement on
+run, universe and generation token. A previously successful local boolean or
+cached token never authorises a later attempt. Missing/malformed/mismatched
+controls block forwarding; restoring valid service permission allows normal
+operation. Pending-load/timeout/error states still prohibit forwarding.
+
+The existing service already rotates CHALLENGE before acknowledging a load, so
+an old OPEN is invalid even when its ordinary READY file remains readable. The
+same rule applies to a completely new Lua interpreter with no pre-load memory.
+No protocol/DLL/schema change is needed. Two additional small read-only control
+reads occur within the existing250ms status poll; no gameplay-event I/O is added.
+The local permission string only deduplicates diagnostic markers, not authority.
+
+`profiles/test/load_permission_lua_test.py` runs the actual Node/SQLite service,
+existing native reader and three separately created/destroyed Lua states. Before
+the correction it failed because recreated Lua forwarded stale READY. With the
+correction it passes: NEED_BASELINE->READY startup, matching current OPEN,
+restored old request rejection, malformed/missing/wrong-generation controls,
+permission revocation after an earlier success, reply deduplication and unchanged
+sealed-session SQL. It never launches X4 or writes installation/gameplay data.
+
+This fixes the demonstrated local-state bypass in automated integration. It does
+not retract an MD callback already queued, establish an atomic cross-process
+check/send transaction or prove unhooked F9 coverage. Repeat the first ordinary
+owner load on the corrected verified installation before extending route tests.
 
 Make the external service stop accepting the previous session **before** Lua
 invokes the actual save load. Computer timestamps alone cannot establish this
@@ -148,8 +174,8 @@ These do not prove native hook coverage or remove already queued MD callbacks.
    changes are necessary. Then use owner-run X4 evidence for route coverage,
    ordering, normal event continuity and checkpoint protection before promotion.
 
-The owner approved implementation and test instructions after reviewing the
-proof. Earlier conditional deployment permission is retained. No deployment or
-Codex gameplay launch was performed for this implementation task. Native hook
-coverage and queued-ACK checkpoint safety remain experimental acceptance gates;
-do not report the complete startup defect fixed. Slowdown remains parked.
+The owner explicitly approved implementing and deploying the adapter correction.
+Verify its installation receipt before another owner run. Native route coverage
+and queued-ACK checkpoint safety remain experimental acceptance gates; do not
+report the complete startup defect fixed. No Codex gameplay launch or merge.
+Slowdown remains parked.

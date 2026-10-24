@@ -220,3 +220,14 @@ schema check and an installed LuaJIT standalone adapter test. Commands and
 remaining native owner-test gates are in the
 [PR20 test plan](docs/SQLITE_PROFILE_TEST_PLAN.md#repeatable-checks).
 Automated callbacks do not establish native X4 UI/event dispatch.
+
+The adapter recreation regression also crosses actual service/native-reader/Lua
+boundaries with synthetic data and three independent Lua states:
+
+```powershell
+python profiles/test/load_permission_lua_test.py '<installed lua51_64.dll>' '<built reader DLL>'
+```
+
+It must reject old READY after recreation and missing/mismatched service permission,
+while allowing current NEED_BASELINE/READY. This is not an in-game test; see the
+[load-boundary test plan](docs/LUA_LOAD_FENCE_TEST.md) for native acceptance.

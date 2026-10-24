@@ -1,11 +1,11 @@
 # Experimental load-boundary test
 
-Status: build `0203a30` installed; first normal-load test completed with partial
-results on 24 October 2026. The Lua adapter is recreated during load, losing its
-local post-load inhibition state. **Hold additional route tests** until corrected;
-see the [native result](LUA_LOAD_FENCE_PLAN.md#first-native-result-and-continuation).
-The procedure below remains the reviewed test plan, not a current instruction
-to launch another run.
+Status: recreation correction implemented at `3a556d2`; first ordinary-load
+retest is the next native gate after its verified deployment. The partial run
+on `0203a30` remains documented in the
+[native result](LUA_LOAD_FENCE_PLAN.md#first-native-result-and-continuation).
+Confirm the corrected installation receipt before launching; implementation alone
+does not mean installation is complete. Hold the later route matrix until review.
 
 ## Preparation
 
@@ -59,7 +59,10 @@ Do not perform battle scenarios, deliberate corruption or save edits for this te
 ## Codex acceptance checks
 
 - debuglog contains HOOK_INSTALLED, one matching PREPARE and DISPATCH per confirmed
-  covered load, followed by NEW_RUN_ACCEPTED. HOOK_UNAVAILABLE/HOOK_REPLACED,
+  covered load, followed by NEW_RUN_ACCEPTED from the recreated adapter. A second
+  HOOK_INSTALLED during loading is expected from the observed UI lifecycle; it
+  must not bypass current OPEN permission. SESSION_PERMISSION_BLOCKED may appear
+  while waiting and must not flood. HOOK_UNAVAILABLE/HOOK_REPLACED,
   timeout, duplicate dispatch or a missing PREPARE is a failed/unsupported route.
 - Service's durable ledger and matching control files show closure before the
   exact ACK; the new OPEN agrees on run, universe and rotated challenge.
