@@ -1,8 +1,8 @@
 # Lua load boundary and external session closure
 
-Status: adapter recreation correction implemented at `3a556d2`, following the
-partial owner test of `0203a30`. Automated recreation/integration checks pass;
-corrected-build native acceptance remains pending a verified deployment and test.
+Status: owner normal-load retest of deployed `0010aa4` passed the adapter
+recreation gate on 24 October 2026. Automated checks and normal-route evidence
+agree. Same-process/F9/queued-ACK coverage remains unverified; startup retry noted.
 Owner explicitly approved implementation after the protocol proof at `4328f13`.
 See [startup evidence](RECORDER_STARTUP.md) and the
 [staged owner test](LUA_LOAD_FENCE_TEST.md).
@@ -57,6 +57,25 @@ This fixes the demonstrated local-state bypass in automated integration. It does
 not retract an MD callback already queued, establish an atomic cross-process
 check/send transaction or prove unhooked F9 coverage. Repeat the first ordinary
 owner load on the corrected verified installation before extending route tests.
+
+### Corrected normal-load native result
+
+The recreated adapter now emitted SESSION_PERMISSION_BLOCKED followed by
+NEW_RUN_ACCEPTED, matching the service OPEN and rotated challenge. PREPARE and
+matching DISPATCH were about0.11 seconds apart. All35current raw records exactly
+match contiguous SQL payloads; one fresh rename, no whole snapshot, expected
+saved parent checkpoint retained, prior SQL unchanged and integrityok.
+Thirty retained raw profile logs had no appended rows in this run; this is an
+observation, not a guarantee that restoration cannot append raw noise.
+
+The first worker exited about1.13seconds after process start with the generic
+LogTail error "Per-run profile log truncated". No current-process profile log
+existed until about71.98seconds, so the truncated input was the control debuglog
+(inference from timing/eligible inputs). Automatic restart recovered before the
+load handshake; replacement worker stderr was empty and final shutdown exit0.
+Do not describe the entire startup as error-free. Review control-log reset
+handling separately; this native pass covers adapter recreation on normal load,
+not same-process closure, F9 or already queued MD callback ordering.
 
 Make the external service stop accepting the previous session **before** Lua
 invokes the actual save load. Computer timestamps alone cannot establish this

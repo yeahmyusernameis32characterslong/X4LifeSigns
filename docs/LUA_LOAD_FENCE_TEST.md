@@ -1,11 +1,10 @@
 # Experimental load-boundary test
 
-Status: recreation correction implemented at `3a556d2`; first ordinary-load
-retest is the next native gate after its verified deployment. The partial run
-on `0203a30` remains documented in the
-[native result](LUA_LOAD_FENCE_PLAN.md#first-native-result-and-continuation).
-Confirm the corrected installation receipt before launching; implementation alone
-does not mean installation is complete. Hold the later route matrix until review.
+Status: normal-load retest of installed `0010aa4` passed adapter recreation on
+24 October2026; see the [corrected native result](LUA_LOAD_FENCE_PLAN.md#corrected-normal-load-native-result).
+One startup worker recovered from control-log truncation. Later route tests and
+queued-ACK acceptance remain pending review; the matrix below is not an automatic
+instruction to launch more tests. The partial `0203a30` run remains preserved.
 
 ## Preparation
 
