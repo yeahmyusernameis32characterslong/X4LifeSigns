@@ -1,10 +1,11 @@
 # Experimental load-boundary test
 
-Status: normal-load retest of installed `0010aa4` passed adapter recreation on
-24 October2026; see the [corrected native result](LUA_LOAD_FENCE_PLAN.md#corrected-normal-load-native-result).
-One startup worker recovered from control-log truncation. Later route tests and
-queued-ACK acceptance remain pending review; the matrix below is not an automatic
-instruction to launch more tests. The partial `0203a30` run remains preserved.
+Status: owner clarified the earlier `0010aa4` run used Continue. A subsequent
+two-load Load Game menu test passed recreation, same-process sealing and saved
+branch isolation; see the [menu reload result](LUA_LOAD_FENCE_PLAN.md#confirmed-load-game-menu-reload-within-one-process).
+F9 and universal queued-ACK ordering remain pending review. Startup control-log
+retry recurred and recovered. The matrix below is not an automatic instruction
+to launch more tests; earlier partial/native results remain preserved.
 
 ## Preparation
 

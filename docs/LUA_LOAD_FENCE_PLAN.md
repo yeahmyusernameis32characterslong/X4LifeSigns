@@ -1,8 +1,9 @@
 # Lua load boundary and external session closure
 
-Status: owner normal-load retest of deployed `0010aa4` passed the adapter
-recreation gate on 24 October 2026. Automated checks and normal-route evidence
-agree. Same-process/F9/queued-ACK coverage remains unverified; startup retry noted.
+Status: deployed `0010aa4` passed recreation via owner-clarified Continue and
+two confirmed Load Game menu loads in one X4 process on 24 October 2026.
+Same-process sealing/branch isolation observed; F9 and universal queued-ACK
+ordering remain unverified. Recovered startup control-log retry remains open.
 Owner explicitly approved implementation after the protocol proof at `4328f13`.
 See [startup evidence](RECORDER_STARTUP.md) and the
 [staged owner test](LUA_LOAD_FENCE_TEST.md).
@@ -11,7 +12,8 @@ See [startup evidence](RECORDER_STARTUP.md) and the
 
 ### First native result and continuation
 
-Normal Load Game produced HOOK_INSTALLED, matching PREPARE and DISPATCH markers
+The owner later clarified this earlier route was Continue. It produced
+HOOK_INSTALLED, matching PREPARE and DISPATCH markers
 about0.41 seconds apart. The external ledger rotated its challenge and the
 service published matching OPEN for the new run. Thirty-four contiguous raw/SQL
 rows, one rename, no whole snapshot and clean shutdown were verified. All prior
@@ -60,6 +62,9 @@ owner load on the corrected verified installation before extending route tests.
 
 ### Corrected normal-load native result
 
+Route correction: the owner explicitly identified this earlier test as Continue,
+not the Load Game menu. The marker observations below retain their original scope.
+
 The recreated adapter now emitted SESSION_PERMISSION_BLOCKED followed by
 NEW_RUN_ACCEPTED, matching the service OPEN and rotated challenge. PREPARE and
 matching DISPATCH were about0.11 seconds apart. All35current raw records exactly
@@ -76,6 +81,27 @@ load handshake; replacement worker stderr was empty and final shutdown exit0.
 Do not describe the entire startup as error-free. Review control-log reset
 handling separately; this native pass covers adapter recreation on normal load,
 not same-process closure, F9 or already queued MD callback ordering.
+
+### Confirmed Load Game menu reload within one process
+
+The next owner test used the Load Game menu twice without exiting X4. Both loads
+produced matching PREPARE/DISPATCH and recreated BLOCKED->ACCEPTED markers. Each
+session has32contiguous raw/SQL rows, with exact payload equality and one rename.
+Both rename observations read the original saved name before applying the same
+new name: the second load did not inherit the first unsaved name.
+
+The service ledger durably closed the first session and final OPEN matches the
+second run/generation. Both sessions point to the same saved parent checkpoint410;
+actual read-only ancestry/eventsAt excludes the first session from the second's
+history. Prior92,405SQL rows unchanged, only64new SQL rows, integrityok and no
+whole baseline. The first session raw/SQL stayed at32; an older retained raw log
+received233restoration lines, not imported into SQL. Do not conflate that retained
+log with the first session or promise no raw restoration writes on all loads.
+
+Startup again had one control-log truncation worker failure and automatic recovery
+before the two loads; final worker exit0/stderr empty, X4/service closed and watcher
+IDLE. This confirms the tested menu/same-process boundary and ancestry behaviour,
+not universal proof for already queued MD ACKs. F9 remains a separate route gate.
 
 Make the external service stop accepting the previous session **before** Lua
 invokes the actual save load. Computer timestamps alone cannot establish this
