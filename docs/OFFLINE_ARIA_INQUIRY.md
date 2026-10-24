@@ -1,6 +1,6 @@
-# Offline Aria inquiry experiment
+# Offline Aria inquiry experiments
 
-This owner-authorised conversation experiment uses Codex as Aria and seven
+The first owner-authorised conversation experiment uses Codex as Aria and seven
 separate local Qwen captain contexts, identified here as P1–P7. It is not
 implemented Aria, actual NPC testimony, gameplay integration or a model accuracy
 benchmark. No production behaviour, database schema or installation changes.
@@ -106,3 +106,12 @@ testimony, and a permission/access check is not a truth or model-accuracy test.
 The private execution report distinguishes these interruptions from completed
 answers. Local helpers remain ignored experiment artefacts. Production Aria,
 gameplay integration, existing databases and installations are unchanged.
+
+The wider follow-up completed nine witness contexts and 21 narrative answers,
+including two additional captains resolved from recorded ship leads. Two outside
+captain identities could not be grounded. The original inquiry remains frozen.
+Access checks passed, while model role, attribution, intent and chronology claims
+required explicit challenges. Remaining discrepancies are preserved and excluded
+from causal attribution. Wider access exposed previously unavailable recorded
+context; it does not establish a missing recorder event type or a definitive
+initiator. Completed answers are distinguished from retained failed tool attempts.
