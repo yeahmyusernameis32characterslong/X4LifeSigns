@@ -1,12 +1,36 @@
 # Lua load boundary and external session closure
 
-Status: experimental implementation added at `0d367c1`, 23 October 2026;
-automated integration checks pass. Not deployed or verified inside X4.
+Status: experimental implementation deployed at `0203a30`; first owner-run
+normal-load test on 24 October 2026 is a **partial result, not acceptance**.
+Automated integration checks pass; native UI lifetime exposed a remaining defect.
 Owner explicitly approved implementation after the protocol proof at `4328f13`.
 See [startup evidence](RECORDER_STARTUP.md) and the
 [staged owner test](LUA_LOAD_FENCE_TEST.md).
 
 ## Goal and proposed sequence
+
+### First native result and continuation
+
+Normal Load Game produced HOOK_INSTALLED, matching PREPARE and DISPATCH markers
+about0.41 seconds apart. The external ledger rotated its challenge and the
+service published matching OPEN for the new run. Thirty-four contiguous raw/SQL
+rows, one rename, no whole snapshot and clean shutdown were verified. All prior
+SQL rows remained unchanged; old raw restoration noise still appeared as expected.
+This fresh process had no eligible current-process old run to seal, so an empty
+closure list is not evidence for same-process closure.
+
+However, HOOK_INSTALLED appeared again with the UI clock reset after loading,
+and NEW_RUN_ACCEPTED did not appear. The adapter chunk recreates its local load
+table with blocked=false. Its post-load inhibition therefore does not survive
+the observed adapter recreation. Normal capture succeeding does not prove the
+OPEN gate protected replies. Already queued MD ACKs remain a separate open risk.
+
+Hold further Continue/reload/F9 acceptance tests. Next correction must establish
+service-owned reply permission on adapter startup/request, independent of an
+in-memory flag created before LoadGame; test with separate Lua instances sharing
+control files. Preserve normal pre-load handshaking and strict database checks.
+Actual queued-MD-ACK ordering still needs explicit native evidence. No corrective
+implementation or redeployment is part of this result checkpoint.
 
 Make the external service stop accepting the previous session **before** Lua
 invokes the actual save load. Computer timestamps alone cannot establish this

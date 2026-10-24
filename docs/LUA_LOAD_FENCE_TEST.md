@@ -1,9 +1,11 @@
 # Experimental load-boundary test
 
-Status: implemented, automated checks passed, native acceptance pending.
-This document does not mean the build has been installed. Confirm the deployment
-receipt matches the implementation before launching. Current installation is
-unchanged by the implementation task.
+Status: build `0203a30` installed; first normal-load test completed with partial
+results on 24 October 2026. The Lua adapter is recreated during load, losing its
+local post-load inhibition state. **Hold additional route tests** until corrected;
+see the [native result](LUA_LOAD_FENCE_PLAN.md#first-native-result-and-continuation).
+The procedure below remains the reviewed test plan, not a current instruction
+to launch another run.
 
 ## Preparation
 
