@@ -2,7 +2,19 @@
 
 ## Current status
 
-The owner-reported Windows automated bridge/persistence/routing suite passed
+The optional SQLite profile integration has scoped owner-run X4 9.00 verification
+on Windows / Node.js v24.21.0: latest applicable recorder/profile suite 102/102
+and bridge full recheck 112/112. Native Lua/reader, Continue/menu/F9 and
+saved-branch results remain distinct from automated results. See
+[completed scope and retained follow-ups](docs/SQLITE_PROFILE_COMPLETION.md).
+These are prior verified results, not a new Windows run during integration.
+
+Integration also corrects the POSIX lock-test fixture: take its byte snapshot
+before acquiring the SQLite lock, since closing another descriptor can release
+process-owned advisory locks. Production bridge code is unchanged.
+
+
+The historical initial Windows automated bridge/persistence/routing suite passed
 **97/97 tests, zero failures or skips**, on Node.js v24.21.0 with built-in
 `node:sqlite`. This automated validation is separate from live X4 verification.
 **Experimental docking bridge verified in live X4.** Optional SQLite persistence

@@ -1,10 +1,26 @@
 # PR #20: SQLite integration completion
 
-The owner declared the SQLite integration objective complete on 24 October 2026
-and requested PR #20 be closed. Closure does not merge or delete the branch.
-Implementation is retained on `feat/sqlite-object-profiles`; the verified deployed
-snapshot is `0010aa4f9546587ff6e9ad794bf601ae8e6896e8`. Subsequent result/closeout
-documentation does not change that installation.
+The owner accepted SQLite integration on 24 October 2026, initially closed
+PR #20 without merge, and then authorised integration of PRs #18, #19 and #20
+into `main`. Their ordered history is preserved; PR #17's disposable probe
+remains superseded and excluded. Historical closure statements describe that
+earlier decision, not an instruction to keep completed work off `main`.
+
+The verified deployed executable snapshot is
+`0010aa4f9546587ff6e9ad794bf601ae8e6896e8`. Subsequent documentation and the
+integration-only test-fixture correction do not change those executable files.
+This integration authorises no deployment or changes to existing databases/logs.
+
+## Current collection behaviour
+
+The optional recorder and Windows companion perform a completed initial baseline
+when the owned universe database needs one, reuse ready databases after load,
+and retain selective lightweight events and individual created-object profiles.
+There is no recurring whole-faction snapshot schedule, full crew snapshot per
+attack, shield/hull damage subscription, physical M-key binding or active
+million/two-million-row setting in the current configuration. Earlier designs
+remain historical; do not reintroduce them from PR #18/#19 prose. Existing
+production docking/session databases and protocols remain separate.
 
 ## Delivered
 

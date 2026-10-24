@@ -1,5 +1,11 @@
 # Snapshot-only object profile collector
 
+> **Current integration:** PR #20 adds owned SQLite storage, one completed initial
+> baseline per ready universe database, selective lightweight events and saved
+> session/checkpoint history. See [completion and scoped verification](SQLITE_PROFILE_COMPLETION.md).
+> Dated snapshot-only, polling, row-limit and unverified statements below retain
+> PR #19 history; later implementation/results take precedence.
+
 ## Saved Life Signs universe ID, 2026-10-20
 
 Owner-authorised implementation starts from PR19 `d003dc6` on

@@ -33,6 +33,17 @@ authorised work or returns a focused gap to Qwen. Codex does not normally
 repeat Qwen's broad discovery. Historical trial limits are not current research
 depth rules.
 
+## Optional SQLite object profiles
+
+The separate optional recorder and Windows companion implement owned universe
+profile/event databases, commit acknowledgements, ready-database reuse and
+saved session/checkpoint branch selection. Scoped owner-run X4 9.00 results
+and remaining native-event/lifecycle limits are in
+[the completion record](docs/SQLITE_PROFILE_COMPLETION.md). This supersedes earlier
+broad-recorder and snapshot-only operating designs. Production docking/manual/
+automatic routing and existing database files remain unchanged. Permanent
+person identity and exhaustive capture remain unverified.
+
 ## Purpose
 
 X4LifeSigns is a mod and supporting local software system for X4: Foundations.
