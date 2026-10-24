@@ -416,6 +416,9 @@
 <param name="Relevant" value="true" />
 <param name="Coalesce" value="true" />
 <param name="TrackOther" value="true" />
+<param name="Combat" value="true" />
+<param name="Method" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
 </run_actions>
 </actions>
 </cue>
@@ -432,6 +435,9 @@
 <param name="Relevant" value="true" />
 <param name="Coalesce" value="true" />
 <param name="TrackOther" value="true" />
+<param name="Combat" value="true" />
+<param name="Method" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
 </run_actions>
 </actions>
 </cue>
@@ -1264,6 +1270,137 @@
 <param name="Source" value="'event_player_ejected'" />
 </run_actions>
 </actions>
+</cue>
+<cue name="ProfileEventV2_53" instantiate="true" namespace="this">
+<conditions>
+<event_object_signalled object="player.galaxy" param="'ship_in_distress'" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Type" value="'DISTRESS_CALL'" />
+<param name="Source" value="'event_object_signalled'" />
+<param name="Subject" value="@event.param2" />
+<param name="Other" value="@event.param3" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_54" instantiate="true" namespace="this">
+<conditions>
+<event_object_relation_range_changed group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Type" value="'LOCAL_RELATION_RANGE_CHANGED'" />
+<param name="Source" value="'event_object_relation_range_changed'" />
+<param name="Subject" value="event.object" />
+<param name="Faction" value="event.param" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_55" instantiate="true" namespace="this">
+<conditions>
+<event_object_incoming_missile group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Type" value="'INCOMING_MISSILE'" />
+<param name="Source" value="'event_object_incoming_missile'" />
+<param name="Subject" value="event.object" />
+<param name="Other" value="@event.param3" />
+<param name="Payload" value="@event.param" />
+<param name="Missile" value="@event.param2" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_56" instantiate="true" namespace="this">
+<conditions>
+<event_object_launched_missile group="md.$LSPWatch" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Type" value="'MISSILE_LAUNCHED'" />
+<param name="Source" value="'event_object_launched_missile'" />
+<param name="Subject" value="event.object" />
+<param name="Other" value="@event.param" />
+<param name="Payload" value="@event.param" />
+<param name="Missile" value="@event.param2" />
+</run_actions>
+</actions>
+</cue>
+<cue name="CombatLockWatch" instantiate="true" namespace="this">
+<conditions>
+<event_cue_signalled cue="CombatLockWatch" />
+<check_value value="(md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table" />
+</conditions>
+<actions>
+<set_value name="$LockObject" exact="event.param" />
+</actions>
+<cues>
+<cue name="CombatLock_initiated_attacker" instantiate="true" namespace="this">
+<conditions>
+<event_lock_initiated attacker="parent.$LockObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Subject" value="parent.$LockObject" />
+<param name="Type" value="'LOCK_INITIATED'" />
+<param name="Source" value="'event_lock_initiated'" />
+<param name="Weapon" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
+<param name="Detail" value="'attacker:%s:%s'.[event.object,event.param]" />
+<param name="Data" value="table[$watch_role='ATTACKER',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+</run_actions>
+</actions>
+</cue>
+<cue name="CombatLock_initiated_target" instantiate="true" namespace="this">
+<conditions>
+<event_lock_initiated target="parent.$LockObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Subject" value="parent.$LockObject" />
+<param name="Type" value="'LOCK_INITIATED'" />
+<param name="Source" value="'event_lock_initiated'" />
+<param name="Weapon" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
+<param name="Detail" value="'target:%s:%s'.[event.object,event.param]" />
+<param name="Data" value="table[$watch_role='TARGET',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+</run_actions>
+</actions>
+</cue>
+<cue name="CombatLock_acquired_attacker" instantiate="true" namespace="this">
+<conditions>
+<event_lock_acquired attacker="parent.$LockObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Subject" value="parent.$LockObject" />
+<param name="Type" value="'LOCK_ACQUIRED'" />
+<param name="Source" value="'event_lock_acquired'" />
+<param name="Weapon" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
+<param name="Detail" value="'attacker:%s:%s'.[event.object,event.param]" />
+<param name="Data" value="table[$watch_role='ATTACKER',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+</run_actions>
+</actions>
+</cue>
+<cue name="CombatLock_acquired_target" instantiate="true" namespace="this">
+<conditions>
+<event_lock_acquired target="parent.$LockObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordCombatObservation">
+<param name="Subject" value="parent.$LockObject" />
+<param name="Type" value="'LOCK_ACQUIRED'" />
+<param name="Source" value="'event_lock_acquired'" />
+<param name="Weapon" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
+<param name="Detail" value="'target:%s:%s'.[event.object,event.param]" />
+<param name="Data" value="table[$watch_role='TARGET',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+</run_actions>
+</actions>
+</cue>
+</cues>
 </cue>
 </cues>
 </cue>
@@ -4264,6 +4401,10 @@
 <find_sector name="$HistorySectors" space="player.galaxy" multiple="true" />
 <create_group groupname="md.$LSPHistorySectors" />
 <add_to_group groupname="md.$LSPHistorySectors" list="$HistorySectors" />
+<set_value name="md.$LSPCombatBudgetUntil" exact="player.age + 1s" />
+<set_value name="md.$LSPCombatBudgetCount" exact="0" />
+<set_value name="md.$LSPCombatLimitNext" exact="0" />
+<set_value name="md.$LSPCombatLockKeys" exact="table[]" />
 <set_value name="md.$LSPPlayerVersion" exact="1" />
 <set_value name="md.$LSPPlayerObserved" exact="false" />
 <set_value name="md.$LSPPlayerDirty" exact="true" />
@@ -4275,7 +4416,7 @@
 <set_value name="md.$LSPStopped" exact="false" />
 <set_value name="md.$LSPReady" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=53|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|combat_context_version=1|context_limit_per_game_second=32|lock_watch_limit=64|lock_watch_scope=COMBAT_ENROLLED_ONLY|gameplay_listeners=57|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
@@ -4502,7 +4643,7 @@
 <do_if value="md.$LSPLevel ge 3">
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=53|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=57|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
 </do_if>
@@ -4631,6 +4772,7 @@
 <param name="Npc" default="false" />
 <param name="SeedText" default="''" />
 <param name="RoleText" default="''" />
+<param name="Order" default="null" />
 </params>
 <actions>
 <do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
@@ -4934,8 +5076,25 @@
 <run_actions ref="Escape" result="$location_basis">
 <param name="Value" value="$location_basis" />
 </run_actions>
+<set_value name="$EventBody" exact="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|subject_seed=%s|subject_idcode=%s|subject_reference=%s|host_seed=%s|host_idcode=%s|other_seed=%s|other_idcode=%s|other_reference=%s|previous_reference=%s|actual_role=%s|control_post=%s|requested_role=%s|detail=%s|detail_name=%s|subject_name=%s|subject_faction=%s|sector_name=%s|host_reference=%s|host_kind=%s|other_kind=%s|other_faction=%s|previous_seed=%s|previous_idcode=%s|assigned_seed=%s|assigned_idcode=%s|assigned_reference=%s|assignment_basis=%s|assignment_state=%s|location_seed=%s|location_idcode=%s|location_reference=%s|location_basis=%s'.[$Type, $Kind, $Status, $subject_seed, $subject_idcode, $subject_reference, $host_seed, $host_idcode, $other_seed, $other_idcode, $other_reference, $previous_reference, $actual_role, $control_post, $requested_role, $detail, $detail_name, $subject_name, $subject_faction, $sector_name, $host_reference, $host_kind, $other_kind, $other_faction, $previous_seed, $previous_idcode, $assigned_seed, $assigned_idcode, $assigned_reference, $assignment_basis, $assignment_state, $location_seed, $location_idcode, $location_reference, $location_basis]" />
+<do_if value="$Type == 'ORDER_READY' or $Type == 'ORDER_RUNNING_OBSERVED'">
+<run_actions ref="CombatState" result="$Context">
+<param name="Object" value="$Subject" />
+<param name="Order" value="$Order" />
+</run_actions>
+<do_for_each name="$K" in="$Context.keys.list">
+<set_value name="$FieldKey" exact="'%s'.[$K]" />
+<substitute_text text="$FieldKey">
+<replace string="'$'" with="''" />
+</substitute_text>
+<run_actions ref="Escape" result="$Text">
+<param name="Value" value="@$Context.{$K}" />
+</run_actions>
+<set_value name="$EventBody" exact="$EventBody + '|' + $FieldKey + '=' + $Text" />
+</do_for_each>
+</do_if>
 <run_actions ref="Write">
-<param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|subject_seed=%s|subject_idcode=%s|subject_reference=%s|host_seed=%s|host_idcode=%s|other_seed=%s|other_idcode=%s|other_reference=%s|previous_reference=%s|actual_role=%s|control_post=%s|requested_role=%s|detail=%s|detail_name=%s|subject_name=%s|subject_faction=%s|sector_name=%s|host_reference=%s|host_kind=%s|other_kind=%s|other_faction=%s|previous_seed=%s|previous_idcode=%s|assigned_seed=%s|assigned_idcode=%s|assigned_reference=%s|assignment_basis=%s|assignment_state=%s|location_seed=%s|location_idcode=%s|location_reference=%s|location_basis=%s'.[$Type, $Kind, $Status, $subject_seed, $subject_idcode, $subject_reference, $host_seed, $host_idcode, $other_seed, $other_idcode, $other_reference, $previous_reference, $actual_role, $control_post, $requested_role, $detail, $detail_name, $subject_name, $subject_faction, $sector_name, $host_reference, $host_kind, $other_kind, $other_faction, $previous_seed, $previous_idcode, $assigned_seed, $assigned_idcode, $assigned_reference, $assignment_basis, $assignment_state, $location_seed, $location_idcode, $location_reference, $location_basis]" />
+<param name="Body" value="$EventBody" />
 <param name="EventTrace" value="true" />
 </run_actions>
 <return value="true" />
@@ -4987,6 +5146,7 @@
 <param name="DetailName" value="$DetailName" />
 <param name="Status" value="if $Assignment then 'REQUESTED' else 'OBSERVED'" />
 <param name="Npc" value="$Npc" />
+<param name="Order" value="$Order" />
 </run_actions>
 <do_if value="$Create">
 <run_actions ref="QueueNewProfile">
@@ -5207,6 +5367,7 @@
 <param name="Type" value="'ORDER_RUNNING_OBSERVED'" />
 <param name="Detail" value="@$Item.{3}.id" />
 <param name="DetailName" value="@$Item.{3}.name" />
+<param name="Order" value="$Item.{3}" />
 </run_actions>
 </do_if>
 </do_all>
@@ -5343,6 +5504,242 @@
 <return value="$I" />
 </actions>
 </library>
+<library name="CombatState" purpose="run_actions">
+<params>
+<param name="Object" default="null" />
+<param name="Order" default="null" />
+</params>
+<actions>
+<set_value name="$D" exact="table[$controller_state='UNAVAILABLE',$command=null,$order_id=null,$order_internal=null,$order_state=null,$response_id=null]" />
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or not (typeof $Object == datatype.component and $Object.exists)">
+<return value="$D" />
+</do_if>
+<set_value name="$D.$owner" exact="'%s'.[@$Object.owner]" />
+<set_value name="$D.$true_owner" exact="'%s'.[@$Object.trueowner]" />
+<set_value name="$D.$response_id" exact="@$Object.signal.{'attacked'}.response.id" />
+<set_value name="$Pilot" exact="null" />
+<do_if value="$Object.isclass.ship">
+<do_if value="$Object == player.occupiedship">
+<set_value name="$D.$controller_state" exact="'PLAYER'" />
+</do_if>
+<do_else>
+<set_value name="$Pilot" exact="@$Object.aipilot" />
+<do_if value="typeof $Pilot == datatype.component and $Pilot.exists">
+<set_value name="$D.$controller_state" exact="'AI_OBSERVED'" />
+<set_value name="$D.$command" exact="@$Pilot.command.value" />
+<do_if value="@$Pilot.command.value == command.attackobject">
+<set_value name="$Target" exact="@$Pilot.command.param" />
+<set_value name="$D.$command_target_reference" exact="'%s'.[$Target]" />
+<do_if value="typeof $Target == datatype.component and $Target.exists">
+<set_value name="$D.$command_target_seed" exact="'%s'.[@$Target.seed]" />
+<set_value name="$D.$command_target_idcode" exact="@$Target.idcode" />
+</do_if>
+</do_if>
+</do_if>
+</do_else>
+</do_if>
+<do_if value="$Order == null">
+<set_value name="$Order" exact="@$Object.order" />
+</do_if>
+<do_if value="@$Order.exists">
+<set_value name="$D.$order_id" exact="@$Order.id" />
+<set_value name="$D.$order_state" exact="@$Order.state" />
+<set_value name="$D.$order_priority" exact="@$Order.haspriority" />
+<set_value name="$D.$order_override" exact="@$Order.isoverride" />
+<do_if value="@$Order.id == 'Attack' or @$Order.id == 'Attack_Player'">
+<set_value name="$D.$order_internal" exact="@$Order.$internalorder" />
+<set_value name="$Target" exact="@$Order.$primarytarget" />
+<set_value name="$D.$order_target_reference" exact="'%s'.[$Target]" />
+<do_if value="typeof $Target == datatype.component and $Target.exists">
+<set_value name="$D.$order_target_seed" exact="'%s'.[@$Target.seed]" />
+<set_value name="$D.$order_target_idcode" exact="@$Target.idcode" />
+</do_if>
+</do_if>
+<do_if value="@$Order.id == 'Flee'">
+<set_value name="$D.$flee_method" exact="@$Order.$method" />
+<set_value name="$Target" exact="@$Order.$attacker" />
+<set_value name="$D.$flee_attacker_reference" exact="'%s'.[$Target]" />
+<do_if value="typeof $Target == datatype.component and $Target.exists">
+<set_value name="$D.$flee_attacker_seed" exact="'%s'.[@$Target.seed]" />
+<set_value name="$D.$flee_attacker_idcode" exact="@$Target.idcode" />
+</do_if>
+</do_if>
+</do_if>
+<return value="$D" />
+</actions>
+</library>
+<library name="ReadCombatContext" purpose="run_actions">
+<params>
+<param name="Subject" default="null" />
+<param name="Other" default="null" />
+<param name="Method" default="null" />
+<param name="Payload" default="null" />
+<param name="Weapon" default="null" />
+<param name="Missile" default="null" />
+<param name="Type" />
+<param name="Order" default="null" />
+</params>
+<actions>
+<set_value name="$D" exact="table[$intent='UNKNOWN',$context_basis='CALLBACK_OBSERVATION',$method=$Method,$component_reference=null,$weapon_reference=null,$missile_reference=null]" />
+<run_actions ref="EnrolCombatLockWatch" result="$D.$subject_lock_watch_enrolled">
+<param name="Object" value="$Subject" />
+</run_actions>
+<run_actions ref="EnrolCombatLockWatch" result="$D.$other_lock_watch_enrolled">
+<param name="Object" value="$Other" />
+</run_actions>
+<set_value name="$D.$lock_watch_limit" exact="64" />
+<set_value name="$D.$lock_watch_scope" exact="'COMBAT_ENROLLED_ONLY'" />
+<set_value name="$Component" exact="$Payload" />
+<do_if value="$Type == 'ATTACKING'">
+<set_value name="$Component" exact="null" />
+<do_if value="typeof $Payload == datatype.list">
+<set_value name="$Component" exact="@$Payload.{1}" />
+<set_value name="$Weapon" exact="@$Payload.{2}" />
+</do_if>
+</do_if>
+<set_value name="$D.$component_reference" exact="'%s'.[$Component]" />
+<set_value name="$D.$weapon_reference" exact="'%s'.[$Weapon]" />
+<set_value name="$D.$missile_reference" exact="'%s'.[$Missile]" />
+<do_if value="typeof $Weapon == datatype.component and $Weapon.exists">
+<set_value name="$D.$weapon_macro" exact="'%s'.[@$Weapon.macro]" />
+</do_if>
+<run_actions ref="CombatState" result="$S">
+<param name="Object" value="$Subject" />
+<param name="Order" value="$Order" />
+</run_actions>
+<run_actions ref="CombatState" result="$O">
+<param name="Object" value="$Other" />
+</run_actions>
+<do_for_each name="$K" in="$S.keys.list">
+<set_value name="$Key" exact="'$subject_%s'.[$K]" />
+<substitute_text text="$Key">
+<replace string="'_$'" with="'_'" />
+</substitute_text>
+<set_value name="$D.{$Key}" exact="@$S.{$K}" />
+</do_for_each>
+<do_for_each name="$K" in="$O.keys.list">
+<set_value name="$Key" exact="'$other_%s'.[$K]" />
+<substitute_text text="$Key">
+<replace string="'_$'" with="'_'" />
+</substitute_text>
+<set_value name="$D.{$Key}" exact="@$O.{$K}" />
+</do_for_each>
+<do_if value="typeof $Subject == datatype.component and $Subject.exists and typeof $Other == datatype.component and $Other.exists">
+<set_value name="$D.$subject_may_attack_other" exact="@$Subject.mayattack.{$Other}" />
+<set_value name="$D.$other_may_attack_subject" exact="@$Other.mayattack.{$Subject}" />
+<set_value name="$D.$subject_relation_to_other" exact="@$Subject.relationto.{$Other}" />
+<do_if value="@$Subject.trueowner != null and @$Other.trueowner != null">
+<set_value name="$D.$same_true_owner" exact="$Subject.trueowner == $Other.trueowner" />
+</do_if>
+</do_if>
+<return value="$D" />
+</actions>
+</library>
+<library name="RecordCombatObservation" purpose="run_actions">
+<params>
+<param name="Subject" default="null" />
+<param name="Other" default="null" />
+<param name="Type" />
+<param name="Source" />
+<param name="Payload" default="null" />
+<param name="Weapon" default="null" />
+<param name="Missile" default="null" />
+<param name="Faction" default="null" />
+<param name="Data" default="table[]" />
+<param name="Detail" default="null" />
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
+<set_value name="$Role" exact="if $Type == 'DISTRESS_CALL' then 'DISTRESS_CALLER' else 'SUBJECT'" />
+<do_if value="$Type == 'DISTRESS_CALL' and not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned)">
+<do_if value="not (typeof $Other == datatype.component and $Other.exists and $Other.isplayerowned)">
+<return value="false" />
+</do_if>
+<set_value name="$Swap" exact="$Subject" />
+<set_value name="$Subject" exact="$Other" />
+<set_value name="$Other" exact="$Swap" />
+<set_value name="$Role" exact="'ATTACKER_IN_DISTRESS_REPORT'" />
+</do_if>
+<do_if value="not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned)">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Other == datatype.component and $Other.exists">
+<do_if value="not ($Other.isclass.ship or $Other.isclass.station)">
+<set_value name="$Container" exact="@$Other.defensible" />
+<do_if value="typeof $Container == datatype.component and $Container.exists">
+<set_value name="$Other" exact="$Container" />
+</do_if>
+</do_if>
+</do_if>
+<set_value name="$Data.$participant_role" exact="$Role" />
+<run_actions ref="RecordHistoryEvent">
+<param name="Subject" value="$Subject" />
+<param name="Other" value="$Other" />
+<param name="Type" value="$Type" />
+<param name="Source" value="$Source" />
+<param name="Combat" value="true" />
+<param name="ContextEvent" value="true" />
+<param name="Payload" value="$Payload" />
+<param name="Weapon" value="$Weapon" />
+<param name="Missile" value="$Missile" />
+<param name="Faction" value="$Faction" />
+<param name="Detail" value="if $Faction != null then $Faction else $Detail" />
+<param name="Coalesce" value="true" />
+<param name="Data" value="$Data" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="CombatContextBudget" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or not md.$LSPCombatBudgetUntil? or not md.$LSPCombatBudgetCount? or not md.$LSPCombatLimitNext?">
+<return value="false" />
+</do_if>
+<do_if value="player.age ge md.$LSPCombatBudgetUntil">
+<set_value name="md.$LSPCombatBudgetUntil" exact="player.age + 1s" />
+<set_value name="md.$LSPCombatBudgetCount" exact="0" />
+</do_if>
+<do_if value="md.$LSPCombatBudgetCount ge 32">
+<do_if value="player.age ge md.$LSPCombatLimitNext">
+<set_value name="md.$LSPCombatLimitNext" exact="player.age + 30s" />
+<run_actions ref="Write">
+<param name="Body" value="'ENTITY_EVENT|event_type=COMBAT_CONTEXT_LIMIT|subject_kind=UNIVERSE|scope=WORLD_CONTEXT|subject_seed=%s|limit_per_game_second=32|suppressed_count=UNKNOWN'.[md.$LSPUniverseIdText]" />
+<param name="EventTrace" value="true" />
+</run_actions>
+</do_if>
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPCombatBudgetCount" exact="1L" operation="add" />
+<return value="true" />
+</actions>
+</library>
+<library name="EnrolCombatLockWatch" purpose="run_actions">
+<params>
+<param name="Object" default="null" />
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or not (typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned)">
+<return value="false" />
+</do_if>
+<do_if value="not ($Object.isclass.ship or $Object.isclass.station) or typeof @md.$LSPCombatLockKeys != datatype.table">
+<return value="false" />
+</do_if>
+<set_value name="$Key" exact="'$ref:%s'.[$Object]" />
+<do_if value="md.$LSPCombatLockKeys.{$Key}?">
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPCombatLockKeys.keys.count ge 64">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPCombatLockKeys.{$Key}" exact="true" />
+<signal_cue_instantly cue="CombatLockWatch" param="$Object" />
+<return value="true" />
+</actions>
+</library>
 <library name="RecordHistoryEvent" purpose="run_actions">
 <params>
 <param name="Subject" default="null" />
@@ -5360,6 +5757,13 @@
 <param name="TrackOther" default="false" />
 <param name="NpcSeed" default="null" />
 <param name="NpcName" default="null" />
+<param name="Combat" default="false" />
+<param name="ContextEvent" default="false" />
+<param name="Method" default="null" />
+<param name="Payload" default="null" />
+<param name="Weapon" default="null" />
+<param name="Missile" default="null" />
+<param name="Faction" default="null" />
 </params>
 <actions>
 <do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
@@ -5378,7 +5782,34 @@
 <return value="false" />
 </do_if>
 </do_if>
+</do_if>
+<do_if value="$ContextEvent">
+<run_actions ref="CombatContextBudget" result="$Allowed">
+</run_actions>
+<do_if value="not $Allowed">
+<return value="false" />
+</do_if>
+</do_if>
+<do_if value="$Coalesce">
 <set_value name="md.$LSPHistoryContacts.{$ContactKey}" exact="player.age + 30s" />
+</do_if>
+<do_if value="$Combat">
+<run_actions ref="ReadCombatContext" result="$Context">
+<param name="Subject" value="$Subject" />
+<param name="Other" value="$Other" />
+<param name="Type" value="$Type" />
+<param name="Method" value="$Method" />
+<param name="Payload" value="$Payload" />
+<param name="Weapon" value="$Weapon" />
+<param name="Missile" value="$Missile" />
+</run_actions>
+<do_for_each name="$K" in="$Context.keys.list">
+<set_value name="$Data.{$K}" exact="@$Context.{$K}" />
+</do_for_each>
+</do_if>
+<do_if value="$Faction != null">
+<set_value name="$Data.$faction" exact="$Faction" />
+<set_value name="$Data.$current_relation" exact="@$Subject.relationto.{$Faction}" />
 </do_if>
 <run_actions ref="HistoryIdentity" result="$S">
 <param name="Object" value="$Subject" />

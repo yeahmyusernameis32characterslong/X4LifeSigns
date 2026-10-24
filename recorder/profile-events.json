@@ -15,7 +15,10 @@
       "Source": "'event_object_attacked'",
       "Relevant": "true",
       "Coalesce": "true",
-      "TrackOther": "true"
+      "TrackOther": "true",
+      "Combat": "true",
+      "Method": "@event.param2",
+      "Payload": "@event.param3"
     }
   },
   {
@@ -34,7 +37,10 @@
       "Source": "'event_object_attacked_object'",
       "Relevant": "true",
       "Coalesce": "true",
-      "TrackOther": "true"
+      "TrackOther": "true",
+      "Combat": "true",
+      "Method": "@event.param2",
+      "Payload": "@event.param3"
     }
   },
   {
@@ -723,6 +729,67 @@
     "params": {
       "Type": "'PLAYER_EMERGENCY_EJECTED'",
       "Source": "'event_player_ejected'"
+    }
+  },
+  {
+    "name": "event_object_signalled",
+    "type": "DISTRESS_CALL",
+    "selector": {
+      "object": "player.galaxy",
+      "param": "'ship_in_distress'"
+    },
+    "handler": "RecordCombatObservation",
+    "params": {
+      "Type": "'DISTRESS_CALL'",
+      "Source": "'event_object_signalled'",
+      "Subject": "@event.param2",
+      "Other": "@event.param3"
+    }
+  },
+  {
+    "name": "event_object_relation_range_changed",
+    "type": "LOCAL_RELATION_RANGE_CHANGED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordCombatObservation",
+    "params": {
+      "Type": "'LOCAL_RELATION_RANGE_CHANGED'",
+      "Source": "'event_object_relation_range_changed'",
+      "Subject": "event.object",
+      "Faction": "event.param"
+    }
+  },
+  {
+    "name": "event_object_incoming_missile",
+    "type": "INCOMING_MISSILE",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordCombatObservation",
+    "params": {
+      "Type": "'INCOMING_MISSILE'",
+      "Source": "'event_object_incoming_missile'",
+      "Subject": "event.object",
+      "Other": "@event.param3",
+      "Payload": "@event.param",
+      "Missile": "@event.param2"
+    }
+  },
+  {
+    "name": "event_object_launched_missile",
+    "type": "MISSILE_LAUNCHED",
+    "selector": {
+      "group": "md.$LSPWatch"
+    },
+    "handler": "RecordCombatObservation",
+    "params": {
+      "Type": "'MISSILE_LAUNCHED'",
+      "Source": "'event_object_launched_missile'",
+      "Subject": "event.object",
+      "Other": "@event.param",
+      "Payload": "@event.param",
+      "Missile": "@event.param2"
     }
   }
 ]

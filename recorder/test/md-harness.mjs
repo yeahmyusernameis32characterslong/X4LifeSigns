@@ -106,6 +106,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     else if (first === 'gamestart') value = gamestart;
     else if (first === 'faction') value = { player: 'player' };
     else if (first === 'controlpost') value = {aipilot:'aipilot',manager:'manager'};
+    else if (first === 'command') value = {attackobject:'attackobject',withdrawbattle:'withdrawbattle'};
     else if (first === 'class') value = {npc:'npc'};
     else if (first === 'datatype') value = new Proxy({}, { get: (_, name) => ({ __type: 'datatype', name }) });
     else if (Object.hasOwn(local, first)) value = local[first];
@@ -167,6 +168,8 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       } else if (n.tag === 'cancel_cue') cancelledCues.add(a.cue);
       else if (n.tag === 'reset_cue') cancelledCues.delete(a.cue);
       else if (n.tag === 'signal_cue') pendingSignals.push({ cue:a.cue, param:a.param ? ev(a.param) : null });
+      // Synthetic action delivery only: this harness does not model separate MD instances.
+      else if (n.tag === 'signal_cue_instantly') { context(a.cue).event={param:a.param ? ev(a.param) : null}; cue(a.cue); }
       else throw new Error(`Unsupported action ${n.tag}`);
     }
   }

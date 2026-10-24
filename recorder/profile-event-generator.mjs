@@ -57,7 +57,7 @@ export function generateProfileEvents(h, c) {
   const fields = ['subject_seed','subject_idcode','subject_reference','host_seed','host_idcode','other_seed','other_idcode','other_reference','previous_reference','actual_role','control_post','requested_role','detail','detail_name',
     'subject_name','subject_faction','sector_name','host_reference','host_kind','other_kind','other_faction','previous_seed','previous_idcode',
     'assigned_seed','assigned_idcode','assigned_reference','assignment_basis','assignment_state','location_seed','location_idcode','location_reference','location_basis'];
-  const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false',SeedText:"''",RoleText:"''"},
+  const observe = lib('RecordEntityEvent',{Subject:'null',Host:'null',Template:'null',Other:'null',Previous:'null',Type:null,Detail:'null',DetailName:'null',Status:"'OBSERVED'",Npc:'false',SeedText:"''",RoleText:"''",Order:'null'},
     iff(`not (${eventReady})`,ret('false'))+
     iff(valid('$Subject'),iff('$Subject.isclass.npc and not $Subject.isplayerowned',ret('false')))+
     set('$Kind',"''")+fields.map(f=>set('$'+f,"''")).join('')+
@@ -104,7 +104,11 @@ export function generateProfileEvents(h, c) {
     iff("$Kind == 'NPC' and $Type == 'ENTITY_LEFT'",iff(valid('$Other'),iff('$Other.isclass.spacesuit',set('$Type',"'EJECTED'"))))+
     iff("$Kind == 'NPC' and $Type == 'ENTITY_ENTERED'",iff(valid('$Previous'),iff('$Previous.isclass.spacesuit',set('$Type',"'RESCUED'"))))+
     fields.map(f=>run('Escape',{Value:'$'+f},'$'+f)).join('')+
-    eventWrite(`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|${fields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind','$Status',...fields.map(f=>'$'+f)].join(', ')}]`)+ret('true'));
+    set('$EventBody',`'ENTITY_EVENT|event_type=%s|subject_kind=%s|observation=%s|${fields.map(f=>f+'=%s').join('|')}'.[${['$Type','$Kind','$Status',...fields.map(f=>'$'+f)].join(', ')}]`)+
+    iff("$Type == 'ORDER_READY' or $Type == 'ORDER_RUNNING_OBSERVED'",
+      run('CombatState',{Object:'$Subject',Order:'$Order'},'$Context')+
+      each('$K','$Context.keys.list',set('$FieldKey',"'%s'.[$K]")+tag('substitute_text',{text:'$FieldKey'},tag('replace',{string:"'$'",with:"''"}))+run('Escape',{Value:'@$Context.{$K}'},'$Text')+set('$EventBody',"$EventBody + '|' + $FieldKey + '=' + $Text")))+
+    eventWrite('$EventBody')+ret('true'));
 
   const dispatch=lib('HandleProfileEvent',{Subject:'null',Host:'null',Other:'null',Previous:'null',Detail:'null',DetailName:'null',Target:'null',Order:'null',Type:null,Create:'false',Npc:'false',Assignment:'false'},
     iff(`not (${eventReady})`,ret('false'))+
@@ -112,7 +116,7 @@ export function generateProfileEvents(h, c) {
     iff('typeof $Subject == datatype.list',
       iff('$Subject.count ge 2',set('$Host','$Subject.{1}')+set('$Template','$Subject.{2}')+set('$Subject','null'))+otherwise(ret('false')))+
     iff('$Npc and $Host == null',iff(valid('$Subject'),set('$Host','@$Subject.container')))+
-    run('RecordEntityEvent',{Subject:'$Subject',Host:'$Host',Template:'$Template',Other:'if $Assignment then $Target else $Other',Previous:'$Previous',Type:'$Type',Detail:'$Detail',DetailName:'$DetailName',Status:"if $Assignment then 'REQUESTED' else 'OBSERVED'",Npc:'$Npc'})+
+    run('RecordEntityEvent',{Subject:'$Subject',Host:'$Host',Template:'$Template',Other:'if $Assignment then $Target else $Other',Previous:'$Previous',Type:'$Type',Detail:'$Detail',DetailName:'$DetailName',Status:"if $Assignment then 'REQUESTED' else 'OBSERVED'",Npc:'$Npc',Order:'$Order'})+
     iff('$Create',run('QueueNewProfile',{Object:'$Subject',Host:'$Host',Template:'$Template',Target:'$Target'}))+
     iff('$Assignment',tag('append_to_list',{name:'md.$LSPSettleEvents',exact:'[player.age + 1s,$Subject,$Host,$Template,$Target,$Detail]'}))+
     iff("$Type == 'ORDER_READY' and $Order != null",tag('append_to_list',{name:'md.$LSPOrderChecks',exact:'[player.age + 1s,$Subject,$Order]'}))+
@@ -185,7 +189,7 @@ export function generateProfileEvents(h, c) {
     tag('do_all',{exact:String(c.discoveryPerTick)},
       iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',tag('break'))+
       set('$Item','md.$LSPOrderChecks.{md.$LSPOrderIndex}')+iff('player.age lt $Item.{1}',tag('break'))+add('md.$LSPOrderIndex')+
-      iff('@$Item.{3}.isrunning',run('RecordEntityEvent',{Subject:'$Item.{2}',Type:"'ORDER_RUNNING_OBSERVED'",Detail:'@$Item.{3}.id',DetailName:'@$Item.{3}.name'})))+
+      iff('@$Item.{3}.isrunning',run('RecordEntityEvent',{Subject:'$Item.{2}',Type:"'ORDER_RUNNING_OBSERVED'",Detail:'@$Item.{3}.id',DetailName:'@$Item.{3}.name',Order:'$Item.{3}'})))+
     iff('md.$LSPOrderIndex gt md.$LSPOrderChecks.count',set('md.$LSPOrderChecks','[]')+set('md.$LSPOrderIndex','1'))+ret('true'));
   const listeners=profileEvents.map((e,i)=>tag('cue',{name:'ProfileEventV2_'+i,instantiate:'true',namespace:'this'},
     tag('conditions',{},tag(e.name,e.selector))+tag('actions',{},e.handler?run(e.handler,e.params):run('HandleProfileEvent',{
@@ -199,6 +203,6 @@ export function generateProfileEvents(h, c) {
     tag('conditions',{},tag('event_cue_signalled',{cue:'ProfileEventBusV2'})+
       tag('check_value',{value:`(${ready}) and md.$LSPBusArmedRun? and md.$LSPBusArmedRun == md.$LSPRun and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders?`}))+
     tag('actions',{},set('md.$LSPEventsReady','true')+tag('remove_value',{name:'md.$LSPBusArmedRun'})+
-      iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'"})))+patches+tag('cues',{},listeners));
+      iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'"})))+patches+tag('cues',{},listeners+history.cues));
   return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
 }

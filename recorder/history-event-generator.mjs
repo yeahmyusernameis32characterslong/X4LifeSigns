@@ -1,8 +1,10 @@
+import { generateCombatContext } from './combat-context-generator.mjs';
 // Source-backed history observations. No engine mutation or personnel materialisation.
 export function generateHistoryEvents(h, c) {
   const {tag,set,add,iff,otherwise,each,ret,run,lib,valid,eventReady}=h;
   const owned=o=>`${valid(o)} and ${o}.isplayerowned`;
   const ref=o=>`'%s'.[${o}]`;
+  const combat=generateCombatContext(h);
   const initialize=['Identities','Contacts','MarineStates','OperationHosts','OutsiderExpiry'].map(k=>set('md.$LSPHistory'+k,'table[]')).join('')+
     set('md.$LSPHistoryOutsiderQueue','[]')+set('md.$LSPHistoryOutsiderIndex','1')+
     set('md.$LSPHistoryContactReset','player.age + 60s')+set('md.$LSPHistoryContactKeys','[]')+set('md.$LSPHistoryContactIndex','1')+
@@ -11,7 +13,7 @@ export function generateHistoryEvents(h, c) {
     set('md.$LSPHistoryCacheIndex','1')+set('md.$LSPHistoryMarineQueue','[]')+set('md.$LSPHistoryMarineIndex','1')+
     tag('create_group',{groupname:'md.$LSPHistoryOutsiders'})+
     tag('find_sector',{name:'$HistorySectors',space:'player.galaxy',multiple:'true'})+
-    tag('create_group',{groupname:'md.$LSPHistorySectors'})+tag('add_to_group',{groupname:'md.$LSPHistorySectors',list:'$HistorySectors'});
+    tag('create_group',{groupname:'md.$LSPHistorySectors'})+tag('add_to_group',{groupname:'md.$LSPHistorySectors',list:'$HistorySectors'})+combat.initialize;
   const identity=lib('HistoryIdentity',{Object:'null'},
     set('$Key',"'$ref:%s'.[$Object]")+set('$I',"table[$kind='ASSET',$seed='',$idcode='',$reference='%s'.[$Object],$name='',$faction='',$sector='',$known_player=false]")+
     iff('typeof @md.$LSPHistoryIdentities != datatype.table',ret('$I'))+
@@ -32,14 +34,18 @@ export function generateHistoryEvents(h, c) {
   const fields=['subject_seed','subject_idcode','subject_reference','subject_name','subject_faction','sector_name',
     'other_seed','other_idcode','other_reference','other_name','other_faction','other_kind',
     'previous_seed','previous_idcode','previous_reference','previous_name','detail','detail_name','source_event','scope','identity_state','external_loss_watch'];
-  const observe=lib('RecordHistoryEvent',{Subject:'null',Other:'null',Previous:'null',Type:null,Source:"'UNKNOWN'",Detail:'null',DetailName:'null',Data:'table[]',Relevant:'false',World:'false',AllowExternal:'false',Coalesce:'false',TrackOther:'false',NpcSeed:'null',NpcName:'null'},
+  const observe=lib('RecordHistoryEvent',{Subject:'null',Other:'null',Previous:'null',Type:null,Source:"'UNKNOWN'",Detail:'null',DetailName:'null',Data:'table[]',Relevant:'false',World:'false',AllowExternal:'false',Coalesce:'false',TrackOther:'false',NpcSeed:'null',NpcName:'null',Combat:'false',ContextEvent:'false',Method:'null',Payload:'null',Weapon:'null',Missile:'null',Faction:'null'},
     iff(`not (${eventReady})`,ret('false'))+
     iff('typeof @md.$LSPHistoryIdentities != datatype.table or typeof @md.$LSPHistoryContacts != datatype.table',ret('false'))+
     // Gate repeated notifications before names, factions, locations or escaping.
     iff('$Coalesce',iff('not $Relevant and not ('+owned('$Subject')+')',ret('false'))+
       set('$ContactKey',"'$contact:%s:%s:%s:%s'.[$Type,$Subject,$Other,$Detail]")+
-      iff('md.$LSPHistoryContacts.{$ContactKey}?',iff('player.age lt md.$LSPHistoryContacts.{$ContactKey}',ret('false')))+
-      set('md.$LSPHistoryContacts.{$ContactKey}','player.age + 30s'))+
+      iff('md.$LSPHistoryContacts.{$ContactKey}?',iff('player.age lt md.$LSPHistoryContacts.{$ContactKey}',ret('false'))))+
+    iff('$ContextEvent',run('CombatContextBudget',{},'$Allowed')+iff('not $Allowed',ret('false')))+
+    iff('$Coalesce',set('md.$LSPHistoryContacts.{$ContactKey}','player.age + 30s'))+
+    iff('$Combat',run('ReadCombatContext',{Subject:'$Subject',Other:'$Other',Type:'$Type',Method:'$Method',Payload:'$Payload',Weapon:'$Weapon',Missile:'$Missile'},'$Context')+
+      each('$K','$Context.keys.list',set('$Data.{$K}','@$Context.{$K}')))+
+    iff('$Faction != null',set('$Data.$faction','$Faction')+set('$Data.$current_relation','@$Subject.relationto.{$Faction}'))+
     run('HistoryIdentity',{Object:'$Subject'},'$S')+
     iff('not $World and not $Relevant and not $AllowExternal and not $S.$known_player',ret('false'))+
     iff("not $World and $NpcSeed == null and not $AllowExternal and $Type != 'DESTROYED' and $Type != 'OWNER_CHANGED' and not ("+owned('$Subject')+')',ret('false'))+
@@ -126,5 +132,5 @@ export function generateHistoryEvents(h, c) {
       set('$M','md.$LSPHistoryMarineQueue.{md.$LSPHistoryMarineIndex}')+add('md.$LSPHistoryMarineIndex')+
       run('RecordHistoryEvent',{Subject:'$M.{1}',Other:'$M.{2}',NpcSeed:'$M.{3}',NpcName:'$M.{4}',Type:"'BOARDING_MARINE_%s'.[$M.{5}]",Relevant:'true',Source:"'BOARDING_ROSTER'",Data:'table[$operation_reference=$M.{6}]'}))+
     iff('md.$LSPHistoryMarineIndex gt md.$LSPHistoryMarineQueue.count',set('md.$LSPHistoryMarineQueue','[]')+set('md.$LSPHistoryMarineIndex','1'))+ret('true'));
-  return {initialize,libraries:identity+observe+trade+supply+boarding+tick};
+  return {initialize,libraries:identity+combat.libraries+observe+trade+supply+boarding+tick,cues:combat.cues};
 }
