@@ -1,0 +1,12 @@
+{
+  "diagnostics": "DEBUG",
+  "heartbeatSeconds": 60,
+  "profilesPerTick": 8,
+  "npcProfilesPerTick": 2,
+  "npcTickSeconds": 0.1,
+  "discoveryPerTick": 8,
+  "personnelPerHost": 500,
+  "profileValueItems": 16384,
+  "maxCandidates": 10000,
+  "maxDiscoveryHosts": 10000
+}

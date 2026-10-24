@@ -1,0 +1,3050 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated snapshot-only collector. Edit recorder/md-generator.mjs, then rebuild. -->
+<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd">
+<cues>
+<cue name="UniverseIdentity">
+<actions />
+</cue>
+<cue name="RunBoundary" instantiate="true">
+<conditions>
+<event_universe_generated />
+</conditions>
+<actions>
+<run_actions ref="QueueRun">
+</run_actions>
+</actions>
+</cue>
+<cue name="Bootstrap" checkinterval="1s">
+<conditions>
+<check_value value="md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy" />
+</conditions>
+<actions>
+<run_actions ref="Initialize">
+</run_actions>
+</actions>
+<cues>
+<cue name="ProcessingTick" instantiate="true" checkinterval="0.1s">
+<conditions>
+<check_value value="md.$LSPReady and (not md.$LSPSnapshotStarted or md.$LSPActive)" />
+</conditions>
+<actions>
+<run_actions ref="Tick">
+</run_actions>
+</actions>
+</cue>
+</cues>
+</cue>
+<library name="Escape" purpose="run_actions">
+<params>
+<param name="Value" />
+</params>
+<actions>
+<set_value name="$Text" exact="'%s'.[$Value]" />
+<substitute_text text="$Text">
+<replace string="'%'" with="'%25'" />
+</substitute_text>
+<substitute_text text="$Text">
+<replace string="'|'" with="'%7C'" />
+</substitute_text>
+<substitute_text text="$Text">
+<replace string="'\n'" with="'%0A'" />
+</substitute_text>
+<substitute_text text="$Text">
+<replace string="'\r'" with="'%0D'" />
+</substitute_text>
+<substitute_text text="$Text">
+<replace string="'\t'" with="'%09'" />
+</substitute_text>
+<return value="$Text" />
+</actions>
+</library>
+<library name="EnsureUniverseIdentity" purpose="run_actions">
+<params>
+</params>
+<actions>
+<set_value name="md.$LSPUniverseIdText" exact="''" />
+<set_value name="md.$LSPUniverseIdState" exact="'INVALID'" />
+<do_if value="not UniverseIdentity.$Id?">
+<set_value name="$RandomA" min="0" max="2147483647" />
+<set_value name="$RandomB" min="0" max="2147483647" />
+<set_value name="$RandomC" min="0" max="2147483647" />
+<set_value name="$RandomD" min="0" max="2147483647" />
+<set_value name="UniverseIdentity.$Id" exact="'lsu1-%s-%s-%s-%s-%s'.[md.$LSPLoadedAt, $RandomA, $RandomB, $RandomC, $RandomD]" />
+<set_value name="md.$LSPUniverseIdState" exact="'CREATED'" />
+</do_if>
+<do_if value="typeof UniverseIdentity.$Id == datatype.string">
+<do_if value="UniverseIdentity.$Id != ''">
+<run_actions ref="Escape" result="md.$LSPUniverseIdText">
+<param name="Value" value="UniverseIdentity.$Id" />
+</run_actions>
+<do_if value="md.$LSPUniverseIdState != 'CREATED'">
+<set_value name="md.$LSPUniverseIdState" exact="'EXISTING'" />
+</do_if>
+</do_if>
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="Write" purpose="run_actions">
+<params>
+<param name="Body" />
+<param name="Diagnostic" default="false" />
+</params>
+<actions>
+<do_if value="$Diagnostic and md.$LSPLevel == 0">
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<set_value name="$Session" exact="'UNAVAILABLE'" />
+<do_if value="md.$LifeSignsProductionSessionReady? and md.$LifeSignsProductionSessionKey?">
+<do_if value="md.$LifeSignsProductionSessionReady and md.$LifeSignsProductionSessionKey != ''">
+<set_value name="$Session" exact="md.$LifeSignsProductionSessionKey" />
+</do_if>
+</do_if>
+<set_value name="$Line" exact="'LSEV1|run=%s|session=%s|seq=%s|age=%s|%s|END'.[md.$LSPRun, $Session, md.$LSPSeq, player.age, $Body]" />
+<do_if value="$Diagnostic">
+<set_value name="md.$LSPDiagnosticRows" exact="1L" operation="add" />
+<debug_to_file name="md.$LSPDiagnosticFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPRows" exact="1L" operation="add" />
+<debug_to_file name="md.$LSPProfileFile" directory="'lifesigns-event-recorder'" append="true" text="$Line" />
+</do_else>
+<return value="true" />
+</actions>
+</library>
+<library name="Value" purpose="run_actions">
+<params>
+<param name="Field" />
+<param name="Value" />
+<param name="Available" default="true" />
+<param name="State" default="'AUTO'" />
+</params>
+<actions>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPRemaining le 0">
+<do_if value="not md.$LSPValueLimit">
+<set_value name="md.$LSPValueLimit" exact="true" />
+<set_value name="md.$LSPProfilePartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_LIMIT|reason=VALUE_BUDGET'" />
+</run_actions>
+</do_if>
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPRemaining" exact="-1" operation="add" />
+<set_value name="$Type" exact="'UNAVAILABLE'" />
+<set_value name="$Text" exact="''" />
+<do_if value="$State == 'AUTO'">
+<set_value name="$State" exact="'UNAVAILABLE'" />
+<do_if value="$Available">
+<set_value name="$Type" exact="typeof $Value" />
+<set_value name="$State" exact="'PRESENT'" />
+<set_value name="$Text" exact="'%s'.[$Value]" />
+<do_if value="typeof $Value == datatype.null">
+<set_value name="$State" exact="'NULL'" />
+</do_if>
+<do_if value="typeof $Value == datatype.component">
+<do_if value="not $Value.exists">
+<set_value name="$State" exact="'UNAVAILABLE_REFERENCE'" />
+</do_if>
+</do_if>
+</do_if>
+</do_if>
+<do_if value="$State == 'UNAVAILABLE' or $State == 'UNAVAILABLE_REFERENCE' or $State == 'UNVERIFIED' or $State == 'AMBIGUOUS_ASSIGNMENT'">
+<set_value name="md.$LSPProfilePartial" exact="true" />
+</do_if>
+<set_value name="$FieldText" exact="$Field" />
+<run_actions ref="Escape" result="$Text">
+<param name="Value" value="$Text" />
+</run_actions>
+<do_if value="not md.$LSPTypeEscapes?">
+<set_value name="md.$LSPTypeEscapes" exact="table[]" />
+</do_if>
+<set_value name="$TypeKey" exact="'$%s'.[$Type]" />
+<do_if value="md.$LSPTypeEscapes.{$TypeKey}?">
+<set_value name="$TypeText" exact="md.$LSPTypeEscapes.{$TypeKey}" />
+</do_if>
+<do_else>
+<run_actions ref="Escape" result="$TypeText">
+<param name="Value" value="$Type" />
+</run_actions>
+<set_value name="md.$LSPTypeEscapes.{$TypeKey}" exact="$TypeText" />
+</do_else>
+<run_actions ref="Write">
+<param name="Body" value="'VALUE|profile=%s|field=%s|type=%s|state=%s|render=ENGINE_TEXT_UNVERIFIED|value=%s'.[md.$LSPProfile, $FieldText, $TypeText, $State, $Text]" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="StationProfile" purpose="run_actions">
+<params>
+<param name="Station" />
+</params>
+<actions>
+<set_value name="md.$LSPProfilePartial" exact="false" />
+<set_value name="md.$LSPValueLimit" exact="false" />
+<set_value name="md.$LSPRemaining" exact="16384" />
+<set_value name="md.$LSPProfile" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_BEGIN|profile=%s|kind=STATION|atomic=false'.[md.$LSPProfile]" />
+</run_actions>
+<do_if value="not md.$LSPStopped and typeof $Station == datatype.component and $Station.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="@$Station" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="@$Station.seed" />
+<param name="Available" value="$Station.seed?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'idcode'" />
+<param name="Value" value="@$Station.idcode" />
+<param name="Available" value="$Station.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="@$Station.knownname" />
+<param name="Available" value="$Station.knownname?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="@$Station.sector.name" />
+<param name="Available" value="$Station.sector.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'station_type'" />
+<param name="Value" value="@$Station.primarypurpose.name" />
+<param name="Available" value="$Station.primarypurpose.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'station_type'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'station_model_name'" />
+<param name="Value" value="@$Station.macro.name" />
+<param name="Available" value="$Station.macro.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'station_model_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$Manager" exact="null" />
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<set_value name="$Manager" exact="@$Station.assignedcontrolentity.{controlpost.manager}" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'manager_reference'" />
+<param name="Value" value="@$Manager" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'manager_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="typeof $Manager == datatype.component and $Manager.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'manager_seed'" />
+<param name="Value" value="@$Manager.seed" />
+<param name="Available" value="$Manager.seed?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'manager_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'manager_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ASSIGNED_MANAGER'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'manager_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ASSIGNED_MANAGER'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE_REFERENCE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE_REFERENCE'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
+</run_actions>
+<do_if value="md.$LSPProfilePartial">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="ShipProfile" purpose="run_actions">
+<params>
+<param name="Ship" />
+</params>
+<actions>
+<set_value name="md.$LSPProfilePartial" exact="false" />
+<set_value name="md.$LSPValueLimit" exact="false" />
+<set_value name="md.$LSPRemaining" exact="16384" />
+<set_value name="md.$LSPProfile" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_BEGIN|profile=%s|kind=SHIP|atomic=false'.[md.$LSPProfile]" />
+</run_actions>
+<do_if value="not md.$LSPStopped and typeof $Ship == datatype.component and $Ship.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="@$Ship" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="@$Ship.seed" />
+<param name="Available" value="$Ship.seed?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'idcode'" />
+<param name="Value" value="@$Ship.idcode" />
+<param name="Available" value="$Ship.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="@$Ship.knownname" />
+<param name="Available" value="$Ship.knownname?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="@$Ship.sector.name" />
+<param name="Available" value="$Ship.sector.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'model_name'" />
+<param name="Value" value="@$Ship.macro.name" />
+<param name="Available" value="$Ship.macro.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'model_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$Captain" exact="null" />
+<set_value name="$Pilot" exact="null" />
+<set_value name="$Commander" exact="null" />
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<set_value name="$Captain" exact="@$Ship.assignedcontrolentity.{controlpost.aipilot}" />
+<set_value name="$Pilot" exact="@$Ship.assignedpilot" />
+<set_value name="$Commander" exact="@$Ship.commander" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'captain_reference'" />
+<param name="Value" value="@$Captain" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'captain_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'pilot_reference'" />
+<param name="Value" value="@$Pilot" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'pilot_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="typeof $Captain == datatype.component and $Captain.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'captain_seed'" />
+<param name="Value" value="@$Captain.seed" />
+<param name="Available" value="$Captain.seed?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'captain_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'captain_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ASSIGNED_CAPTAIN'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'captain_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ASSIGNED_CAPTAIN'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="typeof $Pilot == datatype.component and $Pilot.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'pilot_seed'" />
+<param name="Value" value="@$Pilot.seed" />
+<param name="Available" value="$Pilot.seed?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'pilot_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'pilot_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ASSIGNED_PILOT'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'pilot_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ASSIGNED_PILOT'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'onboard_template_personnel'" />
+<param name="Value" value="@$Ship.availablepeople.count" />
+<param name="Available" value="$Ship.availablepeople.count?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'onboard_template_personnel'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_template_personnel'" />
+<param name="Value" value="@$Ship.people.count" />
+<param name="Available" value="$Ship.people.count?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_template_personnel'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'commander_reference'" />
+<param name="Value" value="@$Commander" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'commander_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="typeof $Commander == datatype.component and $Commander.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'commander_idcode'" />
+<param name="Value" value="@$Commander.idcode" />
+<param name="Available" value="$Commander.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'commander_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'commander_class'" />
+<param name="Value" value="@$Commander.class" />
+<param name="Available" value="$Commander.class?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'commander_class'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'commander_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_COMMANDER'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'commander_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_COMMANDER'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'commander_class'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_COMMANDER'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'commander_class'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_COMMANDER'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'fleet_assignment'" />
+<param name="Value" value="@$Ship.assignment" />
+<param name="Available" value="$Ship.assignment?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'fleet_assignment'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'fleet_role'" />
+<param name="Value" value="@$Ship.assignment.name" />
+<param name="Available" value="$Ship.assignment.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'fleet_role'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE_REFERENCE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE_REFERENCE'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
+</run_actions>
+<do_if value="md.$LSPProfilePartial">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="NpcProfile" purpose="run_actions">
+<params>
+<param name="Candidate" />
+</params>
+<actions>
+<set_value name="md.$LSPProfilePartial" exact="false" />
+<set_value name="md.$LSPValueLimit" exact="false" />
+<set_value name="md.$LSPRemaining" exact="16384" />
+<set_value name="md.$LSPProfile" exact="1L" operation="add" />
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_BEGIN|profile=%s|kind=NPC|atomic=false'.[md.$LSPProfile]" />
+</run_actions>
+<set_value name="$Actor" exact="$Candidate.$actor" />
+<set_value name="$Host" exact="$Candidate.$host" />
+<set_value name="$Template" exact="$Candidate.$template" />
+<set_value name="$CachedSeedReady" exact="false" />
+<set_value name="$CachedNameReady" exact="false" />
+<set_value name="$CachedRaceReady" exact="false" />
+<set_value name="$CachedMacroReady" exact="false" />
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'actor_reference'" />
+<param name="Value" value="@$Actor" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'actor_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'context_host_reference'" />
+<param name="Value" value="@$Host" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'context_host_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'npctemplate'" />
+<param name="Value" value="@$Template" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'npctemplate'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'discovery_origin'" />
+<param name="Value" value="@$Candidate.$origin" />
+<param name="Available" value="$Candidate.$origin?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'discovery_origin'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$HasActor" exact="false" />
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0 and typeof $Actor == datatype.component and $Actor.exists">
+<do_if value="$Actor.isclass.npc and $Actor.isplayerowned">
+<set_value name="$HasActor" exact="true" />
+</do_if>
+</do_if>
+<set_value name="$HasContext" exact="false" />
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0 and typeof $Host == datatype.component and $Host.exists">
+<do_if value="$Host.isplayerowned and typeof $Template == datatype.npctemplate">
+<do_if value="@$Host.people.{$Template}.exists">
+<set_value name="$HasContext" exact="true" />
+</do_if>
+</do_if>
+</do_if>
+<do_if value="$HasActor">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="@$Actor.seed" />
+<param name="Available" value="$Actor.seed?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'debugname'" />
+<param name="Value" value="@$Actor.debugname" />
+<param name="Available" value="$Actor.debugname?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'debugname'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="@$Actor.knownname" />
+<param name="Available" value="$Actor.knownname?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="@$Actor.race.name" />
+<param name="Available" value="$Actor.race.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="@$Actor.sector.name" />
+<param name="Available" value="$Actor.sector.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role'" />
+<param name="Value" value="@$Actor.role" />
+<param name="Available" value="$Actor.role?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_name'" />
+<param name="Value" value="@$Actor.role.name" />
+<param name="Available" value="$Actor.role.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlpost'" />
+<param name="Value" value="@$Actor.controlpost" />
+<param name="Available" value="$Actor.controlpost?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlpost'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlpost_name'" />
+<param name="Value" value="@$Actor.controlpost.name" />
+<param name="Available" value="$Actor.controlpost.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlpost_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'owner'" />
+<param name="Value" value="@$Actor.owner" />
+<param name="Available" value="$Actor.owner?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'owner'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'trueowner'" />
+<param name="Value" value="@$Actor.trueowner" />
+<param name="Available" value="$Actor.trueowner?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'trueowner'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'container_reference'" />
+<param name="Value" value="@$Actor.container" />
+<param name="Available" value="$Actor.container?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'container_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="@$Actor.macro" />
+<param name="Available" value="$Actor.macro?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$RoleObject" exact="null" />
+<set_value name="$Controlled" exact="null" />
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<set_value name="$RoleObject" exact="@$Actor.roleobject" />
+<set_value name="$Controlled" exact="@$Actor.assignedcontrolled" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_object_reference'" />
+<param name="Value" value="@$RoleObject" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_object_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_controlled_reference'" />
+<param name="Value" value="@$Controlled" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_controlled_reference'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="typeof $RoleObject == datatype.component and $RoleObject.exists">
+<do_if value="$RoleObject.isclass.ship">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_ship_idcode'" />
+<param name="Value" value="@$RoleObject.idcode" />
+<param name="Available" value="$RoleObject.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'ASSIGNED_OBJECT_NOT_SHIP'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'ASSIGNED_OBJECT_NOT_SHIP'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ROLE_ASSIGNMENT'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ROLE_ASSIGNMENT'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="typeof $Controlled == datatype.component and $Controlled.exists">
+<do_if value="$Controlled.isclass.ship">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlled_ship_idcode'" />
+<param name="Value" value="@$Controlled.idcode" />
+<param name="Available" value="$Controlled.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlled_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlled_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'ASSIGNED_OBJECT_NOT_SHIP'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlled_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'ASSIGNED_OBJECT_NOT_SHIP'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlled_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_CONTROL_ASSIGNMENT'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlled_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_CONTROL_ASSIGNMENT'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<set_value name="$AssignedShip" exact="null" />
+<set_value name="$AssignmentConflict" exact="false" />
+<do_if value="typeof $RoleObject == datatype.component and $RoleObject.exists">
+<do_if value="$RoleObject.isclass.ship">
+<set_value name="$AssignedShip" exact="$RoleObject" />
+</do_if>
+</do_if>
+<do_if value="typeof $Controlled == datatype.component and $Controlled.exists">
+<do_if value="$Controlled.isclass.ship">
+<do_if value="$AssignedShip == null">
+<set_value name="$AssignedShip" exact="$Controlled" />
+</do_if>
+<do_else>
+<do_if value="$AssignedShip != $Controlled">
+<set_value name="$AssignmentConflict" exact="true" />
+</do_if>
+</do_else>
+</do_if>
+</do_if>
+<do_if value="$AssignmentConflict">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AMBIGUOUS_ASSIGNMENT'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AMBIGUOUS_ASSIGNMENT'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="'CONFLICTING_ACTOR_RELATIONSHIPS'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="typeof $AssignedShip == datatype.component and $AssignedShip.exists">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="@$AssignedShip.idcode" />
+<param name="Available" value="$AssignedShip.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="'ACTOR_ROLE_OR_CONTROL_RELATIONSHIP'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_SHIP_ASSIGNMENT'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_SHIP_ASSIGNMENT'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="'NO_ACTOR_SHIP_ASSIGNMENT'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_else>
+</do_if>
+<do_else>
+<do_if value="$HasContext">
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedSeedReady">
+<set_value name="$CachedSeedAvailable" exact="$Host.people.{$Template}.seed?" />
+<set_value name="$CachedSeed" exact="null" />
+<do_if value="$CachedSeedAvailable">
+<set_value name="$CachedSeed" exact="@$Host.people.{$Template}.seed" />
+</do_if>
+<set_value name="$CachedSeedReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="@$CachedSeed" />
+<param name="Available" value="$CachedSeedAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedNameReady">
+<set_value name="$CachedNameAvailable" exact="$Host.people.{$Template}.name?" />
+<set_value name="$CachedName" exact="null" />
+<do_if value="$CachedNameAvailable">
+<set_value name="$CachedName" exact="@$Host.people.{$Template}.name" />
+</do_if>
+<set_value name="$CachedNameReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="@$CachedName" />
+<param name="Available" value="$CachedNameAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedRaceReady">
+<set_value name="$CachedRaceAvailable" exact="$Host.people.{$Template}.race.name?" />
+<set_value name="$CachedRace" exact="null" />
+<do_if value="$CachedRaceAvailable">
+<set_value name="$CachedRace" exact="@$Host.people.{$Template}.race.name" />
+</do_if>
+<set_value name="$CachedRaceReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="@$CachedRace" />
+<param name="Available" value="$CachedRaceAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedMacroReady">
+<set_value name="$CachedMacroAvailable" exact="$Host.people.{$Template}.macro?" />
+<set_value name="$CachedMacro" exact="null" />
+<do_if value="$CachedMacroAvailable">
+<set_value name="$CachedMacro" exact="@$Host.people.{$Template}.macro" />
+</do_if>
+<set_value name="$CachedMacroReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="@$CachedMacro" />
+<param name="Available" value="$CachedMacroAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role'" />
+<param name="Value" value="@$Host.people.{$Template}.role" />
+<param name="Available" value="$Host.people.{$Template}.role?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_name'" />
+<param name="Value" value="@$Host.people.{$Template}.role.name" />
+<param name="Available" value="$Host.people.{$Template}.role.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'role_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'role_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'debugname'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ACTOR_OBSERVED'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'debugname'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ACTOR_OBSERVED'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlpost'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ACTOR_OBSERVED'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlpost'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ACTOR_OBSERVED'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'controlpost_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ACTOR_OBSERVED'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'controlpost_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_ACTOR_OBSERVED'" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$Onboard" exact="false" />
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0 and $HasContext">
+<do_if value="@$Host.availablepeople.{$Template}.exists">
+<do_if value="not @$Host.people.{$Template}.isintransit">
+<set_value name="$Onboard" exact="true" />
+</do_if>
+</do_if>
+</do_if>
+<do_if value="$Onboard">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="@$Host.sector.name" />
+<param name="Available" value="$Host.sector.name?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'location_basis'" />
+<param name="Value" value="'HOST_CURRENT_PERSONNEL_ENTRY'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'location_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNVERIFIED'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'sector_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNVERIFIED'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'location_basis'" />
+<param name="Value" value="'HOST_LOCATION_NOT_ASSERTED'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'location_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="$HasContext">
+<do_if value="$Host.isclass.ship">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="@$Host.idcode" />
+<param name="Available" value="$Host.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="'CONTEXT_HOST_ROSTER_ASSOCIATION'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'HOST_NOT_SHIP'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'HOST_NOT_SHIP'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="'CONTEXT_HOST_NOT_SHIP'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assigned_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'UNAVAILABLE'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="'NO_CONTEXT_ENTRY'" />
+<param name="Available" value="true" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'assignment_basis'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_else>
+<do_if value="$HasContext">
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedSeedReady">
+<set_value name="$CachedSeedAvailable" exact="$Host.people.{$Template}.seed?" />
+<set_value name="$CachedSeed" exact="null" />
+<do_if value="$CachedSeedAvailable">
+<set_value name="$CachedSeed" exact="@$Host.people.{$Template}.seed" />
+</do_if>
+<set_value name="$CachedSeedReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_seed'" />
+<param name="Value" value="@$CachedSeed" />
+<param name="Available" value="$CachedSeedAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedNameReady">
+<set_value name="$CachedNameAvailable" exact="$Host.people.{$Template}.name?" />
+<set_value name="$CachedName" exact="null" />
+<do_if value="$CachedNameAvailable">
+<set_value name="$CachedName" exact="@$Host.people.{$Template}.name" />
+</do_if>
+<set_value name="$CachedNameReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_name'" />
+<param name="Value" value="@$CachedName" />
+<param name="Available" value="$CachedNameAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedRaceReady">
+<set_value name="$CachedRaceAvailable" exact="$Host.people.{$Template}.race.name?" />
+<set_value name="$CachedRace" exact="null" />
+<do_if value="$CachedRaceAvailable">
+<set_value name="$CachedRace" exact="@$Host.people.{$Template}.race.name" />
+</do_if>
+<set_value name="$CachedRaceReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_race'" />
+<param name="Value" value="@$CachedRace" />
+<param name="Available" value="$CachedRaceAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="not $CachedMacroReady">
+<set_value name="$CachedMacroAvailable" exact="$Host.people.{$Template}.macro?" />
+<set_value name="$CachedMacro" exact="null" />
+<do_if value="$CachedMacroAvailable">
+<set_value name="$CachedMacro" exact="@$Host.people.{$Template}.macro" />
+</do_if>
+<set_value name="$CachedMacroReady" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_macro'" />
+<param name="Value" value="@$CachedMacro" />
+<param name="Available" value="$CachedMacroAvailable" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'isintransit'" />
+<param name="Value" value="@$Host.people.{$Template}.isintransit" />
+<param name="Available" value="$Host.people.{$Template}.isintransit?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'isintransit'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'istransferscheduled'" />
+<param name="Value" value="@$Host.people.{$Template}.istransferscheduled" />
+<param name="Available" value="$Host.people.{$Template}.istransferscheduled?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'istransferscheduled'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'istemporary'" />
+<param name="Value" value="@$Host.people.{$Template}.istemporary" />
+<param name="Available" value="$Host.people.{$Template}.istemporary?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'istemporary'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'context_host_idcode'" />
+<param name="Value" value="@$Host.idcode" />
+<param name="Available" value="$Host.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'context_host_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="$Host.isclass.ship">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'roster_ship_idcode'" />
+<param name="Value" value="@$Host.idcode" />
+<param name="Available" value="$Host.idcode?" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'roster_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'AUTO'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'roster_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'HOST_NOT_SHIP'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'roster_ship_idcode'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'HOST_NOT_SHIP'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_CONTEXT_ENTRY'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_seed'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_CONTEXT_ENTRY'" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="Value">
+<param name="Field" value="'contextual_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_CONTEXT_ENTRY'" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="Value">
+<param name="Field" value="'contextual_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+<param name="State" value="'NO_CONTEXT_ENTRY'" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+<run_actions ref="Write">
+<param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
+</run_actions>
+<do_if value="md.$LSPProfilePartial">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="AddContext" purpose="run_actions">
+<params>
+<param name="Host" />
+<param name="Template" />
+</params>
+<actions>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPContexts.{$Host}?">
+<set_value name="md.$LSPContexts.{$Host}" exact="table[]" />
+</do_if>
+<do_if value="md.$LSPContexts.{$Host}.{$Template}?">
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPCandidates.count ge 10000">
+<do_if value="not md.$LSPCandidateLimit">
+<set_value name="md.$LSPCandidateLimit" exact="true" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_LIMIT|reason=NPC_CANDIDATES'" />
+</run_actions>
+</do_if>
+<return value="false" />
+</do_if>
+<append_to_list name="md.$LSPCandidates" exact="table[$actor=null, $host=$Host, $template=$Template, $origin='OWNED_HOST_PERSONNEL']" />
+<set_value name="md.$LSPContexts.{$Host}.{$Template}" exact="md.$LSPCandidates.count" />
+<return value="true" />
+</actions>
+</library>
+<library name="AddActor" purpose="run_actions">
+<params>
+<param name="Actor" />
+<param name="Host" />
+<param name="Origin" />
+</params>
+<actions>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="not (typeof $Actor == datatype.component and $Actor.exists)">
+<return value="false" />
+</do_if>
+<do_if value="not $Actor.isclass.npc or not $Actor.isplayerowned">
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPActors.{$Actor}?">
+<return value="true" />
+</do_if>
+<set_value name="$Template" exact="@$Actor.npctemplate" />
+<set_value name="$Index" exact="0" />
+<do_if value="md.$LSPContexts.{$Host}?">
+<do_if value="md.$LSPContexts.{$Host}.{$Template}?">
+<set_value name="$Index" exact="md.$LSPContexts.{$Host}.{$Template}" />
+</do_if>
+</do_if>
+<do_if value="$Index gt 0">
+<do_if value="md.$LSPCandidates.{$Index}.$actor == null">
+<set_value name="md.$LSPCandidates.{$Index}.$actor" exact="$Actor" />
+<set_value name="md.$LSPCandidates.{$Index}.$origin" exact="'CONTEXT_AND_ACTOR'" />
+<set_value name="md.$LSPActors.{$Actor}" exact="$Index" />
+<return value="true" />
+</do_if>
+</do_if>
+<do_if value="md.$LSPCandidates.count ge 10000">
+<do_if value="not md.$LSPCandidateLimit">
+<set_value name="md.$LSPCandidateLimit" exact="true" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_LIMIT|reason=NPC_CANDIDATES'" />
+</run_actions>
+</do_if>
+<return value="false" />
+</do_if>
+<append_to_list name="md.$LSPCandidates" exact="table[$actor=$Actor, $host=$Host, $template=$Template, $origin=$Origin]" />
+<set_value name="md.$LSPActors.{$Actor}" exact="md.$LSPCandidates.count" />
+<return value="true" />
+</actions>
+</library>
+<library name="FinishDiscoveryHost" purpose="run_actions">
+<params>
+</params>
+<actions>
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=END|templates_found=%s|roster_actors_found=%s|candidates_added=%s|candidates_total=%s|limited=%s'.[md.$LSPHostIndex, md.$LSPHost, md.$LSPPeopleCount, md.$LSPActorCount, md.$LSPCandidates.count - md.$LSPHostBefore, md.$LSPCandidates.count, md.$LSPCandidateLimit]" />
+</run_actions>
+<set_value name="md.$LSPReadyCandidates" exact="md.$LSPCandidates.count" />
+<set_value name="md.$LSPHostIndex" exact="1L" operation="add" />
+<set_value name="md.$LSPHostsVisited" exact="1L" operation="add" />
+<set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
+<set_value name="md.$LSPHost" exact="null" />
+<set_value name="md.$LSPPeople" exact="[]" />
+<set_value name="md.$LSPRosterActors" exact="[]" />
+<set_value name="md.$LSPPosts" exact="[]" />
+<return value="true" />
+</actions>
+</library>
+<library name="DiscoveryStep" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'HOST'">
+<set_value name="md.$LSPHost" exact="md.$LSPHosts.{md.$LSPHostIndex}" />
+<set_value name="md.$LSPHostBefore" exact="md.$LSPCandidates.count" />
+<set_value name="md.$LSPPeopleCount" exact="'UNAVAILABLE'" />
+<set_value name="md.$LSPActorCount" exact="'UNAVAILABLE'" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_HOST|host_index=%s|host_reference=%s|state=BEGIN'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="not (typeof md.$LSPHost == datatype.component and md.$LSPHost.exists)">
+<set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_UNAVAILABLE|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPHost.isplayerowned">
+<set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_NOT_PLAYER_OWNED|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPPeople" exact="@md.$LSPHost.people.list" />
+<do_if value="typeof md.$LSPPeople == datatype.list">
+<set_value name="md.$LSPPeopleCount" exact="md.$LSPPeople.count" />
+<set_value name="md.$LSPPeopleLimit" exact="[md.$LSPPeople.count, 500].min" />
+<do_if value="md.$LSPPeople.count gt md.$LSPPeopleLimit">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_LIMIT|reason=CONTEXTUAL_ROSTER'" />
+</run_actions>
+</do_if>
+</do_if>
+<do_else>
+<set_value name="md.$LSPPeople" exact="[]" />
+<set_value name="md.$LSPPeopleLimit" exact="0" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=CONTEXTUAL_ROSTER_UNAVAILABLE'" />
+</run_actions>
+</do_else>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPRosterActors" exact="@md.$LSPHost.roleentities" />
+<do_if value="typeof md.$LSPRosterActors == datatype.list">
+<set_value name="md.$LSPActorCount" exact="md.$LSPRosterActors.count" />
+<set_value name="md.$LSPActorLimit" exact="[md.$LSPRosterActors.count, 500].min" />
+<do_if value="md.$LSPRosterActors.count gt md.$LSPActorLimit">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_LIMIT|reason=ACTOR_RESULTS'" />
+</run_actions>
+</do_if>
+</do_if>
+<do_else>
+<set_value name="md.$LSPRosterActors" exact="[]" />
+<set_value name="md.$LSPActorLimit" exact="0" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=ACTOR_RESULTS_UNAVAILABLE'" />
+</run_actions>
+</do_else>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPPosts" exact="@md.$LSPHost.controlposts.all" />
+<do_if value="typeof md.$LSPPosts == datatype.list">
+<set_value name="$PostCount" exact="md.$LSPPosts.count" />
+<set_value name="md.$LSPPostLimit" exact="[md.$LSPPosts.count, 500].min" />
+<do_if value="md.$LSPPosts.count gt md.$LSPPostLimit">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_LIMIT|reason=CONTROL_POSTS'" />
+</run_actions>
+</do_if>
+</do_if>
+<do_else>
+<set_value name="md.$LSPPosts" exact="[]" />
+<set_value name="md.$LSPPostLimit" exact="0" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=CONTROL_POSTS_UNAVAILABLE'" />
+</run_actions>
+</do_else>
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPDiscoveryStage" exact="'PEOPLE'" />
+<return value="true" />
+</do_if>
+<do_if value="not (typeof md.$LSPHost == datatype.component and md.$LSPHost.exists)">
+<set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_UNAVAILABLE|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPHost.isplayerowned">
+<set_value name="md.$LSPHostsSkipped" exact="1L" operation="add" />
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_GAP|reason=HOST_NOT_PLAYER_OWNED|host_index=%s|host_reference=%s'.[md.$LSPHostIndex, md.$LSPHost]" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'PEOPLE'">
+<do_if value="md.$LSPEntry le md.$LSPPeopleLimit">
+<run_actions ref="AddContext">
+<param name="Host" value="md.$LSPHost" />
+<param name="Template" value="md.$LSPPeople.{md.$LSPEntry}" />
+</run_actions>
+<set_value name="md.$LSPEntry" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPDiscoveryStage" exact="'ACTORS'" />
+</do_else>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'ACTORS'">
+<do_if value="md.$LSPEntry le md.$LSPActorLimit">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="md.$LSPRosterActors.{md.$LSPEntry}" />
+<param name="Origin" value="'PERSONNEL_ROSTER_ACTOR'" />
+</run_actions>
+<set_value name="md.$LSPEntry" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPDiscoveryStage" exact="'PILOT'" />
+</do_else>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'PILOT'">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.assignedaipilot" />
+<param name="Origin" value="'PERSONNEL_PILOT'" />
+</run_actions>
+<set_value name="md.$LSPDiscoveryStage" exact="'MANAGER'" />
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'MANAGER'">
+<do_if value="md.$LSPHost.isclass.station">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.tradenpc" />
+<param name="Origin" value="'PERSONNEL_MANAGER'" />
+</run_actions>
+</do_if>
+<set_value name="md.$LSPDiscoveryStage" exact="'TRADER'" />
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'TRADER'">
+<do_if value="md.$LSPHost.isclass.station">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.shiptrader" />
+<param name="Origin" value="'PERSONNEL_SHIPTRADER'" />
+</run_actions>
+</do_if>
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPDiscoveryStage" exact="'POSTS'" />
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPDiscoveryStage == 'POSTS'">
+<do_if value="md.$LSPEntry le md.$LSPPostLimit">
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.assignedcontrolentity.{md.$LSPPosts.{md.$LSPEntry}}" />
+<param name="Origin" value="'CONTROL_ASSIGNMENT'" />
+</run_actions>
+<set_value name="md.$LSPEntry" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPDiscoveryStage" exact="'ASSIGNED_PILOT'" />
+</do_else>
+<return value="true" />
+</do_if>
+<run_actions ref="AddActor">
+<param name="Host" value="md.$LSPHost" />
+<param name="Actor" value="@md.$LSPHost.assignedpilot" />
+<param name="Origin" value="'PILOT_ASSIGNMENT'" />
+</run_actions>
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="BeginSnapshot" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="md.$LSPSnapshotStarted">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPSnapshotStarted" exact="true" />
+<set_value name="md.$LSPSeq" exact="1L" operation="add" />
+<set_value name="md.$LSPProfile" exact="0L" />
+<set_value name="md.$LSPSnapshotPartial" exact="false" />
+<set_value name="md.$LSPActive" exact="true" />
+<set_value name="md.$LSPPass" exact="'STATIONS'" />
+<set_value name="md.$LSPIndex" exact="1" />
+<find_station name="md.$LSPStations" space="player.galaxy" trueowner="faction.player" multiple="true" checkoperational="false" />
+<find_ship name="md.$LSPShips" space="player.galaxy" trueowner="faction.player" multiple="true" recursive="true" checkoperational="false" />
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_BEGIN|mode=OBJECT_PROFILES|passes=STATIONS,SHIPS,NPCS|atomic=false|discovery_complete=UNVERIFIED|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
+</run_actions>
+<do_if value="not md.$LSPStopped">
+<show_notification text="'Life Signs: Snapshot begun.'" timeout="5s" priority="1" />
+</do_if>
+<run_actions ref="Write">
+<param name="Body" value="'PASS_BEGIN|kind=STATIONS'" />
+</run_actions>
+</actions>
+</library>
+<library name="Advance" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="md.$LSPPass == 'STATIONS'">
+<run_actions ref="Write">
+<param name="Body" value="'PASS_END|kind=STATIONS'" />
+</run_actions>
+<set_value name="md.$LSPPass" exact="'SHIPS'" />
+<set_value name="md.$LSPIndex" exact="1" />
+<run_actions ref="Write">
+<param name="Body" value="'PASS_BEGIN|kind=SHIPS'" />
+</run_actions>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPPass == 'SHIPS'">
+<run_actions ref="Write">
+<param name="Body" value="'PASS_END|kind=SHIPS'" />
+</run_actions>
+<run_actions ref="Write">
+<param name="Body" value="'PASS_BEGIN|kind=NPCS'" />
+</run_actions>
+<set_value name="md.$LSPHosts" exact="md.$LSPStations.clone" />
+<do_for_each name="$Host" in="md.$LSPShips">
+<do_if value="md.$LSPHosts.indexof.{$Host} == 0">
+<append_to_list name="md.$LSPHosts" exact="$Host" />
+</do_if>
+</do_for_each>
+<set_value name="md.$LSPHostCount" exact="[md.$LSPHosts.count, 10000].min" />
+<do_if value="md.$LSPHosts.count gt md.$LSPHostCount">
+<set_value name="md.$LSPSnapshotPartial" exact="true" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_LIMIT|reason=HOSTS'" />
+</run_actions>
+</do_if>
+<set_value name="md.$LSPHostIndex" exact="1" />
+<set_value name="md.$LSPHostsVisited" exact="0" />
+<set_value name="md.$LSPHostsSkipped" exact="0" />
+<set_value name="md.$LSPNpcProfiles" exact="0" />
+<set_value name="md.$LSPReadyCandidates" exact="0" />
+<set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPIndex" exact="1" />
+<set_value name="md.$LSPDiscoveryDone" exact="false" />
+<set_value name="md.$LSPCandidates" exact="[]" />
+<set_value name="md.$LSPContexts" exact="table[]" />
+<set_value name="md.$LSPActors" exact="table[]" />
+<set_value name="md.$LSPCandidateLimit" exact="false" />
+<set_value name="md.$LSPPass" exact="'NPCS'" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_BEGIN|scope=PLAYER_OWNED_PERSONNEL_LIST|actor_filter=PLAYER_TRUEOWNER|context_filter=OWNED_HOST_PROXY|hosts_available=%s|hosts_limit=%s|global_registry=UNAVAILABLE|spacesuits=SHIP_SUBCLASS'.[md.$LSPHosts.count, md.$LSPHostCount]" />
+</run_actions>
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPPass == 'NPCS'">
+<run_actions ref="Write">
+<param name="Body" value="'PASS_END|kind=NPCS'" />
+</run_actions>
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_END|mode=OBJECT_PROFILES|profiles=%s|partial=%s|atomic=false|discovery_complete=UNVERIFIED'.[md.$LSPProfile, md.$LSPSnapshotPartial]" />
+</run_actions>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPSnapshotPartial">
+<show_help custom="'Life Signs: Snapshot completed — partial data.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
+</do_if>
+<do_else>
+<show_help custom="'Life Signs: Snapshot completed.'" position="4" halign="'center'" allowclose="true" timeout="false" log="false" />
+</do_else>
+</do_if>
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPStations" exact="[]" />
+<set_value name="md.$LSPShips" exact="[]" />
+<set_value name="md.$LSPHosts" exact="[]" />
+<set_value name="md.$LSPCandidates" exact="[]" />
+<set_value name="md.$LSPActors" exact="table[]" />
+<set_value name="md.$LSPContexts" exact="table[]" />
+<return value="true" />
+</do_if>
+<return value="false" />
+</actions>
+</library>
+<library name="QueueRun" purpose="run_actions">
+<params>
+</params>
+<actions>
+<set_value name="md.$LSPReady" exact="false" />
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<set_value name="md.$LSPPendingLoadedAt" exact="player.systemtime.{'%Y-%m-%d_%H-%M-%S'}" />
+<set_value name="$NonceA" min="0" max="2147483647" />
+<set_value name="$NonceB" min="0" max="2147483647" />
+<set_value name="md.$LSPPendingRun" exact="'session-%s-%s-loaded-%s'.[$NonceA, $NonceB, md.$LSPPendingLoadedAt]" />
+<set_value name="md.$LSPPending" exact="true" />
+<reset_cue cue="Bootstrap" />
+<return value="true" />
+</actions>
+</library>
+<library name="Initialize" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not md.$LSPPending">
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPRun" exact="md.$LSPPendingRun" />
+<set_value name="md.$LSPLoadedAt" exact="md.$LSPPendingLoadedAt" />
+<set_value name="md.$LSPProfileFile" exact="'profiles-%s.log'.[md.$LSPRun]" />
+<set_value name="md.$LSPDiagnosticFile" exact="'profile-diagnostics-%s.log'.[md.$LSPRun]" />
+<set_value name="md.$LSPPending" exact="false" />
+<set_value name="md.$LSPSeq" exact="0L" />
+<set_value name="md.$LSPRows" exact="0L" />
+<set_value name="md.$LSPDiagnosticRows" exact="0L" />
+<set_value name="md.$LSPProfile" exact="0L" />
+<set_value name="md.$LSPStopped" exact="false" />
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPLevel" exact="4" />
+<set_value name="md.$LSPLastAge" exact="player.age" />
+<set_value name="md.$LSPSnapshotStarted" exact="false" />
+<set_value name="md.$LSPNextHeartbeat" exact="player.age + 60s" />
+<set_value name="md.$LSPReady" exact="true" />
+<set_value name="md.$LSPPass" exact="'IDLE'" />
+<set_value name="md.$LSPHostsVisited" exact="0" />
+<set_value name="md.$LSPHostsSkipped" exact="0" />
+<set_value name="md.$LSPHostCount" exact="0" />
+<set_value name="md.$LSPNpcProfiles" exact="0" />
+<set_value name="md.$LSPCandidates" exact="[]" />
+<set_value name="md.$LSPPersonnelVersion" exact="3" />
+<set_value name="md.$LSPNextAssetTick" exact="player.age" />
+<set_value name="md.$LSPDiscoveryStage" exact="'HOST'" />
+<set_value name="md.$LSPEntry" exact="1" />
+<set_value name="md.$LSPTypeEscapes" exact="table[]" />
+<run_actions ref="EnsureUniverseIdentity">
+</run_actions>
+<run_actions ref="Write">
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=0|lifecycle_listeners=1|max_rows=NONE|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
+</run_actions>
+<run_actions ref="Write">
+<param name="Diagnostic" value="true" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState]" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="Tick" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not md.$LSPReady">
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPPersonnelVersion?">
+<return value="false" />
+</do_if>
+<do_if value="md.$LSPPersonnelVersion != 3">
+<return value="false" />
+</do_if>
+<do_if value="player.age lt md.$LSPLastAge">
+<do_if value="md.$LSPActive">
+<run_actions ref="Write">
+<param name="Body" value="'SNAPSHOT_INTERRUPTED|reason=CLOCK_REGRESSION'" />
+</run_actions>
+</do_if>
+<set_value name="md.$LSPActive" exact="false" />
+<set_value name="md.$LSPStopped" exact="true" />
+<set_value name="md.$LSPReady" exact="false" />
+<return value="false" />
+</do_if>
+<set_value name="md.$LSPLastAge" exact="player.age" />
+<do_if value="md.$LSPStopped">
+<return value="false" />
+</do_if>
+<do_if value="(not md.$LSPActive or md.$LSPPass != 'NPCS') and player.age lt md.$LSPNextAssetTick">
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPActive or md.$LSPPass != 'NPCS'">
+<set_value name="md.$LSPNextAssetTick" exact="player.age + 1s" />
+</do_if>
+<do_if value="not md.$LSPSnapshotStarted">
+<run_actions ref="BeginSnapshot">
+</run_actions>
+</do_if>
+<do_if value="not md.$LSPActive">
+<return value="true" />
+</do_if>
+<do_if value="md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone">
+<do_all exact="8">
+<do_if value="md.$LSPStopped or md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit">
+<break />
+</do_if>
+<run_actions ref="DiscoveryStep">
+</run_actions>
+</do_all>
+<do_if value="md.$LSPHostIndex gt md.$LSPHostCount or md.$LSPCandidateLimit">
+<do_if value="md.$LSPCandidateLimit and md.$LSPDiscoveryStage != 'HOST'">
+<run_actions ref="FinishDiscoveryHost">
+</run_actions>
+</do_if>
+<set_value name="md.$LSPReadyCandidates" exact="md.$LSPCandidates.count" />
+<run_actions ref="Write">
+<param name="Body" value="'DISCOVERY_END|hosts_visited=%s|hosts_skipped=%s|candidates=%s|complete=UNVERIFIED'.[md.$LSPHostsVisited, md.$LSPHostsSkipped, md.$LSPCandidates.count]" />
+</run_actions>
+<set_value name="md.$LSPDiscoveryDone" exact="true" />
+</do_if>
+</do_if>
+<do_all exact="if md.$LSPPass == 'NPCS' then 2 else 8">
+<do_if value="md.$LSPStopped or not md.$LSPActive">
+<break />
+</do_if>
+<do_if value="md.$LSPPass == 'STATIONS'">
+<do_if value="md.$LSPIndex le md.$LSPStations.count">
+<run_actions ref="StationProfile">
+<param name="Station" value="md.$LSPStations.{md.$LSPIndex}" />
+</run_actions>
+<set_value name="md.$LSPIndex" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<run_actions ref="Advance">
+</run_actions>
+</do_else>
+</do_if>
+<do_elseif value="md.$LSPPass == 'SHIPS'">
+<do_if value="md.$LSPIndex le md.$LSPShips.count">
+<run_actions ref="ShipProfile">
+<param name="Ship" value="md.$LSPShips.{md.$LSPIndex}" />
+</run_actions>
+<set_value name="md.$LSPIndex" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<run_actions ref="Advance">
+</run_actions>
+</do_else>
+</do_elseif>
+<do_elseif value="md.$LSPPass == 'NPCS'">
+<do_if value="md.$LSPIndex le md.$LSPReadyCandidates">
+<run_actions ref="NpcProfile">
+<param name="Candidate" value="md.$LSPCandidates.{md.$LSPIndex}" />
+</run_actions>
+<set_value name="md.$LSPIndex" exact="1L" operation="add" />
+<set_value name="md.$LSPNpcProfiles" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<do_if value="md.$LSPDiscoveryDone">
+<run_actions ref="Advance">
+</run_actions>
+</do_if>
+<do_else>
+<break />
+</do_else>
+</do_else>
+</do_elseif>
+<do_else>
+<break />
+</do_else>
+</do_all>
+<do_if value="player.age ge md.$LSPNextHeartbeat">
+<set_value name="md.$LSPNextHeartbeat" exact="player.age + 60s" />
+<do_if value="md.$LSPLevel ge 3">
+<run_actions ref="Write">
+<param name="Diagnostic" value="true" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=0|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
+</run_actions>
+</do_if>
+</do_if>
+<return value="true" />
+</actions>
+</library>
+</cues>
+</mdscript>

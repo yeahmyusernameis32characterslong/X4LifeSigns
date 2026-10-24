@@ -1,0 +1,7 @@
+{
+  "name": "lifesigns-object-profile-collector",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node ../scripts/build-event-recorder.mjs", "test": "node --test test/*.test.mjs" },
+  "engines": { "node": ">=24.21.0 <25" }
+}
