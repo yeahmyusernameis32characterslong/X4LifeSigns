@@ -215,6 +215,11 @@ A failure in speech recognition or speech synthesis must not crash the Node.js s
 
 ## Experimental SQLite profile test
 
+The owner accepted the integration objective; see the
+[PR #20 completion summary](docs/SQLITE_PROFILE_COMPLETION.md) for the final
+verification scope and remaining follow-ups. The consolidated private SQL test
+catalogue is `sqlite-profiles/SQLITE_PROFILES_CODEX_SQL_TEST_RESULTS.md`.
+
 Draft PR20 adds collector/real SQLite integration tests, a scoped merged-addon
 schema check and an installed LuaJIT standalone adapter test. Commands and
 remaining native owner-test gates are in the

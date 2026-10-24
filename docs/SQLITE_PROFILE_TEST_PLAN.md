@@ -1,3 +1,12 @@
+# Current milestone: SQLite integration objective complete
+
+The owner declared PR #20's objective complete on24October2026 and requested
+closure. See [completion and verified results](SQLITE_PROFILE_COMPLETION.md).
+The investigation/test stages below are preserved history; their old next-test
+instructions do not override the completed native results.
+
+---
+
 # Second native test: reader initialisation probe required
 
 The corrected root addon loads. Native diagnostics reached MD in this order:
