@@ -55,6 +55,12 @@ with tempfile.TemporaryDirectory(prefix="lifesigns-native-test-") as temporary:
     probe_id = "lsu1-2026-01-01_00-00-00-0-0-0-0"
     (runtime / (probe_run + ".reply")).write_text(f"LSDB1|{probe_id}|{probe_run}|READY|0|END\n", encoding="ascii")
     reply.write_text(text, encoding="ascii")
+    # Normal database replies also require current service-owned permission.
+    initial_token = "11111111-1111-4111-8111-111111111111"
+    challenge_fixture = "session-0-1-loaded-2000-01-01_00-00-00"
+    active_fixture = "session-0-3-loaded-2000-01-01_00-00-00"
+    (runtime/(challenge_fixture+'.reply')).write_bytes(f"LSDB1|CONTROL|{challenge_fixture}|CHALLENGE|{initial_token}|END\n".encode('ascii'))
+    (runtime/(active_fixture+'.reply')).write_bytes(f"LSDB1|CONTROL|{active_fixture}|OPEN|{run}|{universe}|{initial_token}|END\n".encode('ascii'))
     os.chdir(game)
     try:
         execute("callbacks={}; emitted={}; health={}; diagnostic={}; clock=1; function RegisterEvent(n,f) callbacks[n]=f end; function SetScript(n,f) callbacks[n]=f end; function getElapsedTime() return clock end; function GetUISafeModeOption() return false end; function DebugError(s) diagnostic[#diagnostic+1]=s end; function AddUITriggeredEvent(s,c,p) if c=='health' then health[#health+1]=p else emitted[#emitted+1]={s,c,p} end end")

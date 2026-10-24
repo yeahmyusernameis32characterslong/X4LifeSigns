@@ -49,7 +49,8 @@ end
 local challengeRun = "session-0-1-loaded-2000-01-01_00-00-00"
 local fenceRun = "session-0-2-loaded-2000-01-01_00-00-00"
 local activeRun = "session-0-3-loaded-2000-01-01_00-00-00"
-local load = {state="IDLE", blocked=false}
+-- X4 recreates this chunk during loading. Local state is never permission.
+local load = {state="IDLE", blocked=true}
 Adapter.loadFence = load
 local function control(text, file, stage)
     if type(text) ~= "string" then return nil end
@@ -105,14 +106,24 @@ function Adapter.updateLoadFence(now)
     if not ok then loadFailure("ORIGINAL_LOAD_FAILED") end
 end
 function Adapter.loadAllows(run, universe)
-    if not load.blocked then return true end
-    if load.state ~= "DISPATCHED" or not load.expected then return false end
+    local function denied()
+        load.blocked=true;load.permission=nil
+        if not load.waitReported then load.waitReported=true;loadDiagnostic("SESSION_PERMISSION_BLOCKED") end
+        return false
+    end
+    if load.state ~= "IDLE" and load.state ~= "DISPATCHED" then return denied() end
+    -- A new interpreter has no expected token from before LoadGame. Re-read the
+    -- service-owned generation and OPEN on every forwarding attempt instead.
+    local challenge=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
+    if not challenge or (load.expected and challenge~=load.expected) then return denied() end
     local text=Adapter.readReply(activeRun)
-    if type(text) ~= "string" then return false end
+    if type(text) ~= "string" then return denied() end
     local file,newRun,newUniverse,token=text:match("^LSDB1|CONTROL|([^|]+)|OPEN|([^|]+)|([^|]+)|([0-9a-f%-]+)|END\r?\n$")
-    if file~=activeRun or newRun~=run or newUniverse~=universe or token~=load.expected then return false end
+    if file~=activeRun or newRun~=run or newUniverse~=universe or token~=challenge then return denied() end
+    local permission=run.."|"..universe.."|"..token
+    if load.permission~=permission then loadDiagnostic("NEW_RUN_ACCEPTED") end
+    load.permission=permission;load.waitReported=false
     load.blocked=false;load.state="IDLE";load.expected=nil
-    loadDiagnostic("NEW_RUN_ACCEPTED")
     return true
 end
 
@@ -140,7 +151,7 @@ function Adapter.update()
     if not current then return end
     if now >= lastPoll and now - lastPoll < 0.25 then return end
     lastPoll = now
-    if not Adapter.loadAllows(current.run,current.universe) then return end
+    if not Adapter.loadAllows(current.run,current.universe) then Adapter.health("WAITING_FOR_SESSION_PERMISSION");return end
     if not native then
         Adapter.health("NATIVE_READER_UNAVAILABLE")
         AddUITriggeredEvent("LifeSignsDatabase", "reply", {current.run,current.universe,"ERROR",0})
