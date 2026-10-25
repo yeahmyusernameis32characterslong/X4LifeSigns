@@ -34,8 +34,11 @@ test('destroyed/former-owned references retain cached identity; counterpart dest
  emit(h,'RELATED_OBJECT_DESTROYED',{object:enemy,param:null,param2:'unknown'});assert.equal(events(h).at(-1).fields.scope,'RELATED_EXTERNAL');
 });
 test('trade fallback records observed terms, supply amounts and cancelled build task uses param',()=>{
- const ship=asset('OUR-001'),other=asset('ARG-002',false),h=setup([ship]);
- emit(h,'TRADE_COMPLETED',{object:h.player.galaxy,param:{buyer:ship,seller:other,ware:{name:'Energy cells'},amount:10,unitprice:12},param2:{exists:true,buyer:null,seller:null,ware:{name:'Energy cells'},amount:8,transferredamount:7,price:96}});
+ const ship=asset('OUR-001'),other=asset('ARG-002',false),h=setup();
+ const offer={buyer:ship,seller:other,ware:{name:'Energy cells'},amount:10,unitprice:12};
+ const order={exists:true,buyer:null,seller:null,ware:offer.ware,amount:8,transferredamount:7,price:96};
+ h.call('RecordHistoryTrade',{Offer:offer,Order:order,Watched:ship,Side:'BUYER',Type:'TRADE_STARTED',Source:'event_trade_started'});
+ emit(h,'TRADE_COMPLETED',{object:h.player.galaxy,param:offer,param2:order});
  let f=events(h).at(-1).fields;assert.equal(f.event_type,'TRADE_COMPLETED');assert.equal(f.subject_idcode,'OUR-001');assert.equal(f.other_idcode,'ARG-002');assert.equal(f.transferred_amount,'7');assert.equal(f.order_price,'96');
  const wares=new Map([['$energycells',42]]);emit(h,'SUPPLY_REQUEST_REMOVED',{object:ship,param:wares});f=events(h).at(-1).fields;assert.equal(f.amount,'42');assert.equal(f.event_type,'SUPPLY_REQUEST_REMOVED');
  emit(h,'BUILD_CANCELLED',{object:ship,param:{buildobject:other,isshipbuild:false,isexpansion:false,isupgrade:true,isrestock:false}});f=events(h).at(-1).fields;assert.equal(f.is_upgrade,'true');assert.equal(f.event_type,'BUILD_CANCELLED');

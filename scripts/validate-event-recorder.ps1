@@ -30,7 +30,7 @@ foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
 $catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
-if ($listeners.Count -ne (13 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+if ($listeners.Count -ne (20 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
 if ($listeners[4].GetAttribute('screen') -ne "'LifeSignsPersonnel'" -or $listeners[4].GetAttribute('control') -ne "'role_changed'") { throw 'Unexpected personnel observer listener.' }
 if ($listeners[3].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[3].GetAttribute('control') -ne "'load_error'") { throw 'Unexpected load error listener.' }
 if ($listeners[2].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[2].GetAttribute('control') -ne "'health'") { throw 'Unexpected database health listener.' }
@@ -47,6 +47,11 @@ $locks = @($generated.SelectNodes('//cue[@name="CombatLockWatch"]//*[starts-with
 if ($locks.Count -ne 4) { throw 'Expected four bounded individual-object lock hooks.' }
 foreach ($lock in $locks) {
     if ($lock.HasAttribute('group') -or (($lock.GetAttribute('attacker') -ne 'parent.$LockObject') -and ($lock.GetAttribute('target') -ne 'parent.$LockObject'))) { throw 'Lock selector must be an individual watched object.' }
+}
+$trades = @($generated.SelectNodes('//cue[@name="TradeWatch"]//*[starts-with(name(),"event_trade_")]'))
+if ($trades.Count -ne 6) { throw 'Expected six individual-object trade hooks.' }
+foreach ($trade in $trades) {
+    if ($trade.HasAttribute('space') -or $trade.HasAttribute('group') -or (($trade.GetAttribute('buyer') -ne 'parent.$TradeObject') -and ($trade.GetAttribute('seller') -ne 'parent.$TradeObject'))) { throw 'Trade selector must name the individual player asset.' }
 }
 if ($generated.SelectNodes('//signal_cue[@param]').Count -ne 0) { throw 'Only signal_cue_instantly can carry a parameter.' }
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }

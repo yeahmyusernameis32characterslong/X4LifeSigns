@@ -39,6 +39,7 @@ export function generateProfileEvents(h, c) {
     iff("$Kind == '' and typeof $Template == datatype.npctemplate and "+owned('$Host'),
       iff('@$Host.people.{$Template}.exists',set('$Kind',"'NPC'")+set('$Seed',"'%s'.[$Host.people.{$Template}.seed]")))+
     iff("$Kind == ''",ret('false'))+
+    iff("$Kind == 'SHIP' or $Kind == 'STATION'",run('EnrolTradeWatch',{Object:'$Object'}))+
     set('$Key',key('$Kind','$Seed'))+
     iff("$Seed == ''",set('$Key',"'$%s:%s:%s:%s'.[$Kind,$Object,$Host,$Template]"))+
     iff("$Seed != '' and UniverseIdentity.$KnownProfileSeeds.{$Key}?",ret('true'))+
