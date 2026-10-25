@@ -77,17 +77,28 @@ test('ready/running order observations preserve actual order even if current ord
  assert.equal(f.event_type,'ORDER_RUNNING_OBSERVED');assert.equal(f.order_id,'Flee');assert.equal(f.flee_attacker_idcode,'ARG-2');assert.equal(f.order_issuer,undefined);
 });
 
-test('lock registration is bounded and native selectors use individual objects; raw ambiguous direction is preserved',()=>{
- const h=setup();for(let i=1;i<=100;i++)h.call('EnrolCombatLockWatch',{Object:asset('OUR-'+i)});
- assert.equal(h.md.$LSPCombatLockKeys.size,64);
- const own=asset('OUR-1'),other=asset('ARG-2',false);
+test('lock registration accepts more than 64 ships and stations without duplicate enrolment; raw direction is preserved',()=>{
+ const h=setup();for(let i=1;i<=256;i++){
+   const object=asset('OUR-'+i,true,i%2?'ship':'station');
+   assert.equal(h.call('EnrolCombatLockWatch',{Object:object}),true);
+   assert.equal(h.call('EnrolCombatLockWatch',{Object:object}),true);
+ }
+ assert.equal(h.md.$LSPCombatLockKeys.size,256);
+ for(const object of [null,asset('ARG-999',false),asset('NPC-998',true,'npc')])
+   assert.equal(h.call('EnrolCombatLockWatch',{Object:object}),false);
+ assert.equal(h.md.$LSPCombatLockKeys.size,256);
+ const own=asset('OUR-256'),other=asset('ARG-2',false);
  h.cueVariables('CombatLockWatch').$LockObject=own;
  h.cueVariables('CombatLock_initiated_target').event={object:other,param:own,param2:null,param3:null};
  h.cue('CombatLock_initiated_target');const f=events(h).at(-1).fields;
- assert.equal(f.subject_idcode,'OUR-1');assert.equal(f.watch_role,'TARGET');assert.equal(f.native_object_reference,'ARG-2');assert.equal(f.counterparty_resolution,'UNVERIFIED');assert.equal(f.other_seed,'');
+ assert.equal(f.subject_idcode,'OUR-256');assert.equal(f.watch_role,'TARGET');assert.equal(f.native_object_reference,'ARG-2');assert.equal(f.counterparty_resolution,'UNVERIFIED');assert.equal(f.other_seed,'');
+ assert.equal(f.lock_watch_limit,'UNLIMITED');
  const walk=n=>[n,...n.children.flatMap(walk)];const hooks=walk(h.tree).filter(n=>/^event_lock_/.test(n.tag));
  assert.equal(hooks.length,4);assert.ok(hooks.every(n=>!n.attrs.group&&Object.values(n.attrs).includes('parent.$LockObject')));
  h.cue('InvalidateLoadedRecorder');const count=h.output.length;h.cue('CombatLock_initiated_target');assert.equal(h.output.length,count);
+ h.load();assert.equal(h.md.$LSPCombatLockKeys.size,0);
+ assert.equal(h.call('EnrolCombatLockWatch',{Object:own}),true);
+ assert.equal(h.md.$LSPCombatLockKeys.size,1);
 });
 
 test('generated context events survive unchanged SQLite ingestion and saved-branch reopen',t=>{

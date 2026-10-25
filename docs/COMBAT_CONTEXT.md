@@ -47,12 +47,15 @@ suppressed count is unknown. This is a bounded capture policy, not evidence that
 native callbacks or database writes are free. Original attack/loss/order capture
 does not consume that added-event budget. No hull/shield subscriptions.
 
-Lock selectors document individual objects, not groups. At most 64 player ships/
-stations encountered by retained combat-context observations are enrolled per
-run, four native handlers each, within the existing resettable listener bus.
+Lock selectors document individual objects, not groups. Player ships/stations
+encountered by retained combat-context observations are enrolled once per run,
+four native handlers each, within the existing resettable listener bus. Following
+owner approval on 25 October 2026, there is no enrolled-asset count ceiling.
 There is no all-fleet startup lock scan, eviction or claim of initial-lock
-coverage before enrolment. Rows report enrolment status, scope and cap. Assets
-over capacity have no lock subscription until the next run. Lock rows preserve
+coverage before enrolment. Rows report enrolment status, scope and
+`lock_watch_limit=UNLIMITED`. The 32-observation rate budget and 30-second
+coalescing still apply; native subscription cost grows with enrolled participants
+and performance with larger fleets needs owner testing. Lock rows preserve
 watch role and raw native object/param references: schema wording and a shipped
 target-side AI consumer differ on their orientation, so no attacker identity is
 asserted from those fields. The harness does not simulate independent native cue

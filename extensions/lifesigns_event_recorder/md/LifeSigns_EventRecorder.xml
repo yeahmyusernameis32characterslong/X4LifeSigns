@@ -1348,7 +1348,7 @@
 <param name="Weapon" value="@event.param2" />
 <param name="Payload" value="@event.param3" />
 <param name="Detail" value="'attacker:%s:%s'.[event.object,event.param]" />
-<param name="Data" value="table[$watch_role='ATTACKER',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+<param name="Data" value="table[$watch_role='ATTACKER',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit='UNLIMITED']" />
 </run_actions>
 </actions>
 </cue>
@@ -1364,7 +1364,7 @@
 <param name="Weapon" value="@event.param2" />
 <param name="Payload" value="@event.param3" />
 <param name="Detail" value="'target:%s:%s'.[event.object,event.param]" />
-<param name="Data" value="table[$watch_role='TARGET',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+<param name="Data" value="table[$watch_role='TARGET',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit='UNLIMITED']" />
 </run_actions>
 </actions>
 </cue>
@@ -1380,7 +1380,7 @@
 <param name="Weapon" value="@event.param2" />
 <param name="Payload" value="@event.param3" />
 <param name="Detail" value="'attacker:%s:%s'.[event.object,event.param]" />
-<param name="Data" value="table[$watch_role='ATTACKER',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+<param name="Data" value="table[$watch_role='ATTACKER',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit='UNLIMITED']" />
 </run_actions>
 </actions>
 </cue>
@@ -1396,7 +1396,7 @@
 <param name="Weapon" value="@event.param2" />
 <param name="Payload" value="@event.param3" />
 <param name="Detail" value="'target:%s:%s'.[event.object,event.param]" />
-<param name="Data" value="table[$watch_role='TARGET',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]" />
+<param name="Data" value="table[$watch_role='TARGET',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit='UNLIMITED']" />
 </run_actions>
 </actions>
 </cue>
@@ -5587,7 +5587,7 @@
 <run_actions ref="EnrolCombatLockWatch" result="$D.$other_lock_watch_enrolled">
 <param name="Object" value="$Other" />
 </run_actions>
-<set_value name="$D.$lock_watch_limit" exact="64" />
+<set_value name="$D.$lock_watch_limit" exact="'UNLIMITED'" />
 <set_value name="$D.$lock_watch_scope" exact="'COMBAT_ENROLLED_ONLY'" />
 <set_value name="$Component" exact="$Payload" />
 <do_if value="$Type == 'ATTACKING'">
@@ -5731,9 +5731,6 @@
 <set_value name="$Key" exact="'$ref:%s'.[$Object]" />
 <do_if value="md.$LSPCombatLockKeys.{$Key}?">
 <return value="true" />
-</do_if>
-<do_if value="md.$LSPCombatLockKeys.keys.count ge 64">
-<return value="false" />
 </do_if>
 <set_value name="md.$LSPCombatLockKeys.{$Key}" exact="true" />
 <signal_cue_instantly cue="CombatLockWatch" param="$Object" />

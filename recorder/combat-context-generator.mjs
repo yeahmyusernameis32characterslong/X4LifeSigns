@@ -26,9 +26,9 @@ export function generateCombatContext(h) {
   const context=lib('ReadCombatContext',{Subject:'null',Other:'null',Method:'null',Payload:'null',Weapon:'null',Missile:'null',Type:null,Order:'null'},
     set('$D',"table[$intent='UNKNOWN',$context_basis='CALLBACK_OBSERVATION',$method=$Method,$component_reference=null,$weapon_reference=null,$missile_reference=null]")+
     // Locks use per-object selectors, not an undocumented group expression.
-    // Enrol only assets participating in retained combat observations, at most 64/run.
+    // Enrol combat participants once per run, without an asset-count ceiling.
     run('EnrolCombatLockWatch',{Object:'$Subject'},'$D.$subject_lock_watch_enrolled')+run('EnrolCombatLockWatch',{Object:'$Other'},'$D.$other_lock_watch_enrolled')+
-    set('$D.$lock_watch_limit','64')+set('$D.$lock_watch_scope',"'COMBAT_ENROLLED_ONLY'")+
+    set('$D.$lock_watch_limit',"'UNLIMITED'")+set('$D.$lock_watch_scope',"'COMBAT_ENROLLED_ONLY'")+
     set('$Component','$Payload')+
     iff("$Type == 'ATTACKING'",set('$Component','null')+
       iff('typeof $Payload == datatype.list',set('$Component','@$Payload.{1}')+set('$Weapon','@$Payload.{2}')))+
@@ -64,7 +64,6 @@ export function generateCombatContext(h) {
     iff('not ($Object.isclass.ship or $Object.isclass.station) or typeof @md.$LSPCombatLockKeys != datatype.table',ret('false'))+
     set('$Key',"'$ref:%s'.[$Object]")+
     iff('md.$LSPCombatLockKeys.{$Key}?',ret('true'))+
-    iff('md.$LSPCombatLockKeys.keys.count ge 64',ret('false'))+
     set('md.$LSPCombatLockKeys.{$Key}','true')+
     tag('signal_cue_instantly',{cue:'CombatLockWatch',param:'$Object'})+ret('true'));
   const lockChildren=['initiated','acquired'].flatMap(stage=>['attacker','target'].map(side=>
@@ -72,7 +71,7 @@ export function generateCombatContext(h) {
       tag('conditions',{},tag('event_lock_'+stage,{[side]:'parent.$LockObject'}))+
       tag('actions',{},run('RecordCombatObservation',{Subject:'parent.$LockObject',Type:`'LOCK_${stage.toUpperCase()}'`,Source:`'event_lock_${stage}'`,Weapon:'@event.param2',Payload:'@event.param3',Detail:`'${side}:%s:%s'.[event.object,event.param]`,
         // Preserve raw fields: target-only schema/AI usage differs on object/param orientation.
-        Data:`table[$watch_role='${side.toUpperCase()}',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit=64]`})))
+        Data:`table[$watch_role='${side.toUpperCase()}',$native_object_reference='%s'.[event.object],$native_param_reference='%s'.[event.param],$counterparty_resolution='UNVERIFIED',$lock_watch_limit='UNLIMITED']`})))
   )).join('');
   const cues=tag('cue',{name:'CombatLockWatch',instantiate:'true',namespace:'this'},
     tag('conditions',{},tag('event_cue_signalled',{cue:'CombatLockWatch'})+tag('check_value',{value:eventReady}))+
