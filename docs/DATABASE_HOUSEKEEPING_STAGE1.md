@@ -1,8 +1,9 @@
 # Read-only save inventory and retention preview
 
-PR #25 Stage 1, 27 October 2026. Implemented for offline review; not integrated
-with the game menu or service. No Apply operation exists. Existing schema-v1
-ingestion and routing behaviour is unchanged.
+PR #25 Stage 1, 27 October 2026. Accepted for scoped offline read-only use.
+[Stage 2](DATABASE_HOUSEKEEPING_STAGE2.md) adds a candidate main-menu preview;
+native UI acceptance is still pending. No Apply operation exists. Existing
+schema-v1 ingestion and routing behaviour is unchanged.
 
 ## Run on explicitly selected local copies
 
@@ -132,7 +133,8 @@ destructive-maintenance verification.
 
 ## Next gates
 
-Agent reviews Stage 1. The initial-menu UI, transport, writer exclusion,
+Stage 1 is accepted. The Stage 2 initial-menu/transport prototype has separate
+offline evidence and native acceptance gates. Destructive writer exclusion,
 schema-v2 replay seals, catalogue recovery, quarantine, pruning and compaction
-remain separate proposed work in the [implementation design](DATABASE_HOUSEKEEPING_IMPLEMENTATION_DESIGN.md).
+remain proposed work in the [implementation design](DATABASE_HOUSEKEEPING_IMPLEMENTATION_DESIGN.md).
 Stage 1 does not authorise deployment, gameplay testing or merge.

@@ -21,7 +21,7 @@ A completed baseline is required on every root's ancestry. A partial snapshot fl
 | Situation | Proposed action |
 | --- | --- |
 | Complete declared inventory, all roots validated, graph valid | Show a proposed complement for explicit confirmation |
-| Save inaccessible, changing, unsupported or cloud-only; incomplete directory enumeration | Block every potentially affected universe; an unidentifiable save blocks the whole declared scope |
+| Selected local input inaccessible, changing, unsupported or offline; incomplete declared directory enumeration | Block every potentially affected universe; an unidentifiable input inside the declared scope blocks that scope |
 | Root has universe but missing checkpoint/database | Show unresolved association and block that universe; do not silently treat as no root |
 | No matching roots in a complete inventory | Orphan candidate only; quarantine preferred, never automatic removal |
 | Unknown/foreign database, unsafe path/link/sidecars, building file | Separate unsupported/incomplete category; leave untouched |
@@ -29,7 +29,7 @@ A completed baseline is required on every root's ancestry. A partial snapshot fl
 | Retained cutoff inside PROFILE_BEGIN..PROFILE_END | Block this universe in the first implementation until supporting-record policy is independently proven; do not move the save cutoff or expose future projections |
 | Save has no Life Signs state | Only treat as unrelated after complete supported extraction; failed extraction is uncertainty |
 
-The declared scope must include the selected profile's manual, quick and autosaves and any explicitly registered backup/archive sources. External copies outside that scope cannot be protected by inference; the UI must disclose this and permit archive registration or pinning before confirmation. A directory listing is not proof that all possible saves exist there.
+The scope is player-selected local folders plus optional registered local archive folders. There is no cloud-account/global inventory requirement. Outside-scope remote/external copies are not protected and do not by themselves block the selected scope. Disclose their exclusion and offer optional local registration or whole-universe protection. Unreadable/changing inputs inside selected folders still block affected candidates. A directory listing is not proof that every possible external save exists there.
 
 ## Source facts and read-only prototype
 
