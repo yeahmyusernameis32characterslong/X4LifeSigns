@@ -28,7 +28,7 @@ export async function inspectSave(file, { getAvailability = availability, maxByt
     await beforeVerify?.(file);
     if (!sameSnapshot(input.info, fs.fstatSync(input.fd)) || !sameSnapshot(input.info, checkPath(file))) throw Error('INPUT_CHANGED');
     if (getAvailability(file) !== 'LOCAL_METADATA_ONLY') throw Error('INPUT_AVAILABILITY_CHANGED');
-    return { name, bytes: input.info.size, ...result };
+    return { name, bytes: input.info.size, modifiedUtc: new Date(input.info.mtimeMs).toISOString(), ...result };
   } catch (e) { return { name, status: 'UNKNOWN', code: /^[A-Z_]+$/.test(e.message) ? e.message : 'UNREADABLE_OR_UNSAFE_SAVE' }; }
   finally { if (worker) await worker.terminate(); if (input) fs.closeSync(input.fd); }
 }

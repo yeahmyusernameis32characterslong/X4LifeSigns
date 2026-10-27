@@ -8,6 +8,8 @@ import { parseRecord } from '../recorder/log-format.mjs';
 import { ProfileStore, runId, universeId } from './store.mjs';
 import { checkPath } from '../bridge/src/session-path.js';
 import { LoadFence, parseLoadRequest, CHALLENGE_RUN, FENCE_RUN, ACTIVE_RUN } from './load-fence.mjs';
+import { PreviewService } from './preview-service.mjs';
+import { PREVIEW_HELLO, PREVIEW_REPLY } from './preview-protocol.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export class ReplyPublicationError extends Error {
@@ -118,6 +120,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
   if (notBefore !== null && (!Number.isFinite(notBefore) || notBefore < 0)) throw Error('Invalid launch time');
   const consumer = new ProfileConsumer({ root, replyDirectory }), tails = new Map(), failed = new Set();
   const fence = debugLog ? new LoadFence({root, replyDirectory, processStarted: notBefore ?? 0}) : null;
+  const preview = debugLog ? new PreviewService({root,replyDirectory}) : null;
   let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false;
   function names() {
     return fs.readdirSync(logDirectory).filter(n => /^profiles-session-\d+-\d+-loaded-[0-9_-]+\.log$/.test(n))
@@ -125,7 +128,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
   }
   function eligible(name) {
     const run = name.slice(9,-4); runId(run);
-    if ([CHALLENGE_RUN,FENCE_RUN,ACTIVE_RUN].includes(run)) throw Error('Reserved control run in profile log');
+    if ([CHALLENGE_RUN,FENCE_RUN,ACTIVE_RUN,PREVIEW_HELLO,PREVIEW_REPLY].includes(run)) throw Error('Reserved control run in profile log');
     if (fence?.isClosed(run)) return false;
     const file=path.join(logDirectory,name); checkPath(file);
     return notBefore === null || fs.statSync(file).birthtimeMs >= notBefore;
@@ -134,7 +137,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
     if (stopped) return;
     clearInterval(timer);
     try { if (drain) while (poll()) { /* Complete-row drain, excluding closed sessions. */ } }
-    finally { stopped = true; consumer.close(); }
+    finally { stopped = true; preview?.stop(); consumer.close(); }
   }
   function profiles(limits = null) {
     let progressed = false;
@@ -155,6 +158,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
           if(!tail.startup && row.kind==='RUN_BEGIN' && row.fields.database_protocol==='LSDB1') tail.startup=row;
         }
         const statuses=consumer.consume(lines);
+        if(statuses.length) preview?.suspend();
         if(fence && statuses.length) activePending=statuses.at(-1);
       } catch(e) {
         if(e instanceof ReplyPublicationError) throw e;
@@ -173,14 +177,17 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
     if(stopped) return false;
     let progressed=false;
     try {
+      preview?.poll();
       if(fence) {
         // Read control before profiles, including after worker restart. Challenge
         // matching makes historical requests harmless; no timestamp guess here.
         if(!controlTail && fs.existsSync(debugLog)) { checkPath(debugLog);controlTail=new LogTail(debugLog); }
         if(controlTail) {
           for(const line of controlTail.poll()) {
+            if(preview?.handle(line)) continue;
             const token=parseLoadRequest(line);
             if(!token || !fence.accepts(token)) continue;
+            preview?.suspend();
             if(token===fence.state.ack) { publishPending=true; continue; }
             if(!pending) {
               const limits=new Map(names().filter(eligible).map(name=>[name,fs.statSync(path.join(logDirectory,name)).size]));
