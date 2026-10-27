@@ -227,6 +227,11 @@ A failure in speech recognition or speech synthesis must not crash the Node.js s
 
 ## Experimental SQLite profile test
 
+PR #25 adds a standalone read-only save inventory/retention preview. Run
+`npm ci --prefix profiles --ignore-scripts --no-audit --no-fund` then
+`npm test --prefix profiles`. Its native gzip/XML support, scope and evidence
+boundaries are documented in [Stage 1](docs/DATABASE_HOUSEKEEPING_STAGE1.md).
+
 The owner accepted the integration objective; see the
 [PR #20 completion summary](docs/SQLITE_PROFILE_COMPLETION.md) for the final
 verification scope and remaining follow-ups. The consolidated private SQL test

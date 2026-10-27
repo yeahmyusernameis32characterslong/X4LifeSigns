@@ -1,12 +1,18 @@
 # Proposed save-aware retention design
 
-Status: **Proposed; not implemented or approved for deletion.** PR #25 planning phase, 27 October 2026. Starting source `1a88cd55f3571846631be7b15734a0c7470ce989`, based on main `546e1ed6d82f4e2ff462aeba24d035b9f0313526`. Read the [Agent plan](DATABASE_HOUSEKEEPING_PLAN.md) first.
+Status: **Implemented for read-only preview; deletion not implemented or approved.** PR #25, 27 October 2026. Planning started at `1a88cd55f3571846631be7b15734a0c7470ce989`, based on main `546e1ed6d82f4e2ff462aeba24d035b9f0313526`. Read the [Agent plan](DATABASE_HOUSEKEEPING_PLAN.md) first.
 
 ## Retention invariant
 
 For every retained save, use its exact validated Life Signs universe ID, saved recorder run and acknowledged record cutoff. Walk that run's parent pointers back to a complete baseline. Take the **maximum required cutoff for each run across all retained roots**. Keep every record in each resulting prefix, its session row, and matching profile/event projections. Preserve identities, payloads, ordinals and parent pointers exactly. Never infer eligibility from game time, file age, entity death or a missing early save file.
 
 A later save can retain an earlier run even after the earlier save file is overwritten. Two surviving branches retain their union. A newer save in the same run increases the prefix; an unreferenced future beyond it is only a candidate, not an instruction to delete.
+
+**Pinning a universe preserves its entire database history:** every run and every
+row, including abandoned futures and branches without surviving saves. It is
+not a pin on one checkpoint or merely protection against whole-file removal.
+Stage 1 implements this policy in a standalone read-only tool; see the
+[supported formats, commands and verification](DATABASE_HOUSEKEEPING_STAGE1.md).
 
 A completed baseline is required on every root's ancestry. A partial snapshot flagged with unavailable profile fields is distinct from a missing SNAPSHOT_END: preserve published baseline/projection semantics, not a fictional complete-data guarantee.
 
@@ -27,7 +33,7 @@ The declared scope must include the selected profile's manual, quick and autosav
 
 ## Source facts and read-only prototype
 
-At the inspected source, [store.mjs](../profiles/store.mjs) validates an exact schema-v1 object set and ownership (lines 25?44), requires contiguous ordinal ingestion and exact payload replay (lines 99?119), verifies saved checkpoint/baseline on new runs (lines 120?130), and reads ancestry by run-specific prefixes (lines 161?177). profilesAt and NPC history also use those prefixes.
+At the planning revision `dcb4317`, store.mjs validates an exact schema-v1 object set and ownership (lines 25-44), requires contiguous ordinal ingestion and exact payload replay (lines 99-119), verifies saved checkpoint/baseline on new runs (lines 120-130), and reads ancestry by run-specific prefixes (lines 161-177). profilesAt and NPC history also use those prefixes. Stage 1 moves the unchanged schema/identifier validation into [profile-schema.mjs](../profiles/profile-schema.mjs); historical source ranges above refer to that planning revision.
 
 A planning-only local prototype created disposable synthetic owned stores and a separate retained candidate without deleting rows from any store. **19 checks passed**: descendant/overwritten ancestors; branch union; greatest same-run cutoff; acknowledged unsaved tail; complete/uncertain empty inventory; unknown save; missing root/cutoff/baseline; partial profile; cycle; exact actual eventsAt/profilesAt/historyForNpc equality for every retained root; raw payload/ordinal preservation; branch isolation; replay conflict; source-byte preservation.
 
