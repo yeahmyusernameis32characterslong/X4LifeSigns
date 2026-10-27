@@ -1,0 +1,8 @@
+{
+  "name": "lifesigns-readonly-housekeeping",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.21.0 <25" },
+  "scripts": { "test": "node --test test/*.test.mjs", "inventory": "node housekeeping-cli.mjs" },
+  "dependencies": { "saxes": "6.0.0" }
+}
