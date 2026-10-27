@@ -16,41 +16,21 @@
 
 ---
 
-## What is Life Signs?
+## What Is Life Signs?
 
-**X4LifeSigns** is an experimental mod project for **X4: Foundations** built around a simple idea:
+**X4LifeSigns** is an experimental project for **X4: Foundations** that aims to give its inhabitants persistent memories and the ability to engage in natural, meaningful conversations shaped by their experiences in the game.
 
-> What if the people in X4 could actually remember what happened to them?
+X4 simulates an extraordinarily complex universe where thousands of ships operate independently, economies evolve, factions compete, and battles unfold whether the player is there to witness them or not. Yet the people inhabiting this universe have little awareness of their own histories. Life Signs aims to change that by recording what happens to characters, ships and stations, allowing NPCs to remember and discuss the events that have shaped their lives.
 
-NPCs should not feel like temporary dialogue boxes attached to ships and stations.
+A pilot might recall being rescued from hostile territory, a trader could remember repeated encounters with the player, and a veteran captain might recount the battles and campaigns they have survived. More importantly, their knowledge would extend beyond personal experiences. Fleet commanders could draw upon reports from subordinate captains to explain military operations, unexpected losses or diplomatic incidents that occurred while the player was occupied elsewhere. They could even offer strategic recommendations, advising whether to continue an offensive, withdraw from a deteriorating situation or redeploy their forces.
 
-A pilot you rescued could remember you.
+**Knowledge is not universal.** A fighter pilot, station manager and fleet commander each have different experiences, responsibilities and access to information. Characters may have incomplete knowledge, disagree about events or reach different conclusions. Their conversations should reflect what they could reasonably know, rather than giving every NPC unrestricted awareness of the entire universe.
 
-A captain whose ship you saved might recognise you later.
+Early offline experiments using recorded X4 gameplay and local language models have already demonstrated the potential of this approach. Simulated captains and fleet commanders have discussed actual recorded engagements, investigated disputed incidents and provided accounts informed by their individual histories and command relationships. These experiments are not yet integrated into live gameplay, but they offer an encouraging demonstration of how the system could work.
 
-A trader you repeatedly helped could gradually become familiar with you.
+Ultimately, Life Signs is about making X4's inhabitants feel like individuals who genuinely exist within its universe, with experiences worth remembering, stories worth telling and perspectives worth hearing.
 
-Crew members could remember where they served, what happened around them, and who they encountered.
-
-Characters could talk about things that genuinely happened in your universe rather than selecting another isolated line from a dialogue table.
-
-Life Signs aims to give the simulation something it has never really had:
-
-**a memory of itself.**
-
----
-
-## Conversations With Context
-
-Life Signs aims to build histories around X4's people, ships and stations, so a character's response could reflect where they have served, who helped them and what they survived. Keeping track of who is who would allow those experiences to matter across future encounters.
-
-Instead of another "Hello, pilot", you might eventually hear:
-
-> "You again. Last time I saw you, half my hull was missing and you were dragging pirates off us."
-
-The language model would express a history grounded in real game events, not invent one. Two players could meet very different versions of similar characters because those characters have lived different lives.
-
-**X4 creates the history. Life Signs remembers it.**
+**X4 creates the events. Life Signs preserves the history. Its people give that history a voice.**
 
 ---
 
