@@ -47,7 +47,7 @@ test('model wording distinguishes in-use, uncertain, unmatched and whole-univers
 test('settings validate paths/ownership and persist protection across restart without touching databases',t=>{
  const {root}=fixture(t);let s=readSettings(root);assert.equal(s.digest,'MISSING');s=setProtection(root,s.digest,U,true);assert.deepEqual(readSettings(root).value.protectedUniverses,[U]);
  assert.throws(()=>setProtection(root,'old',U,false));s=setProtection(root,s.digest,U,false);assert.deepEqual(s.value.protectedUniverses,[]);
- for(const v of [{...settings,owner:'foreign'},{...settings,saveLocations:['relative']},{...settings,saveLocations:['\\\\server\\remote']},{...settings,protectedUniverses:['bad']}])assert.throws(()=>validateSettings(v));
+ for(const v of [{...settings,owner:'foreign'},{...settings,saveLocations:['relative']},{...settings,saveLocations:['\\\\server\\remote']},{...settings,saveLocations:['//server/share']},{...settings,protectedUniverses:['bad']}])assert.throws(()=>validateSettings(v));
  assert.equal(fs.existsSync(path.join(root,'local-data','profiles')),false);
 });
 test('generation, sequence, client replacement and cancellation fence duplicate/out-of-order/late results',t=>{

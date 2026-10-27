@@ -6,7 +6,7 @@ import { universeId } from './profile-schema.mjs';
 export const SETTINGS_NAME = 'housekeeping-preview-v1.json';
 export function validateSettings(value) {
   if (!value || Object.keys(value).sort().join() !== 'owner,protectedUniverses,saveLocations,version' || value.owner !== 'LifeSignsReadOnlyPreview' || value.version !== 1 || !Array.isArray(value.saveLocations) || value.saveLocations.length > 16 || !Array.isArray(value.protectedUniverses) || value.protectedUniverses.length > 1024) throw Error('Invalid preview settings');
-  for (const p of value.saveLocations) if (typeof p !== 'string' || p.length > 1024 || /[\x00-\x1f]/.test(p) || !path.isAbsolute(p) || /^\\\\/.test(p)) throw Error('Invalid local save location');
+  for (const p of value.saveLocations) if (typeof p !== 'string' || p.length > 1024 || /[\x00-\x1f]/.test(p) || !path.isAbsolute(p) || /^\\\\/.test(p) || p.startsWith('//')) throw Error('Invalid local save location');
   value.protectedUniverses.forEach(universeId);
   if (new Set(value.saveLocations).size !== value.saveLocations.length || new Set(value.protectedUniverses).size !== value.protectedUniverses.length) throw Error('Duplicate preview settings');
   return value;
