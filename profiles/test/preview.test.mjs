@@ -43,6 +43,8 @@ test('model wording distinguishes in-use, uncertain, unmatched and whole-univers
  result.inventory.saves=[];m=previewModel(result,settings);assert.equal(m.list[0][4],'Possibly unused');
  result.inventory.unknowns=[{code:'UNREADABLE_SAVE'}];m=previewModel(result,settings);assert.equal(m.list[0][4],'Needs attention');assert.match(m.list[0][2],/Unknown/);
  m=previewModel(result,{...settings,protectedUniverses:[U]});assert.equal(m.list[0][4],'Protected');
+ result.databases.push({file:'foreign.db',universe:null,status:'BLOCKED',blocks:['INVALID_UNIVERSE'],retained:[]});m=previewModel(result,settings);
+ const unknown=m.list.findIndex(r=>r[1]==='Unknown database');assert.ok(unknown>=0);assert.equal(m.ids[unknown],null);assert.equal(m.details[unknown][1][2],'Unknown');
 });
 test('settings validate paths/ownership and persist protection across restart without touching databases',t=>{
  const {root}=fixture(t);let s=readSettings(root);assert.equal(s.digest,'MISSING');s=setProtection(root,s.digest,U,true);assert.deepEqual(readSettings(root).value.protectedUniverses,[U]);

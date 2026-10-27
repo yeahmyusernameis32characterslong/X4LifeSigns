@@ -7,13 +7,13 @@ export function previewModel(result, settings) {
   items.sort((a,b) => String(a.universe || a.file).localeCompare(String(b.universe || b.file)));
   const details = [], list = [], ids = [];
   for (const [i,d] of items.entries()) {
-    const id = String(i + 1), label = 'Universe ' + id, saves = inventory.saves.filter(s => s.root?.universe === d.universe);
+    const id = String(i + 1), label = d.universe ? 'Universe ' + id : 'Unknown database', saves = inventory.saves.filter(s => s.root?.universe === d.universe);
     const pinned = settings.protectedUniverses.includes(d.universe);
-    const uncertain = !inventory.complete || inventory.unknowns.some(u => !u.universe || u.universe === d.universe);
+    const uncertain = !d.universe || !inventory.complete || inventory.unknowns.some(u => !u.universe || u.universe === d.universe);
     const status = pinned ? 'Protected' : d.status !== 'PREVIEW_ONLY' || uncertain ? 'Needs attention' : saves.length ? 'In use' : 'Possibly unused';
     list.push([id, label, uncertain ? `${saves.length} known; Unknown` : String(saves.length), d.bytes === undefined ? 'Unknown' : `${number(d.bytes)} bytes`, status]);
     ids.push(d.universe || null);
-    const rows = [['INFO','Universe',label,status,''],['INFO','Protection',pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',d.bytes === undefined ? 'Unknown' : `${number(d.bytes)} bytes`,'Current file size','']];
+    const rows = [['INFO','Universe',label,status,''],['INFO','Protection',!d.universe ? 'Unknown' : pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',d.bytes === undefined ? 'Unknown' : `${number(d.bytes)} bytes`,'Current file size','']];
     for (const s of saves) rows.push(['SAVE','Local saves',s.name,s.modifiedUtc || 'Unknown','Filesystem modified UTC; '+s.source]);
     if (!saves.length) rows.push(['SAVE','Local saves',uncertain ? 'Unknown' : 'No matching saves','','Selected local folders only']);
     const retained = (d.retained || []).reduce((n,r) => n + r.through,0);

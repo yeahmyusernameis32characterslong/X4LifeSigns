@@ -120,7 +120,9 @@ function P.update()
         P.pending=nil;P.stale=false;P.page=reply.page;P.pages=reply.pages;P.rows=reply.rows
         if pending.verb=="REFRESH" or pending.verb=="PROTECT" then P.view="LIST";P.selected=nil end
         if P.view=="LIST" then P.listRows=P.rows end
-        for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then P.protected=row[3]=="Protected" end end
+        for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then
+            if row[3]=="Protected" then P.protected=true elseif row[3]=="Not protected" then P.protected=false else P.protected=nil end
+        end end
     elseif reply.state~="SCANNING" then P.pending=nil;P.stale=true end
 end
 
