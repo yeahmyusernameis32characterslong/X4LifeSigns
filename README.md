@@ -70,34 +70,19 @@ The diagram shows the intended design. The working experiments are described bel
 
 ## Project Status
 
-**Very early implementation, not currently a playable release.**
+The **X4 Event Collector** is developed and has passed owner-run tests in X4 9.00. It gathers profiles of player-owned ships, stations and NPCs, together with selected events that describe what happens to them, including combat activity and trading. The collector also recognises different playthroughs and saved checkpoints within a universe. Event coverage is still growing; newer combat and trade subscriptions have not all been verified in live gameplay. The project remains experimental, with no public playable release.
 
-The experimental bridge captures completed dockings while the player is personally piloting and acknowledges them in Node.js. Optional SQLite storage preserves those events for readback after Node.js restarts. Both have passed live X4 verification, with X4 kept running during the persistence test.
+Development is now focused on the **SQLite database** that preserves these profiles and events as a history the characters can draw upon. Save-aware storage and event history have already passed live tests. In separate offline experiments, the local **Qwen3.8 27B** model used histories retrieved from SQLite to simulate captains and fleet commanders with distinct memories and access to reports from their subordinates. Those conversations demonstrated what event-grounded NPC dialogue could become, but are not yet available during gameplay. See the [SQLite integration results](docs/SQLITE_PROFILE_COMPLETION.md) and [offline NPC inquiry](docs/OFFLINE_ARIA_INQUIRY.md).
 
-**Automatic session separation is Verified live in X4 9.00 with Node.js v24.21.0**, under the approved practical local single-player `s1` session-key assumption. Opt-in `--auto-db` routes V2 dockings into owned per-session databases; the [owner-run production acceptance matrix](docs/AUTOMATIC_SESSION_ROUTING.md#live-verification-record) passed. This does not establish guaranteed key uniqueness or continuity across sessions. Manual `--db` still needs a fresh database after a game reload or for another save/universe. Permanent entity identity, AI, voice and return communication remain unverified.
+Life Signs keeps different playthroughs apart using a saved **universe identifier**, with a separate database for each universe. Within that database, **save checkpoints** work like bookmarks in a story: when you load an earlier save, Life Signs can follow the history belonging to that save rather than treat events from an abandoned future as though they happened. History shared with later saves remains available, even if an older save slot has since been overwritten.
 
-The optional object-profile collector now has owner-tested SQLite baseline,
-event history and save/load branch isolation on X4 9.00 with Node.js v24.21.0.
-It reuses ready universe databases and records selective lightweight events.
-See [completed scope and remaining limitations](docs/SQLITE_PROFILE_COMPLETION.md).
-This does not verify permanent NPC identity or exhaustive event coverage.
-
-See the [docking bridge experiment](docs/BRIDGE_EXPERIMENT.md), [persistence experiment](docs/PERSISTENCE_EXPERIMENT.md) and [testing criteria](TESTING.md) for instructions, evidence and limitations.
-
-**Persistent entity identity is In Progress**, beginning with the disposable
-[six-ship identity diagnostic](docs/SHIP_IDENTITY_DIAGNOSTIC.md). The optional
-diagnostic is **Verified for the completed owner-run X4 9.00 scenarios**. Six
-selected ships retained their references and ID codes across the tested reloads,
-renames and commander changes. This is scoped stability evidence, not permanent
-identity or cross-universe continuity.
+**Database housekeeping** is the subject of [PR #25](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/25). It is currently a design-stage investigation into how players could review their databases and safely clean up unused histories without losing anything needed by surviving saves; no automatic cleanup has been implemented.
 
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
   <tbody>
-    <tr><td valign="middle">X4 docking bridge</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
-    <tr><td valign="middle">SQLite persistence across Node.js restarts</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
-    <tr><td valign="middle">Automatic session separation</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
-    <tr><td valign="middle">Persistent entity identity</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
+    <tr><td valign="middle">X4 Event Collector</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
+    <tr><td valign="middle">SQLite Database</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
     <tr><td valign="middle">Return path to X4</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
     <tr><td valign="middle">Local LLM integration</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
     <tr><td valign="middle">Voice input and output</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
