@@ -252,7 +252,7 @@ export function generateRecorder(config) {
     set('md.$LSPDiscoveryStage',"'HOST'")+set('md.$LSPEntry','1')+set('md.$LSPTypeEscapes','table[]')+
     run('EnsureUniverseIdentity')+events.initialize+playerProfile.initialize+
     set('md.$LSPStartupVersion','1')+set('md.$LSPInitialisedRun','md.$LSPRun')+set('md.$LSPStopped','false')+set('md.$LSPReady','true')+
-    write(identityMetadata(`RUN_BEGIN|collector=OBJECT_PROFILES|gameplay_listeners=${profileEvents.length}|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE`,['md.$LSPLoadedAt']))+
+    write(identityMetadata(`RUN_BEGIN|collector=OBJECT_PROFILES|combat_context_version=1|context_limit_per_game_second=32|lock_watch_limit=64|lock_watch_scope=COMBAT_ENROLLED_ONLY|gameplay_listeners=${profileEvents.length}|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE`,['md.$LSPLoadedAt']))+
     run('Write',{Diagnostic:'true',Body:identityMetadata('RUN_BEGIN|collector=OBJECT_PROFILES|snapshot_schedule=INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s',['md.$LSPLoadedAt'])})+
     set('md.$LSPBusArmedRun','md.$LSPRun')+tag('signal_cue',{cue:'ProfileEventBusV2'})+ret('true'));
   const tick=lib('Tick',{},
