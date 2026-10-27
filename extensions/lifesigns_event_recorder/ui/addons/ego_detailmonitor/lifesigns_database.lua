@@ -80,6 +80,7 @@ function Adapter.installLoadFence()
     end
     local original=LoadGame
     load.wrapper=function(...)
+        if LifeSignsHousekeeping then pcall(LifeSignsHousekeeping.worldObserved) end
         if load.state ~= "IDLE" then loadDiagnostic("DUPLICATE_BLOCKED");return end
         local token=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
         load.blocked=true
@@ -139,6 +140,7 @@ function Adapter.receive(_, request)
     local run, universe = request:match("^([a-z0-9_-]+)|([a-z0-9_-]+)$")
     if not run or not run:match("^session%-%d+%-%d+%-loaded%-%d%d%d%d%-%d%d%-%d%d_%d%d%-%d%d%-%d%d$") or
        not universe:match("^lsu1%-%d%d%d%d%-%d%d%-%d%d_%d%d%-%d%d%-%d%d%-%d+%-%d+%-%d+%-%d+$") then return end
+    if LifeSignsHousekeeping then pcall(LifeSignsHousekeeping.worldObserved) end
     if not current or current.run ~= run then
         current = { run = run, universe = universe }; lastText = nil; lastPoll = 0; lastHealth = nil
         Adapter.health("REQUEST_RECEIVED")

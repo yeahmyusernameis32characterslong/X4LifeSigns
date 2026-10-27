@@ -10,7 +10,7 @@ export class PreviewService {
   constructor({root,replyDirectory,launch = () => fork(new URL('./preview-scan-worker.mjs',import.meta.url),[],{stdio:['ignore','ignore','ignore','ipc'],windowsHide:true,execArgv:['--max-old-space-size=384']}),now=Date.now}) {
     checkPath(root,{directory:true});checkPath(replyDirectory,{directory:true});
     this.root=root;this.replyDirectory=replyDirectory;this.launch=launch;this.now=now;
-    this.gen=randomUUID().replaceAll('-','');this.heartbeat=0;this.pending=new Map();this.sequences=new Map();
+    this.gen=randomUUID().replaceAll('-','');this.heartbeat=0;this.pending=new Map();this.sequences=new Map();this.readers=new Map();
     this.poll();
   }
   write(run,text) {
@@ -40,6 +40,8 @@ export class PreviewService {
     if(this.child){this.child.kill();this.child=null;}
   }
   stop() {this.stopped=true;this.cancel();this.pending.clear();}
+  hasReaders() {return this.readers.size>0;}
+  waitForExit() {return Promise.all([...this.readers.values()]);}
   suspend() {if(this.suspended)return;this.suspended=true;this.cancel();this.model=null;this.pending.delete(PREVIEW_REPLY);this.lastHeartbeat=undefined;this.poll();}
   scan(request,settings) {
     this.cancel();const ticket={request,settings};this.ticket=ticket;this.scanning=true;
@@ -47,6 +49,11 @@ export class PreviewService {
     let child;
     try {child=this.launch();this.child=child;}
     catch {this.scanning=false;this.reply(request,'ERROR');return;}
+    let release;
+    const exited=new Promise(resolve=>{let done=false;release=()=>{if(!done){done=true;this.readers.delete(child);resolve();}};});
+    this.readers.set(child,exited);
+    child.once('exit',release);child.once('close',release);
+    child.once('error',()=>{if(!child.pid)release();});
     let answered=false;
     child.on('message',message=>{
       if(this.stopped || this.ticket!==ticket)return;

@@ -121,7 +121,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
   const consumer = new ProfileConsumer({ root, replyDirectory }), tails = new Map(), failed = new Set();
   const fence = debugLog ? new LoadFence({root, replyDirectory, processStarted: notBefore ?? 0}) : null;
   const preview = debugLog ? new PreviewService({root,replyDirectory}) : null;
-  let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false;
+  let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false, stopPromise;
   function names() {
     return fs.readdirSync(logDirectory).filter(n => /^profiles-session-\d+-\d+-loaded-[0-9_-]+\.log$/.test(n))
       .sort((a,b) => a.slice(a.indexOf('-loaded-')).localeCompare(b.slice(b.indexOf('-loaded-'))));
@@ -136,14 +136,23 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
   function stop({ drain = true } = {}) {
     if (stopped) return;
     clearInterval(timer);
-    try { if (drain) while (poll()) { /* Complete-row drain, excluding closed sessions. */ } }
-    finally { stopped = true; preview?.stop(); consumer.close(); }
+    preview?.stop();
+    const finish=()=>{try { if (drain) while (poll()) { /* Complete-row drain, excluding closed sessions. */ } }
+      finally { stopped=true;consumer.close(); }};
+    if(preview?.hasReaders()) {
+      stopPromise ??= preview.waitForExit().then(finish);return stopPromise;
+    }
+    if(stopPromise)return stopPromise;
+    finish();
   }
   function profiles(limits = null) {
     let progressed = false;
     for (const name of limits ? limits.keys() : names()) {
       if (failed.has(name) || !eligible(name)) continue;
       const file = path.join(logDirectory,name);
+      // Close the preview's read transaction before any writer is constructed.
+      // This delays ingestion by a poll, never native LoadGame/NewGame dispatch.
+      preview?.suspend();if(preview?.hasReaders())return progressed;
       if (!tails.has(file)) tails.set(file,new LogTail(file));
       const tail=tails.get(file);
       try {

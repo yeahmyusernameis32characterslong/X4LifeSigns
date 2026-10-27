@@ -10,6 +10,10 @@ import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply } from '..
 import { previewModel } from '../preview-model.mjs';
 import { readSettings,setProtection,validateSettings,SETTINGS_NAME } from '../preview-settings.mjs';
 import { ProfileStore } from '../store.mjs';
+import { startService } from '../service.mjs';
+import { once } from 'node:events';
+import { fork } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 const U='lsu1-2026-10-27_12-00-00-1-2-3-4',G='1'.repeat(32),C='2'.repeat(32),D='3'.repeat(32);
 const request=(gen,seq,verb='REFRESH',item=0,enabled=0,page=0,client=C)=>`[x4] LSHK1|${gen}|${client}|${seq}|${verb}|${item}|${enabled}|${page}|END`;
 const hash=f=>createHash('sha256').update(fs.readFileSync(f)).digest('hex');
@@ -20,7 +24,7 @@ function fixture(t) {
 const settings={owner:'LifeSignsReadOnlyPreview',version:1,saveLocations:[],protectedUniverses:[]};
 function fake(t) {
  const f=fixture(t),children=[];let clock=0;
- const service=new PreviewService({root:f.root,replyDirectory:f.replies,now:()=>clock,launch:()=>{const child=new EventEmitter();child.send=x=>child.input=x;child.kill=()=>{child.killed=true;};children.push(child);return child;}});
+ const service=new PreviewService({root:f.root,replyDirectory:f.replies,now:()=>clock,launch:()=>{const child=new EventEmitter();child.send=x=>child.input=x;child.kill=()=>{child.killed=true;queueMicrotask(()=>child.emit('exit',0));};children.push(child);return child;}});
  t.after(()=>service.stop());return {...f,service,children,clock:x=>clock=x,text:()=>fs.readFileSync(path.join(f.replies,PREVIEW_REPLY+'.reply'),'utf8')};
 }
 const model={list:[['1','Universe 1','1','12 bytes','In use']],details:[[['KEEP','History needed by your saves','records','7','']]],ids:[U],locations:[],issues:[]};
@@ -78,4 +82,28 @@ test('real cancellable scan process reuses Stage 1 on disposable inputs and pres
  store.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:U,parent_run:'NONE',parent_record:'0'}),row(2,'SNAPSHOT_BEGIN'),row(3,'SNAPSHOT_END',{profiles:'0'})]);const file=store.final;store.close();const before=hash(file);
  fs.writeFileSync(path.join(root,'local-data',SETTINGS_NAME),JSON.stringify(settings));const service=new PreviewService({root,replyDirectory:replies});t.after(()=>service.stop());service.handle(request(service.gen,1));
  const deadline=Date.now()+70000;while(service.scanning&&Date.now()<deadline)await new Promise(r=>setTimeout(r,30));assert.equal(service.scanning,false);assert.match(fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8'),/\|READY\|/);assert.equal(hash(file),before);
+});
+test('cancellation terminates a real scan process without replacing its cancelled reply', {timeout:20000},async t=>{
+ const {root,replies}=fixture(t),s=new PreviewService({root,replyDirectory:replies});t.after(()=>s.stop());s.handle(request(s.gen,1));const child=s.child;const exited=once(child,'exit');s.handle(request(s.gen,2,'CANCEL'));assert.equal(s.hasReaders(),true);await exited;assert.equal(s.hasReaders(),false);
+ assert.match(fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8'),/CANCELLED/);assert.equal(s.scanning,false);
+});
+test('service stop waits for its real preview reader before completing drain',{timeout:20000},async t=>{
+ const {root,replies}=fixture(t),logs=path.join(root,'logs'),debugLog=path.join(root,'debuglog.txt');fs.mkdirSync(logs);fs.writeFileSync(debugLog,'');
+ const service=startService({root,replyDirectory:replies,logDirectory:logs,debugLog,notBefore:0,interval:100000});
+ const gen=fs.readFileSync(path.join(replies,PREVIEW_HELLO+'.reply'),'utf8').split('|')[3];fs.appendFileSync(debugLog,request(gen,1)+'\n');service.poll();
+ const stopped=service.stop();assert.equal(typeof stopped?.then,'function');await stopped;assert.equal(service.poll(),false);
+});
+test('real service consumes preview requests from debuglog and load fencing cancels queued work',t=>{
+ const {root,replies}=fixture(t),logs=path.join(root,'logs'),debugLog=path.join(root,'debuglog.txt');fs.mkdirSync(logs);fs.writeFileSync(debugLog,'');
+ const service=startService({root,replyDirectory:replies,logDirectory:logs,debugLog,notBefore:0,interval:100000});t.after(()=>service.stop({drain:false}));
+ const hello=fs.readFileSync(path.join(replies,PREVIEW_HELLO+'.reply'),'utf8'),gen=hello.split('|')[3];fs.appendFileSync(debugLog,request(gen,1)+'\n');service.poll();assert.match(fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8'),/SCANNING/);
+ const token=fs.readFileSync(path.join(replies,'session-0-1-loaded-2000-01-01_00-00-00.reply'),'utf8').split('|')[4];fs.appendFileSync(debugLog,`LSLOAD1|PREPARE|${token}|END\n`+request(gen,2)+'\n');service.poll();
+ assert.match(fs.readFileSync(path.join(replies,PREVIEW_HELLO+'.reply'),'utf8'),/INACTIVE/);assert.equal(fs.existsSync(path.join(root,'local-data','profiles')),false);
+});
+test('future companion package manifest resolves the complete read-only scan dependency tree on a disposable copy',{timeout:30000},async t=>{
+ const repo=fileURLToPath(new URL('../../',import.meta.url)),{root}=fixture(t),manifest=JSON.parse(fs.readFileSync(path.join(repo,'profiles/companion-files.json')));
+ for(const relative of manifest.files){assert.ok(!relative.includes('..'));const target=path.join(root,'bundle',relative);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(path.join(repo,relative),target);}
+ const child=fork(path.join(root,'bundle/profiles/preview-scan-worker.mjs'),[],{stdio:['ignore','ignore','pipe','ipc'],windowsHide:true,execArgv:[]});let stderr='';child.stderr.on('data',d=>stderr+=d);const message=once(child,'message'),exited=once(child,'exit');child.send({root,settings});const [result]=await message;assert.ok(result.model,JSON.stringify(result)+stderr);await exited;
+ // SAXES is required only by the nested save scanner; verify its shipped runtime files too.
+ const {createRequire}=await import('node:module');const require=createRequire(path.join(root,'bundle/profiles/preview-scan-worker.mjs'));assert.equal(typeof require('saxes').SaxesParser,'function');
 });
