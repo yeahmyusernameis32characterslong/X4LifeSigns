@@ -37,4 +37,4 @@ Raw prototype source/output and synthetic fixtures remain ignored and local. The
 
 ## Decisions still to complete
 
-Source-backed save inventory/menu feasibility, exact saved checkpoint decoding, maintenance exclusion, durable replay/schema proposal, backup/restore and staged acceptance tests will be recorded in the accompanying research/design before Agent review. No owner databases, logs or saves were changed. No production cleaner, schema migration, deployment, game launch or merge is authorised by this document.
+See the [implementation and source design](DATABASE_HOUSEKEEPING_IMPLEMENTATION_DESIGN.md) for source-backed menu/inventory findings, exact decoding prerequisites, maintenance exclusion, proposed replay/schema changes, backup/restore and staged tests. Two additional disposable-fixture checks confirm existing table contents can survive metadata/version changes and the unmodified old reader refuses version2 unchanged. These are contract proofs, not a production migration. No owner databases, logs or saves were changed. No production cleaner, schema migration, deployment, game launch or merge is authorised by this document.
