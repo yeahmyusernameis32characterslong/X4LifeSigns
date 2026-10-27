@@ -1,10 +1,12 @@
 import { generateCombatContext } from './combat-context-generator.mjs';
+import { generateTradeEvents } from './trade-event-generator.mjs';
 // Source-backed history observations. No engine mutation or personnel materialisation.
 export function generateHistoryEvents(h, c) {
   const {tag,set,add,iff,otherwise,each,ret,run,lib,valid,eventReady}=h;
   const owned=o=>`${valid(o)} and ${o}.isplayerowned`;
   const ref=o=>`'%s'.[${o}]`;
   const combat=generateCombatContext(h);
+  const trade=generateTradeEvents(h,c);
   const initialize=['Identities','Contacts','MarineStates','OperationHosts','OutsiderExpiry'].map(k=>set('md.$LSPHistory'+k,'table[]')).join('')+
     set('md.$LSPHistoryOutsiderQueue','[]')+set('md.$LSPHistoryOutsiderIndex','1')+
     set('md.$LSPHistoryContactReset','player.age + 60s')+set('md.$LSPHistoryContactKeys','[]')+set('md.$LSPHistoryContactIndex','1')+
@@ -13,7 +15,7 @@ export function generateHistoryEvents(h, c) {
     set('md.$LSPHistoryCacheIndex','1')+set('md.$LSPHistoryMarineQueue','[]')+set('md.$LSPHistoryMarineIndex','1')+
     tag('create_group',{groupname:'md.$LSPHistoryOutsiders'})+
     tag('find_sector',{name:'$HistorySectors',space:'player.galaxy',multiple:'true'})+
-    tag('create_group',{groupname:'md.$LSPHistorySectors'})+tag('add_to_group',{groupname:'md.$LSPHistorySectors',list:'$HistorySectors'})+combat.initialize;
+    tag('create_group',{groupname:'md.$LSPHistorySectors'})+tag('add_to_group',{groupname:'md.$LSPHistorySectors',list:'$HistorySectors'})+combat.initialize+trade.initialize;
   const identity=lib('HistoryIdentity',{Object:'null'},
     set('$Key',"'$ref:%s'.[$Object]")+set('$I',"table[$kind='ASSET',$seed='',$idcode='',$reference='%s'.[$Object],$name='',$faction='',$sector='',$known_player=false]")+
     iff('typeof @md.$LSPHistoryIdentities != datatype.table',ret('$I'))+
@@ -75,18 +77,6 @@ export function generateHistoryEvents(h, c) {
     iff('typeof $Data == datatype.table',each('$Key','$Data.keys.list',set('$FieldKey',ref('$Key'))+tag('substitute_text',{text:'$FieldKey'},tag('replace',{string:"'$'",with:"''"}))+run('Escape',{Value:'@$Data.{$Key}'},'$Text')+set('$Body',"$Body + '|' + $FieldKey + '=' + $Text")))+
     iff('$Coalesce',set('$Body',"$Body + '|coalescing_window_seconds=30|count=UNKNOWN'"))+
     run('Write',{Body:'$Body',EventTrace:'true'})+ret('true'));
-  const trade=lib('RecordHistoryTrade',{Offer:null,Order:'null',Type:null,Source:null},
-    iff(`not (${eventReady})`,ret('false'))+
-    set('$T','$Offer')+iff('@$Order.exists',set('$T','$Order'))+
-    set('$Buyer','@$T.buyer')+set('$Seller','@$T.seller')+
-    iff('$Buyer == null',set('$Buyer','@$Offer.buyer'))+iff('$Seller == null',set('$Seller','@$Offer.seller'))+
-    iff('$Buyer == null and @$Offer.isbuyoffer',set('$Buyer','@$Offer.owner'))+
-    iff('$Seller == null and @$Offer.isselloffer',set('$Seller','@$Offer.owner'))+
-    set('$Subject','$Buyer')+set('$Other','$Seller')+
-    iff('not ('+owned('$Subject')+')',set('$Subject','$Seller')+set('$Other','$Buyer'))+
-    iff('not ('+owned('$Subject')+')',ret('false'))+
-    run('RecordHistoryEvent',{Subject:'$Subject',Other:'$Other',Type:'$Type',Source:'$Source',Detail:'@$T.ware',DetailName:'@$T.ware.name',
-      Data:"table[$trade_reference=$T,$buyer_reference=$Buyer,$seller_reference=$Seller,$offer_amount=@$Offer.amount,$order_amount=@$Order.amount,$transferred_amount=@$Order.transferredamount,$offer_unit_price=@$Offer.unitprice,$order_price=@$Order.price,$terms_basis='OBSERVED_TERMS_NOT_GUARANTEED_PROCEEDS']"})+ret('true'));
   const supply=lib('RecordHistorySupply',{Object:null,Wares:null,Type:null,Source:null},
     iff(`not (${eventReady})`,ret('false'))+
     iff('not ('+owned('$Object')+') or typeof $Wares != datatype.table',ret('false'))+
@@ -113,6 +103,7 @@ export function generateHistoryEvents(h, c) {
       otherwise(run('Write',{Diagnostic:'true',Body:`'BOARDING_ROSTER_GAP|operation=%s|state=${state}|availability=UNAVAILABLE'.[$Operation]`}))).join('')+ret('true'));
   const tick=lib('ProcessHistoryWork',{},
     iff(`not (${eventReady})`,ret('false'))+
+    run('ProcessTradeWork')+
     iff('typeof @md.$LSPHistoryIdentities != datatype.table',ret('false'))+
     tag('do_all',{exact:String(c.discoveryPerTick)},iff('md.$LSPHistoryOutsiderIndex gt md.$LSPHistoryOutsiderQueue.count',tag('break'))+
       set('$W','md.$LSPHistoryOutsiderQueue.{md.$LSPHistoryOutsiderIndex}')+
@@ -132,5 +123,5 @@ export function generateHistoryEvents(h, c) {
       set('$M','md.$LSPHistoryMarineQueue.{md.$LSPHistoryMarineIndex}')+add('md.$LSPHistoryMarineIndex')+
       run('RecordHistoryEvent',{Subject:'$M.{1}',Other:'$M.{2}',NpcSeed:'$M.{3}',NpcName:'$M.{4}',Type:"'BOARDING_MARINE_%s'.[$M.{5}]",Relevant:'true',Source:"'BOARDING_ROSTER'",Data:'table[$operation_reference=$M.{6}]'}))+
     iff('md.$LSPHistoryMarineIndex gt md.$LSPHistoryMarineQueue.count',set('md.$LSPHistoryMarineQueue','[]')+set('md.$LSPHistoryMarineIndex','1'))+ret('true'));
-  return {initialize,libraries:identity+combat.libraries+observe+trade+supply+boarding+tick,cues:combat.cues};
+  return {initialize,libraries:identity+combat.libraries+observe+trade.libraries+supply+boarding+tick,cues:combat.cues+trade.cues};
 }

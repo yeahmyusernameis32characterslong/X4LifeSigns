@@ -1402,6 +1402,107 @@
 </cue>
 </cues>
 </cue>
+<cue name="TradeWatch" instantiate="true" namespace="this">
+<conditions>
+<event_cue_signalled cue="TradeWatch" />
+<check_value value="(md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table" />
+</conditions>
+<actions>
+<set_value name="$TradeObject" exact="event.param" />
+</actions>
+<cues>
+<cue name="Trade_started_buyer" instantiate="true" namespace="this">
+<conditions>
+<event_trade_started buyer="parent.$TradeObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordHistoryTrade">
+<param name="Offer" value="@event.param" />
+<param name="Order" value="@event.param2" />
+<param name="Watched" value="parent.$TradeObject" />
+<param name="Side" value="'BUYER'" />
+<param name="Type" value="'TRADE_STARTED'" />
+<param name="Source" value="'event_trade_started'" />
+</run_actions>
+</actions>
+</cue>
+<cue name="Trade_started_seller" instantiate="true" namespace="this">
+<conditions>
+<event_trade_started seller="parent.$TradeObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordHistoryTrade">
+<param name="Offer" value="@event.param" />
+<param name="Order" value="@event.param2" />
+<param name="Watched" value="parent.$TradeObject" />
+<param name="Side" value="'SELLER'" />
+<param name="Type" value="'TRADE_STARTED'" />
+<param name="Source" value="'event_trade_started'" />
+</run_actions>
+</actions>
+</cue>
+<cue name="Trade_completed_buyer" instantiate="true" namespace="this">
+<conditions>
+<event_trade_completed buyer="parent.$TradeObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordHistoryTrade">
+<param name="Offer" value="@event.param" />
+<param name="Order" value="@event.param2" />
+<param name="Watched" value="parent.$TradeObject" />
+<param name="Side" value="'BUYER'" />
+<param name="Type" value="'TRADE_COMPLETED'" />
+<param name="Source" value="'event_trade_completed'" />
+</run_actions>
+</actions>
+</cue>
+<cue name="Trade_completed_seller" instantiate="true" namespace="this">
+<conditions>
+<event_trade_completed seller="parent.$TradeObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordHistoryTrade">
+<param name="Offer" value="@event.param" />
+<param name="Order" value="@event.param2" />
+<param name="Watched" value="parent.$TradeObject" />
+<param name="Side" value="'SELLER'" />
+<param name="Type" value="'TRADE_COMPLETED'" />
+<param name="Source" value="'event_trade_completed'" />
+</run_actions>
+</actions>
+</cue>
+<cue name="Trade_cancelled_buyer" instantiate="true" namespace="this">
+<conditions>
+<event_trade_cancelled buyer="parent.$TradeObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordHistoryTrade">
+<param name="Offer" value="@event.param" />
+<param name="Order" value="null" />
+<param name="Watched" value="parent.$TradeObject" />
+<param name="Side" value="'BUYER'" />
+<param name="Type" value="'TRADE_CANCELLED'" />
+<param name="Source" value="'event_trade_cancelled'" />
+</run_actions>
+</actions>
+</cue>
+<cue name="Trade_cancelled_seller" instantiate="true" namespace="this">
+<conditions>
+<event_trade_cancelled seller="parent.$TradeObject" />
+</conditions>
+<actions>
+<run_actions ref="RecordHistoryTrade">
+<param name="Offer" value="@event.param" />
+<param name="Order" value="null" />
+<param name="Watched" value="parent.$TradeObject" />
+<param name="Side" value="'SELLER'" />
+<param name="Type" value="'TRADE_CANCELLED'" />
+<param name="Source" value="'event_trade_cancelled'" />
+</run_actions>
+</actions>
+</cue>
+</cues>
+</cue>
 </cues>
 </cue>
 <cue name="InvalidateLoadedRecorder" instantiate="true">
@@ -4405,6 +4506,25 @@
 <set_value name="md.$LSPCombatBudgetCount" exact="0" />
 <set_value name="md.$LSPCombatLimitNext" exact="0" />
 <set_value name="md.$LSPCombatLockKeys" exact="table[]" />
+<set_value name="md.$LSPTradeWatches" exact="table[]" />
+<set_value name="md.$LSPTradePending" exact="table[]" />
+<set_value name="md.$LSPTradeInitial" exact="[]" />
+<do_for_each name="$Object" in="$WatchShips">
+<append_to_list name="md.$LSPTradeInitial" exact="$Object" />
+</do_for_each>
+<do_for_each name="$Object" in="$WatchStations">
+<append_to_list name="md.$LSPTradeInitial" exact="$Object" />
+</do_for_each>
+<set_value name="md.$LSPTradeGalaxyCallbacks" exact="0L" />
+<set_value name="md.$LSPTradeAssetCallbacks" exact="0L" />
+<set_value name="md.$LSPTradeWritten" exact="0L" />
+<set_value name="md.$LSPTradeUnresolved" exact="0L" />
+<set_value name="md.$LSPTradeShadowed" exact="0L" />
+<set_value name="md.$LSPTradeLastHealthCount" exact="0L" />
+<set_value name="md.$LSPTradeHealthNext" exact="player.age + 60s" />
+<set_value name="md.$LSPTradeSweepNext" exact="player.age + 10s" />
+<set_value name="md.$LSPTradeSweepKeys" exact="[]" />
+<set_value name="md.$LSPTradeSweepIndex" exact="1" />
 <set_value name="md.$LSPPlayerVersion" exact="1" />
 <set_value name="md.$LSPPlayerObserved" exact="false" />
 <set_value name="md.$LSPPlayerDirty" exact="true" />
@@ -4695,6 +4815,11 @@
 </do_if>
 <do_if value="$Kind == ''">
 <return value="false" />
+</do_if>
+<do_if value="$Kind == 'SHIP' or $Kind == 'STATION'">
+<run_actions ref="EnrolTradeWatch">
+<param name="Object" value="$Object" />
+</run_actions>
 </do_if>
 <set_value name="$Key" exact="'$%s:%s'.[$Kind, $Seed]" />
 <do_if value="$Seed == ''">
@@ -5995,53 +6120,256 @@
 <return value="true" />
 </actions>
 </library>
+<library name="EnrolTradeWatch" purpose="run_actions">
+<params>
+<param name="Object" default="null" />
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or not (typeof $Object == datatype.component and $Object.exists and $Object.isplayerowned)">
+<return value="false" />
+</do_if>
+<do_if value="not ($Object.isclass.ship or $Object.isclass.station) or typeof @md.$LSPTradeWatches != datatype.table">
+<return value="false" />
+</do_if>
+<set_value name="$Key" exact="'$trade:%s:%s'.[$Object,@$Object.seed]" />
+<do_if value="md.$LSPTradeWatches.{$Key}?">
+<return value="true" />
+</do_if>
+<set_value name="md.$LSPTradeWatches.{$Key}" exact="true" />
+<signal_cue_instantly cue="TradeWatch" param="$Object" />
+<return value="true" />
+</actions>
+</library>
+<library name="ReadTradeTerms" purpose="run_actions">
+<params>
+<param name="Offer" default="null" />
+<param name="Deal" default="null" />
+</params>
+<actions>
+<set_value name="$D" exact="table[$offer_amount=@$Offer.amount,$order_amount=@$Deal.amount,$offer_unit_price=@$Offer.unitprice,$order_price=@$Deal.price]" />
+<return value="$D" />
+</actions>
+</library>
 <library name="RecordHistoryTrade" purpose="run_actions">
 <params>
-<param name="Offer" />
+<param name="Offer" default="null" />
 <param name="Order" default="null" />
+<param name="Watched" default="null" />
+<param name="Side" default="'GALAXY'" />
 <param name="Type" />
 <param name="Source" />
 </params>
 <actions>
+<do_if value="typeof @md.$LSPTradePending != datatype.table or typeof @md.$LSPTradeWatches != datatype.table">
+<return value="false" />
+</do_if>
+<do_if value="$Watched == null">
+<set_value name="md.$LSPTradeGalaxyCallbacks" exact="1L" operation="add" />
+</do_if>
+<do_else>
+<set_value name="md.$LSPTradeAssetCallbacks" exact="1L" operation="add" />
+</do_else>
 <do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
 <return value="false" />
 </do_if>
-<set_value name="$T" exact="$Offer" />
-<do_if value="@$Order.exists">
-<set_value name="$T" exact="$Order" />
+<do_if value="$Watched != null and not (typeof $Watched == datatype.component and $Watched.exists and $Watched.isplayerowned)">
+<return value="false" />
 </do_if>
-<set_value name="$Buyer" exact="@$T.buyer" />
-<set_value name="$Seller" exact="@$T.seller" />
+<set_value name="$Deal" exact="$Order" />
+<do_if value="$Deal == null and @$Offer.isorder">
+<set_value name="$Deal" exact="$Offer" />
+</do_if>
+<set_value name="$SourceOffer" exact="$Offer" />
+<do_if value="@$Offer.isorder">
+<set_value name="$SourceOffer" exact="@$Offer.tradeoffer" />
+</do_if>
+<set_value name="$Buyer" exact="@$Deal.buyer" />
+<set_value name="$Seller" exact="@$Deal.seller" />
 <do_if value="$Buyer == null">
 <set_value name="$Buyer" exact="@$Offer.buyer" />
 </do_if>
 <do_if value="$Seller == null">
 <set_value name="$Seller" exact="@$Offer.seller" />
 </do_if>
-<do_if value="$Buyer == null and @$Offer.isbuyoffer">
-<set_value name="$Buyer" exact="@$Offer.owner" />
+<do_if value="$Buyer == null and @$SourceOffer.isbuyoffer">
+<set_value name="$Buyer" exact="@$SourceOffer.owner" />
 </do_if>
-<do_if value="$Seller == null and @$Offer.isselloffer">
-<set_value name="$Seller" exact="@$Offer.owner" />
+<do_if value="$Seller == null and @$SourceOffer.isselloffer">
+<set_value name="$Seller" exact="@$SourceOffer.owner" />
+</do_if>
+<set_value name="$Key" exact="'$deal:%s'.[$Deal]" />
+<set_value name="$Cached" exact="null" />
+<do_if value="$Deal != null and md.$LSPTradePending.{$Key}?">
+<set_value name="$Cached" exact="md.$LSPTradePending.{$Key}" />
+<do_if value="$Buyer == null">
+<set_value name="$Buyer" exact="@$Cached.$buyer" />
+</do_if>
+<do_if value="$Seller == null">
+<set_value name="$Seller" exact="@$Cached.$seller" />
+</do_if>
+</do_if>
+<do_if value="$Side == 'BUYER' and $Buyer == null">
+<set_value name="$Buyer" exact="$Watched" />
+</do_if>
+<do_if value="$Side == 'SELLER' and $Seller == null">
+<set_value name="$Seller" exact="$Watched" />
 </do_if>
 <set_value name="$Subject" exact="$Buyer" />
 <set_value name="$Other" exact="$Seller" />
-<do_if value="not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned)">
+<do_if value="not (typeof $Buyer == datatype.component and $Buyer.exists and $Buyer.isplayerowned) or (not @$Buyer.isclass.ship and typeof $Seller == datatype.component and $Seller.exists and $Seller.isplayerowned and @$Seller.isclass.ship)">
 <set_value name="$Subject" exact="$Seller" />
 <set_value name="$Other" exact="$Buyer" />
 </do_if>
 <do_if value="not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned)">
+<set_value name="md.$LSPTradeUnresolved" exact="1L" operation="add" />
 <return value="false" />
 </do_if>
-<run_actions ref="RecordHistoryEvent">
+<do_if value="$Watched != null and $Watched != $Subject">
+<set_value name="md.$LSPTradeShadowed" exact="1L" operation="add" />
+<return value="false" />
+</do_if>
+<set_value name="$WatchKey" exact="'$trade:%s:%s'.[$Subject,@$Subject.seed]" />
+<do_if value="$Watched == null and md.$LSPTradeWatches.{$WatchKey}?">
+<set_value name="md.$LSPTradeShadowed" exact="1L" operation="add" />
+<return value="false" />
+</do_if>
+<do_if value="$Type == 'TRADE_STARTED'">
+<do_if value="$Deal != null and $Cached == null">
+<run_actions ref="HistoryIdentity">
+<param name="Object" value="$Buyer" />
+</run_actions>
+<run_actions ref="HistoryIdentity">
+<param name="Object" value="$Seller" />
+</run_actions>
+<run_actions ref="ReadTradeTerms" result="$D">
+<param name="Offer" value="$SourceOffer" />
+<param name="Deal" value="$Deal" />
+</run_actions>
+<set_value name="$D.$deal" exact="$Deal" />
+<set_value name="$D.$buyer" exact="$Buyer" />
+<set_value name="$D.$seller" exact="$Seller" />
+<set_value name="$D.$ware" exact="@$Deal.ware" />
+<set_value name="md.$LSPTradePending.{$Key}" exact="$D" />
+</do_if>
+<return value="true" />
+</do_if>
+<run_actions ref="ReadTradeTerms" result="$D">
+<param name="Offer" value="$SourceOffer" />
+<param name="Deal" value="$Deal" />
+</run_actions>
+<set_value name="$D.$order_amount" exact="null" />
+<set_value name="$D.$order_price" exact="null" />
+<set_value name="$D.$order_terms_basis" exact="'UNKNOWN_NO_START_OBSERVATION'" />
+<do_if value="$Cached != null">
+<set_value name="$D.$order_amount" exact="@$Cached.$order_amount" />
+<set_value name="$D.$order_price" exact="@$Cached.$order_price" />
+<set_value name="$D.$offer_amount" exact="@$Cached.$offer_amount" />
+<set_value name="$D.$offer_unit_price" exact="@$Cached.$offer_unit_price" />
+<set_value name="$D.$order_terms_basis" exact="'OBSERVED_AT_TRADE_START'" />
+<set_value name="$D.$offer_terms_basis" exact="'OBSERVED_AT_TRADE_START'" />
+</do_if>
+<do_else>
+<set_value name="$D.$offer_terms_basis" exact="'OBSERVED_AT_CALLBACK'" />
+</do_else>
+<set_value name="$D.$order_remaining_amount" exact="@$Deal.amount" />
+<set_value name="$D.$transferred_amount" exact="@$Deal.transferredamount" />
+<set_value name="$D.$trade_reference" exact="'%s'.[$Deal]" />
+<set_value name="$D.$offer_reference" exact="'%s'.[$SourceOffer]" />
+<set_value name="$D.$callback_offer_reference" exact="'%s'.[$Offer]" />
+<set_value name="$D.$callback_order_reference" exact="'%s'.[$Order]" />
+<set_value name="$D.$capture_route" exact="if $Watched == null then 'GALAXY_FALLBACK' else 'PLAYER_ASSET'" />
+<set_value name="$D.$terms_basis" exact="'OBSERVED_TERMS_NOT_GUARANTEED_PROCEEDS'" />
+<set_value name="$D.$trade_direction" exact="if $Subject == $Buyer then 'BUY' else 'SELL'" />
+<run_actions ref="HistoryIdentity" result="$B">
+<param name="Object" value="$Buyer" />
+</run_actions>
+<run_actions ref="HistoryIdentity" result="$S">
+<param name="Object" value="$Seller" />
+</run_actions>
+<set_value name="$D.$buyer_seed" exact="$B.$seed" />
+<set_value name="$D.$buyer_idcode" exact="$B.$idcode" />
+<set_value name="$D.$buyer_reference" exact="$B.$reference" />
+<set_value name="$D.$buyer_name" exact="$B.$name" />
+<set_value name="$D.$buyer_faction" exact="$B.$faction" />
+<set_value name="$D.$buyer_sector" exact="$B.$sector" />
+<set_value name="$D.$seller_seed" exact="$S.$seed" />
+<set_value name="$D.$seller_idcode" exact="$S.$idcode" />
+<set_value name="$D.$seller_reference" exact="$S.$reference" />
+<set_value name="$D.$seller_name" exact="$S.$name" />
+<set_value name="$D.$seller_faction" exact="$S.$faction" />
+<set_value name="$D.$seller_sector" exact="$S.$sector" />
+<set_value name="$Ware" exact="@$Deal.ware" />
+<do_if value="$Ware == null">
+<set_value name="$Ware" exact="@$Offer.ware" />
+</do_if>
+<do_if value="$Ware == null and $Cached != null">
+<set_value name="$Ware" exact="@$Cached.$ware" />
+</do_if>
+<set_value name="$D.$ware" exact="'%s'.[$Ware]" />
+<set_value name="$D.$ware_name" exact="@$Ware.name" />
+<set_value name="$D.$offer_amount_state" exact="if $D.$offer_amount == null then 'UNKNOWN' else 'OBSERVED'" />
+<set_value name="$D.$order_amount_state" exact="if $D.$order_amount == null then 'UNKNOWN' else 'OBSERVED'" />
+<set_value name="$D.$transferred_amount_state" exact="if $D.$transferred_amount == null then 'UNKNOWN' else 'OBSERVED'" />
+<set_value name="$D.$offer_unit_price_state" exact="if $D.$offer_unit_price == null then 'UNKNOWN' else 'OBSERVED'" />
+<set_value name="$D.$order_price_state" exact="if $D.$order_price == null then 'UNKNOWN' else 'OBSERVED'" />
+<run_actions ref="RecordHistoryEvent" result="$Written">
 <param name="Subject" value="$Subject" />
 <param name="Other" value="$Other" />
 <param name="Type" value="$Type" />
 <param name="Source" value="$Source" />
-<param name="Detail" value="@$T.ware" />
-<param name="DetailName" value="@$T.ware.name" />
-<param name="Data" value="table[$trade_reference=$T,$buyer_reference=$Buyer,$seller_reference=$Seller,$offer_amount=@$Offer.amount,$order_amount=@$Order.amount,$transferred_amount=@$Order.transferredamount,$offer_unit_price=@$Offer.unitprice,$order_price=@$Order.price,$terms_basis='OBSERVED_TERMS_NOT_GUARANTEED_PROCEEDS']" />
+<param name="Detail" value="$Ware" />
+<param name="DetailName" value="@$Ware.name" />
+<param name="Data" value="$D" />
 </run_actions>
+<do_if value="$Written">
+<set_value name="md.$LSPTradeWritten" exact="1L" operation="add" />
+<do_if value="$Deal != null and md.$LSPTradePending.{$Key}?">
+<remove_value name="md.$LSPTradePending.{$Key}" />
+</do_if>
+</do_if>
+<return value="$Written" />
+</actions>
+</library>
+<library name="ProcessTradeWork" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
+<return value="false" />
+</do_if>
+<do_for_each name="$Object" in="md.$LSPTradeInitial">
+<run_actions ref="EnrolTradeWatch">
+<param name="Object" value="$Object" />
+</run_actions>
+</do_for_each>
+<set_value name="md.$LSPTradeInitial" exact="[]" />
+<do_if value="player.age ge md.$LSPTradeSweepNext">
+<set_value name="md.$LSPTradeSweepNext" exact="player.age + 10s" />
+<set_value name="md.$LSPTradeSweepKeys" exact="md.$LSPTradePending.keys.list" />
+<set_value name="md.$LSPTradeSweepIndex" exact="1" />
+</do_if>
+<do_all exact="8">
+<do_if value="md.$LSPTradeSweepIndex gt md.$LSPTradeSweepKeys.count">
+<break />
+</do_if>
+<set_value name="$Key" exact="md.$LSPTradeSweepKeys.{md.$LSPTradeSweepIndex}" />
+<set_value name="md.$LSPTradeSweepIndex" exact="1L" operation="add" />
+<do_if value="md.$LSPTradePending.{$Key}?">
+<do_if value="not @md.$LSPTradePending.{$Key}.$deal.exists">
+<remove_value name="md.$LSPTradePending.{$Key}" />
+</do_if>
+</do_if>
+</do_all>
+<do_if value="player.age ge md.$LSPTradeHealthNext">
+<set_value name="md.$LSPTradeHealthNext" exact="player.age + 60s" />
+<do_if value="md.$LSPLevel ge 3 and md.$LSPTradeLastHealthCount != md.$LSPTradeGalaxyCallbacks + md.$LSPTradeAssetCallbacks">
+<set_value name="md.$LSPTradeLastHealthCount" exact="md.$LSPTradeGalaxyCallbacks + md.$LSPTradeAssetCallbacks" />
+<run_actions ref="Write">
+<param name="Diagnostic" value="true" />
+<param name="Body" value="'TRADE_HEALTH|galaxy_callbacks=%s|asset_callbacks=%s|written=%s|unresolved=%s|shadowed=%s|watches=%s|pending=%s'.[md.$LSPTradeGalaxyCallbacks,md.$LSPTradeAssetCallbacks,md.$LSPTradeWritten,md.$LSPTradeUnresolved,md.$LSPTradeShadowed,md.$LSPTradeWatches.keys.count,md.$LSPTradePending.keys.count]" />
+</run_actions>
+</do_if>
+</do_if>
 <return value="true" />
 </actions>
 </library>
@@ -6191,6 +6519,8 @@
 <do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
 <return value="false" />
 </do_if>
+<run_actions ref="ProcessTradeWork">
+</run_actions>
 <do_if value="typeof @md.$LSPHistoryIdentities != datatype.table">
 <return value="false" />
 </do_if>
