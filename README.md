@@ -61,7 +61,7 @@ Life Signs keeps different playthroughs apart using a saved **universe identifie
 <table>
   <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
   <tbody>
-    <tr><td valign="middle">X4 Event Collector</td><td align="center" valign="middle"><img src="assets/status-verified.png" alt="Verified" width="120"></td></tr>
+    <tr><td valign="middle">X4 Event Collector</td><td align="center" valign="middle"><img src="assets/status-implemented.png" alt="Implemented" width="120"></td></tr>
     <tr><td valign="middle">SQLite Database</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
     <tr><td valign="middle">Return path to X4</td><td align="center" valign="middle"><img src="assets/status-planned.png" alt="Planned" width="120"></td></tr>
     <tr><td valign="middle">Local LLM integration</td><td align="center" valign="middle"><img src="assets/status-exploring.png" alt="Exploring" width="120"></td></tr>
