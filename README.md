@@ -11,6 +11,7 @@
 <br>
 
 **An experimental X4: Foundations mod that gives the universe memory, personality, and a sense that its people actually live there.**
+*Developed with Codex 6.1 Sol-Medium, 6 Astra and Qwen3.8 27b-4k*
 
 </div>
 
@@ -36,7 +37,7 @@ Ultimately, Life Signs is about making X4's inhabitants feel like individuals wh
 
 ## How It Works
 
-The proposed wider system connects X4 game events to a local Node.js application, with SQLite keeping the history. Language models could then turn that context into natural responses.
+The proposed wider system connects X4 game events to a local Node.js application, with SQLite keeping the history. Language models and an indexing tool could then turn that context into natural responses through lightweight text-to-speech AI.
 
 Most interaction is intended to run locally, with voice allowing players and characters to speak naturally. **Aria** is being explored as a richer persistent character, potentially using ChatGPT for deeper conversations and a stronger individual personality.
 
@@ -58,8 +59,13 @@ Life Signs keeps different playthroughs apart using a saved **universe identifie
 
 **Database housekeeping** is the subject of [PR #25](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/25). It is currently a design-stage investigation into how players could review their databases and safely clean up unused histories without losing anything needed by surviving saves; no automatic cleanup has been implemented.
 
-<table>
-  <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
+<table align="center" width="50%">
+  <thead>
+  <tr>
+    <th width="420">Milestone</th>
+    <th width="180">Status</th>
+  </tr>
+</thead>
   <tbody>
     <tr><td valign="middle">X4 Event Collector</td><td align="center" valign="middle"><img src="assets/status-implemented.png" alt="Implemented" width="120"></td></tr>
     <tr><td valign="middle">SQLite Database</td><td align="center" valign="middle"><img src="assets/status-in-progress.png" alt="In Progress" width="120"></td></tr>
@@ -74,18 +80,27 @@ Life Signs keeps different playthroughs apart using a saved **universe identifie
 
 ## Project Structure
 
-| Path | Purpose |
-| --- | --- |
-| [`extension/`](extension/) | X4 extension and Mission Director docking probe. |
-| [`bridge/`](bridge/) | Node.js log reader, SQLite storage, readback command and automated tests. |
-| [`scripts/`](scripts/) | Deployment helper for the experimental extension. |
-| [`docs/`](docs/) | Experiment instructions, evidence and verification records. |
-| [`assets/`](assets/) | README artwork and status badges. |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design and implementation boundaries. |
-| [`DATABASE.md`](DATABASE.md) | Current SQLite schema and persistence limitations. |
-| [`DECISIONS.md`](DECISIONS.md) | Recorded project and technical decisions. |
-| [`SETUP.md`](SETUP.md) | Development setup and local configuration guidance. |
-| [`TESTING.md`](TESTING.md) | Automated checks, live test requirements and verification status. |
+<table align="center" width="50%">
+  <thead>
+  <tr>
+    <th width="180">Path</th>
+    <th width="420">Purpose</th>
+  </tr>
+</thead>
+  <tbody>
+    <tr><td valign="middle"><a href="extension/">extension/</a></td><td align="center" valign="middle">X4 extension and Mission Director probe.</td></tr>
+    <tr><td valign="middle"><a href="bridge/">bridge/</a></td><td align="center" valign="middle">Node.js log reader, SQLite storage, readback command and automated tests.</td></tr>
+    <tr><td valign="middle"><a href="scripts/">scripts/</a></td><td align="center" valign="middle">Deployment helper for the experimental extension.</td></tr>
+    <tr><td valign="middle"><a href="docs/">docs/</a></td><td align="center" valign="middle">Experiment instructions, evidence and verification records.</td></tr>
+    <tr><td valign="middle"><a href="assets/">assets/</a></td><td align="center" valign="middle">README artwork and status badges.</td></tr>
+    <tr><td valign="middle"><a href="ARCHITECTURE.md">ARCHITECTURE.md</a></td><td align="center" valign="middle">System design and implementation boundaries.</td></tr>
+    <tr><td valign="middle"><a href="DATABASE.md">DATABASE.md</a></td><td align="center" valign="middle">Current SQLite schema and persistence limitations.</td></tr>
+    <tr><td valign="middle"><a href="DECISIONS.md">DECISIONS.md</a></td><td align="center" valign="middle">Recorded project and technical decisions.</td></tr>
+    <tr><td valign="middle"><a href="SETUP.md">SETUP.md</a></td><td align="center" valign="middle">Development setup and local configuration guidance.</td></tr>
+    <tr><td valign="middle"><a href="TESTING.md">TESTING.md</a></td><td align="center" valign="middle">Automated checks, live test requirements and verification status.</td></tr>
+  </tbody>
+</table>
+
 
 ---
 
