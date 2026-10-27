@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="lifesigns_npc_kill_reputation" name="Life Signs NPC Kill Reputation" description="Experimental X4 9.00 reputation-only credit for qualifying NPC-controlled player ship kills near protective stations. No additional bounty or assist rewards. Do not combine with other kill-credit extensions." version="100" author="Life Signs" enabled="1" save="0">
+  <dependency version="900" />
+</content>

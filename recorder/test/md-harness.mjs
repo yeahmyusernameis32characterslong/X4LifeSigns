@@ -29,7 +29,7 @@ function split(s, delimiter) {
 const dtype = value => value == null ? 'null' : Array.isArray(value) ? 'list' : value instanceof Map ? 'table' : value.__type || (typeof value === 'bigint' ? 'largeint' : typeof value === 'number' || typeof value === 'boolean' ? 'integer' : typeof value);
 const show = value => value == null ? 'null' : value.__type === 'datatype' ? `datatype.${value.name}` : value.ref ?? value.text ?? String(value);
 const equal = (a, b) => a?.__type === 'datatype' && b?.__type === 'datatype' ? a.name === b.name : a === b;
-export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0, autoDatabase = true, databaseState = 'NEED_BASELINE', playerState = {} } = {}) {
+export function harness(source, { ships = [], stations = [], allShips = ships, allStations = stations, age = 1, gamestart = {}, savedCueState = {}, randomStart = 0, autoDatabase = true, databaseState = 'NEED_BASELINE', playerState = {}, stationQuery = null, nativeCues = {}, nativeActions = {} } = {}) {
   const tree = parseXml(source), md = {}, output = [], traces = [], notifications = [], callCounts = {}, libraries = new Map(), cues = new Map(), parents = new Map(), contexts = new Map();
   const pendingSignals = [], cancelledCues = new Set();
   let randomCounter = randomStart;
@@ -64,7 +64,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     }
     if (value.__type === 'datatype' && key === 'isstring') return value.name === 'string';
     if (value.__type === 'datatype' && key === 'isnumeric') return value.name === 'integer';
-    if (key === 'isclass') return new Proxy({}, { get: (_, klass) => value.class === klass || (klass === 'ship' && value.class === 'spacesuit') });
+    if (key === 'isclass') return new Proxy({}, { get: (_, klass) => value.class === klass || value.classes?.includes(klass) || (klass === 'ship' && value.class === 'spacesuit') });
     const item = value[key];
     if (item === undefined) throw new Error(`Missing property ${key}`);
     return item;
@@ -72,7 +72,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
   function evalx(s, local) {
     s = s.trim();
     if (s.startsWith('if ')) { const [cond, rest] = split(s.slice(3), ' then '); const [yes, no] = split(rest, ' else '); return evalx(cond, local) ? evalx(yes, local) : no ? evalx(no, local) : null; }
-    for (const op of [' or ', ' and ', ' == ', ' != ', ' ge ', ' gt ', ' le ', ' lt ', ' + ', ' - ']) {
+    for (const op of [' or ', ' and ', ' == ', ' != ', ' ge ', ' gt ', ' le ', ' lt ', ' + ', ' - ', ' * ', ' / ', ' ^ ']) {
       const parts = split(s, op); if (parts.length === 1) continue;
       if (op === ' or ') return parts.some(x => Boolean(evalx(x, local)));
       if (op === ' and ') return parts.every(x => Boolean(evalx(x, local)));
@@ -84,13 +84,17 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       if (op === ' le ') return a <= b;
       if (op === ' lt ') return a < b;
       if (op === ' + ') return typeof a === 'string' || typeof b === 'string' ? show(a) + show(b) : a + b;
+      if (op === ' * ') return a * b;
+      if (op === ' / ') return a / b;
+      if (op === ' ^ ') return a ** b;
       return a - b;
     }
     if (s.startsWith('not ')) return !evalx(s.slice(4), local);
     if (s.startsWith('typeof ')) return { __type: 'datatype', name: dtype(evalx(s.slice(7), local)) };
     if (s.startsWith('@')) { try { return evalx(s.slice(1), local); } catch { return null; } }
     if (s.endsWith('?')) { try { evalx(s.slice(0, -1), local); return true; } catch { return false; } }
-    if (/^-?\d+(?:\.\d+)?(?:L|s)?$/.test(s)) return Number.parseFloat(s);
+    const numeric = s.match(/^(-?\d+(?:\.\d+)?)(L|s|km|min|Cr)?$/);
+    if (numeric) return Number(numeric[1]) * ({ km: 1000, min: 60 }[numeric[2]] || 1);
     const parts = split(s, '.');
     let value;
     const first = parts.shift();
@@ -104,7 +108,8 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     else if (first === 'md') value = md;
     else if (first === 'player') value = player;
     else if (first === 'gamestart') value = gamestart;
-    else if (first === 'faction') value = { player: 'player' };
+    else if (first === 'faction') value = { player: 'player', ownerless: 'ownerless' };
+    else if (first === 'relationchangereason') value = { destroyedfactionenemy: 'destroyedfactionenemy' };
     else if (first === 'controlpost') value = {aipilot:'aipilot',manager:'manager'};
     else if (first === 'command') value = {attackobject:'attackobject',withdrawbattle:'withdrawbattle'};
     else if (first === 'class') value = {npc:'npc'};
@@ -156,7 +161,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'append_to_list') ev(a.name).push(ev(a.exact));
       else if (n.tag === 'remove_value') assign(a.name, null, local, true);
       else if (n.tag === 'find_ship') assign(a.name, [...(a.trueowner ? ships : allShips)], local);
-      else if (n.tag === 'find_station') assign(a.name, [...(a.trueowner ? stations : allStations)], local);
+      else if (n.tag === 'find_station') assign(a.name, stationQuery ? stationQuery(n, ev) : [...(a.trueowner ? stations : allStations)], local);
       else if (n.tag === 'find_sector') assign(a.name, [], local); // Synthetic fixture contains no galaxy sectors.
       else if (n.tag === 'find_object_component') { const host = ev(a.object); assign(a.name, (host.componentNpcs || []).filter(x => x.class === 'npc' && x.isplayerowned), local); }
       else if (n.tag === 'create_group') assign(a.groupname, [], local);
@@ -169,7 +174,12 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'reset_cue') cancelledCues.delete(a.cue);
       else if (n.tag === 'signal_cue') pendingSignals.push({ cue:a.cue, param:a.param ? ev(a.param) : null });
       // Synthetic action delivery only: this harness does not model separate MD instances.
-      else if (n.tag === 'signal_cue_instantly') { context(a.cue).event={param:a.param ? ev(a.param) : null}; cue(a.cue); }
+      else if (n.tag === 'signal_cue_instantly') {
+        const param = a.param ? ev(a.param) : null;
+        if (Object.hasOwn(nativeCues, a.cue)) nativeCues[a.cue](param);
+        else { context(a.cue).event={param}; cue(a.cue); }
+      }
+      else if (Object.hasOwn(nativeActions, n.tag)) nativeActions[n.tag](a, ev);
       else throw new Error(`Unsupported action ${n.tag}`);
     }
   }

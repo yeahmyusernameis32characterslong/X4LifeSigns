@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="LifeSigns_NpcKillReputation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <cue name="NpcShipKillReputationV1" instantiate="true" namespace="this">
+      <conditions>
+        <!-- Native ownership event includes personally controlled kills; exclude those explicitly. -->
+        <event_player_owned_killed_object />
+        <check_value value="@event.param.isplayerowned and event.param != player.controlled" />
+        <check_value value="@event.param.isclass.ship_s or @event.param.isclass.ship_m or @event.param.isclass.ship_l or @event.param.isclass.ship_xl" />
+        <check_value value="@event.param.sector" />
+        <!-- Whole defensible objects only: no component, visitor, own-asset or disabled-relation credit. -->
+        <check_value value="@event.param2.isclass.defensible and @event.param2.isclass.object and not @event.param2.isvisitor" />
+        <check_value value="not @event.param2.isrelationchangedisabled" />
+        <check_value value="@event.param2.owner and event.param2.owner != faction.player and event.param2.owner != faction.ownerless" />
+        <check_value value="@event.param2.relationchange.killfaction.bonus gt 0" />
+        <!-- Avoid calling a modified/uninitialised native reward queue. No startup replay or polling. -->
+        <check_value value="typeof @md.Notifications.IllegalActivity.$rewardnpcs == datatype.list and typeof @md.Notifications.IllegalActivity.$rewardnpcdata == datatype.list" />
+      </conditions>
+      <actions>
+        <set_value name="$Killer" exact="event.param" />
+        <set_value name="$Victim" exact="event.param2" />
+        <find_station name="$Candidates" multiple="true" space="$Killer.sector">
+          <match owner="faction.player" negate="true" />
+          <match owner="null" negate="true" />
+          <match_relation_to faction="$Victim.owner" relation="enemy" />
+          <match_distance object="$Killer" max="30km" />
+        </find_station>
+        <set_value name="$Best" exact="null" />
+        <set_value name="$BestDistance" exact="1000km" />
+        <do_all exact="$Candidates.count" counter="$i">
+          <set_value name="$Station" exact="$Candidates.{$i}" />
+          <do_if value="@$Station.tradenpc and @$Station.tradenpc.page != 0 and $Station.owner.isprotective and not $Station.owner.isrelationlocked">
+            <set_value name="$Distance" exact="$Station.distanceto.{$Killer}" />
+            <do_if value="$Distance le $Station.maxradarrange and $Distance le $BestDistance">
+              <set_value name="$Best" exact="$Station" />
+              <set_value name="$BestDistance" exact="$Distance" />
+            </do_if>
+          </do_if>
+        </do_all>
+        <do_if value="$Best">
+          <!-- false alone still pays the native one-third bounty. Sixth=true suppresses that fallback.
+               Native queue owns bonus calculation, batching, dialogue and negative-relation scaling. -->
+          <signal_cue_instantly cue="md.Notifications.AccumulateRewards" param="[$Best.tradenpc, $Victim, true, false, relationchangereason.destroyedfactionenemy, true, 0]" />
+          <debug_text text="'[LifeSignsNpcKillReputation] reputation queued: killer=%s victim=%s station=%s faction=%s bonus=%s; additional_bounty=false'.[$Killer.idcode, $Victim.idcode, $Best.idcode, $Best.owner, $Victim.relationchange.killfaction.bonus]" filter="scripts" />
+        </do_if>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
