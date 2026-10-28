@@ -36,3 +36,21 @@ export function previewModel(result, settings) {
   if (!list.length) list.push(['0',issues.length ? 'Needs attention' : 'No databases found','Unknown','Unknown',issues.length ? 'Needs attention' : 'No databases found']);
   return { list, details, ids, locations, issues };
 }
+
+// Preference-only overlay on the completed unprotected preview. Keep the base
+// untouched so removing protection restores exact prior counts/uncertainty.
+export function applyProtection(base, settings) {
+  const model = { ...base, list: base.list.map(row => [...row]),
+    details: base.details.map(rows => rows.map(row => [...row])) };
+  for (const [i,id] of base.ids.entries()) {
+    if (!id || !settings.protectedUniverses.includes(id)) continue;
+    model.list[i][4] = 'Protected';
+    for (const row of model.details[i]) {
+      if (row[0] === 'INFO' && row[1] === 'Universe') row[3] = 'Protected';
+      if (row[0] === 'INFO' && row[1] === 'Protection') row[2] = 'Protected';
+      if (row[0] === 'KEEP') row[3] = 'Unknown';
+      if (row[0] === 'TAIL') row[3] = '0';
+    }
+  }
+  return model;
+}

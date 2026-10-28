@@ -31,7 +31,7 @@ function P.parse(text, expected)
     if not text:match("|END\r?\n$") or #fields<9 then return nil end
     if fields[1]~="LSDB1" or fields[2]~="HOUSEKEEPING" or fields[3]~=expected.gen or fields[4]~=P.client or uint(fields[5])~=expected.seq then return nil end
     local state,page,pages,count=fields[6],uint(fields[7]),uint(fields[8]),uint(fields[9])
-    local maxRows=({REFRESH=true,LIST=true,PROTECT=true})[expected.verb] and 10 or 3
+    local maxRows=({REFRESH=true,LIST=true})[expected.verb] and 10 or 3
     if not ({READY=true,SCANNING=true,CANCELLED=true,STALE=true,ERROR=true,UNAVAILABLE=true})[state] or not page or not pages or pages<1 or page>=pages or not count or count>maxRows or #fields~=9+count*5 then return nil end
     if state=="READY" and page~=expected.page then return nil end
     local rows={}
@@ -62,8 +62,9 @@ end
 function P.request(verb,item,enabled,page)
     if not P.gen or P.seq>=999999999 then P.state="UNAVAILABLE";P.dirty=true;return end
     P.seq=P.seq+1
-    P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,since=getElapsedTime()};P.lastText=nil;P.progress=nil
+    P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,enabled=enabled==true,since=getElapsedTime()};P.lastText=nil;P.progress=nil
     if verb~="CANCEL" then P.state="SCANNING";P.stale=true end
+    if verb=="PROTECT" then P.progress="Saving protection preference..." end
     DebugError("LSHK1|"..P.gen.."|"..P.client.."|"..P.seq.."|"..verb.."|"..(item or 0).."|"..(enabled and 1 or 0).."|"..(page or 0).."|END")
     P.dirty=true
 end
@@ -101,6 +102,11 @@ function P.locations()
     if P.active and P.gen then P.request("CANCEL") end
     P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
 end
+function P.back()
+    if P.view~="LIST" then
+        P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST")
+    else P.close(true) end
+end
 function P.update()
     if not P.active then return end
     local now=getElapsedTime()
@@ -125,14 +131,15 @@ function P.update()
     if P.awaitInitial and P.live then P.awaitInitial=false;P.refresh() end
     local pending=P.pending
     if not pending or not P.live then return end
-    if pending.verb~="REFRESH" and pending.verb~="PROTECT" and now-pending.since>15 then P.state="ERROR";P.pending=nil;P.stale=true;P.dirty=true;return end
+    if pending.verb~="REFRESH" and now-pending.since>15 then P.state="ERROR";P.pending=nil;P.stale=true;P.dirty=true;return end
     local text=read(replyFile)
     if text==P.lastText then return end
     local reply=P.parse(text,pending);if not reply then return end
     P.lastText=text;P.state=reply.state;P.progress=reply.progress;P.dirty=true
     if reply.state=="READY" then
         P.pending=nil;P.stale=false;P.page=reply.page;P.pages=reply.pages;P.rows=reply.rows
-        if pending.verb=="REFRESH" or pending.verb=="PROTECT" then P.view="LIST";P.selected=nil end
+        if pending.verb=="PROTECT" then P.protected=pending.enabled end
+        if pending.verb=="REFRESH" then P.view="LIST";P.selected=nil end
         if P.view=="LIST" then P.listRows=P.rows end
         for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then
             if row[3]=="Protected" then P.protected=true elseif row[3]=="Not protected" then P.protected=false else P.protected=nil end
@@ -160,9 +167,7 @@ function P.render()
     local info={font="Zekton outlined",fontsize=9,x=5,y=2,minRowHeight=16,wordwrap=true}
     local heading={font="Zekton bold outlined",fontsize=10,x=5,y=2,minRowHeight=22,titleColor=Color["row_title"]}
     local title={font="Zekton bold outlined",fontsize=13,x=5,y=6,minRowHeight=34,titleColor=Color["row_title"]}
-    local function back()
-        if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end
-    end
+    local back=P.back
     local function button(row,col,text,callback,active)
         row[col]:createButton({active=active~=false,height=19}):setText(text,{font="Zekton outlined",fontsize=10,halign="center"})
         row[col].handlers.onClick=callback
@@ -212,7 +217,7 @@ function P.render()
     notes:setColWidth(1,menu.table.arrowColumnWidth,false)
     if P.view=="DETAIL" then
         r=notes:addRow(true,{fixed=true});r[1]:createCheckBox(P.protected==true,{active=P.state=="READY" and P.protected~=nil and not P.stale})
-        r[1].handlers.onClick=function() P.request("PROTECT",P.selected,not P.protected) end
+        r[1].handlers.onClick=function() P.request("PROTECT",P.selected,not P.protected,P.page) end
         r[2]:setColSpan(3):createText("Protect this universe",normal);line(notes,copy.protection)
     end
     line(notes,copy.ancestry);line(notes,"Record and projection counts overlap; do not add them together. File size is not reclaimable space.")
@@ -250,7 +255,7 @@ function P.install(menu)
         if update then return update(...) end
     end
     menu.onCloseElement=function(...)
-        if P.active then P.close(true);return end
+        if P.active then P.back();return end
         if close then return close(...) end
     end
     for _,name in ipairs({"onRowChanged","onSelectElement"}) do

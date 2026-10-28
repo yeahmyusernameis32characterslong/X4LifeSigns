@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
 import { PreviewService } from '../preview-service.mjs';
 import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply,scanProgressRows } from '../preview-protocol.mjs';
-import { previewModel,displaySize } from '../preview-model.mjs';
+import { previewModel,displaySize,applyProtection } from '../preview-model.mjs';
 import { readSettings,setProtection,validateSettings,SETTINGS_NAME } from '../preview-settings.mjs';
 import { ProfileStore } from '../store.mjs';
 import { startService } from '../service.mjs';
@@ -39,7 +39,7 @@ test('bounded pages encode pipes, newlines, Unicode and hostile text as data',()
 });
 test('ten compact universes fit the native buffer; details retain their wider cells',()=>{
  const rows=Array.from({length:21},(_,i)=>[String(i+1), '船'.repeat(80), 'x'.repeat(200), 'x'.repeat(200), 'x'.repeat(200)]);
- for(const verb of ['REFRESH','LIST','PROTECT']) {
+ for(const verb of ['REFRESH','LIST']) {
   const req={client:C,seq:999999999,verb};
   const first=previewReply(G,req,'READY',rows,0),last=previewReply(G,req,'READY',rows,2);
   assert.ok(Buffer.byteLength(first)<4096);assert.deepEqual(first.trim().split('|').slice(5,9),['READY','0','3','10']);
@@ -81,7 +81,7 @@ test('scan results, bad page/selection, missing companion restart and protection
  const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});assert.match(f.text(),/READY/);
  s.handle(request(s.gen,2,'DETAIL',1));assert.match(f.text(),/READY/);s.handle(request(s.gen,3,'DETAIL',99));assert.match(f.text(),/ERROR/);
  s.handle(request(s.gen,4,'LIST',0,0,99));assert.match(f.text(),/ERROR/);
- s.handle(request(s.gen,5,'PROTECT',1,1));assert.deepEqual(readSettings(f.root).value.protectedUniverses,[U]);assert.match(f.text(),/SCANNING/);
+ s.handle(request(s.gen,5,'PROTECT',1,1));assert.deepEqual(readSettings(f.root).value.protectedUniverses,[U]);assert.match(f.text(),/READY/);assert.equal(f.children.length,1);
  const old=s.gen;s.stop();const restart=new PreviewService({root:f.root,replyDirectory:f.replies});t.after(()=>restart.stop());assert.notEqual(restart.gen,old);assert.equal(restart.handle(request(old,6)),false);
 });
 test('external configuration change makes completion stale; worker errors remain preview errors',t=>{
@@ -101,10 +101,13 @@ test('real cancellable scan process reuses Stage 1 on disposable inputs and pres
  const {root,replies}=fixture(t),run='session-1-2-loaded-2026-10-27_12-00-00';const store=new ProfileStore(root,U,run);
  const row=(n,kind,fields={})=>({run,session:'UNAVAILABLE',seq:'1',age:String(n),kind,fields:{record:String(n),...fields}});
  store.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:U,parent_run:'NONE',parent_record:'0'}),row(2,'SNAPSHOT_BEGIN'),row(3,'SNAPSHOT_END',{profiles:'0'})]);const file=store.final;store.close();const before=hash(file);
- fs.writeFileSync(path.join(root,'local-data',SETTINGS_NAME),JSON.stringify(settings));const service=new PreviewService({root,replyDirectory:replies});t.after(()=>service.stop());service.handle(request(service.gen,1));
+ const saves=path.join(root,'saves');fs.mkdirSync(saves);fs.writeFileSync(path.join(root,'local-data',SETTINGS_NAME),JSON.stringify({...settings,saveLocations:[saves],protectedUniverses:[U]}));const service=new PreviewService({root,replyDirectory:replies});t.after(()=>service.stop());const launch=service.launch;let launches=0;service.launch=()=>{launches++;return launch();};service.handle(request(service.gen,1));
  const deadline=Date.now()+70000;let reply='';
  while(Date.now()<deadline){service.poll();reply=fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8');if(!service.scanning&&reply.includes('|READY|'))break;await new Promise(r=>setTimeout(r,30));}
- assert.equal(service.scanning,false);assert.match(reply,/\|READY\|/);assert.equal(hash(file),before);
+ assert.equal(service.scanning,false);assert.match(reply,/\|READY\|/);
+ const i=service.model.ids.indexOf(U);assert.ok(i>=0);assert.equal(service.model.list[i][4],'Protected');
+ service.handle(request(service.gen,2,'PROTECT',i+1,0));assert.equal(service.model.list[i][4],'Possibly unused');
+ assert.equal(service.model.details[i].find(r=>r[0]==='TAIL'&&r[2]==='records')[3],'3');assert.equal(launches,1);assert.equal(hash(file),before);
 });
 test('cancellation terminates a real scan process without replacing its cancelled reply', {timeout:20000},async t=>{
  const {root,replies}=fixture(t),s=new PreviewService({root,replyDirectory:replies});t.after(()=>s.stop());s.handle(request(s.gen,1));const child=s.child;const exited=once(child,'exit');s.handle(request(s.gen,2,'CANCEL'));assert.equal(s.hasReaders(),true);await exited;assert.equal(s.hasReaders(),false);
@@ -163,4 +166,34 @@ test('progress alone cannot hide scan failure or stale settings, and old-client 
  fs.writeFileSync(path.join(f.root,'local-data',SETTINGS_NAME),JSON.stringify(settings));
  current.emit('message',{progress:{stage:'DATABASES',completed:1,total:1}});assert.equal(s.scanning,true);
  current.emit('message',{model});assert.match(f.text(),/STALE/);assert.equal(s.model,null);
+});
+
+test('protection overlay restores exact counts and uncertainty without mutating the completed base preview',()=>{
+ const result={inventory:{complete:true,roots:[],saves:[{name:'save.xml',source:'location-1/save.xml',root:{universe:U}}],unknowns:[]},databases:[{universe:U,status:'PREVIEW_ONLY',bytes:12,retained:[{through:7}],candidates:{records:3,profiles:1,events:2,sessions:0},blocks:[]}],unknowns:[]};
+ for(const uncertain of [false,true]) {
+  if(uncertain){result.inventory.unknowns=[{code:'UNREADABLE_SAVE'}];result.databases[0].status='BLOCKED';result.databases[0].candidates=null;}
+  const base=previewModel(result,settings),snapshot=JSON.stringify(base),pinned=applyProtection(base,{...settings,protectedUniverses:[U]});
+  assert.equal(pinned.list[0][4],'Protected');assert.equal(pinned.details[0].find(r=>r[1]==='Protection')[2],'Protected');
+  assert.ok(pinned.details[0].filter(r=>r[0]==='TAIL').every(r=>r[3]==='0'));
+  assert.deepEqual(applyProtection(base,settings),base);assert.equal(JSON.stringify(base),snapshot);
+  if(uncertain)assert.ok(applyProtection(base,settings).details[0].filter(r=>r[0]==='TAIL').every(r=>r[3]==='Unknown'));
+ }
+});
+
+test('protect/unprotect and Back list use one completed scan and retain the requested detail page',t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));const base={...model,details:[[...model.details[0],['INFO','Protection','Not protected','Whole universe',''],['TAIL','Potentially removable history','records','3',''],['SAVE','File modified (UTC)','save.xml','Unknown','location-1/save.xml']]]};
+ f.children[0].emit('message',{model:base});
+ s.handle(request(s.gen,2,'PROTECT',1,1,1));assert.match(f.text(),/\|READY\|1\|2\|1\|/);assert.equal(s.model.list[0][4],'Protected');
+ s.handle(request(s.gen,3,'CANCEL'));s.handle(request(s.gen,4,'LIST'));assert.match(f.text(),/READY/);assert.equal(f.children.length,1);
+ s.handle(request(s.gen,5,'PROTECT',1,0,99));assert.match(f.text(),/ERROR/);assert.deepEqual(readSettings(f.root).value.protectedUniverses,[U]);
+ s.handle(request(s.gen,6,'PROTECT',1,0,0));assert.match(f.text(),/READY/);assert.equal(s.model.details[0][2][3],'3');assert.deepEqual(readSettings(f.root).value.protectedUniverses,[]);
+ s.handle(request(s.gen,7,'CANCEL'));s.handle(request(s.gen,8,'LIST'));assert.match(f.text(),/READY/);assert.equal(f.children.length,1);
+ fs.writeFileSync(path.join(f.root,'local-data',SETTINGS_NAME),JSON.stringify({...settings,saveLocations:[f.root]}));
+ s.handle(request(s.gen,9,'PROTECT',1,1));assert.match(f.text(),/STALE/);assert.deepEqual(readSettings(f.root).value.protectedUniverses,[]);
+});
+
+test('protection replies use detail budgets, never a compact universe-list page',()=>{
+ const rows=Array.from({length:7},()=>['TAIL','Potentially removable history','x'.repeat(100),'1','']);
+ const frame=previewReply(G,{client:C,seq:1,verb:'PROTECT'},'READY',rows,1),fields=frame.trim().split('|');
+ assert.deepEqual(fields.slice(5,9),['READY','1','3','3']);assert.equal(Buffer.from(fields[11],'hex').length,96);assert.ok(Buffer.byteLength(frame)<4096);
 });

@@ -11,8 +11,8 @@ process.once('message', async ({root,settings}) => {
         lastStage=progress.stage;lastAt=now;process.send({progress});
       }
     };
-    const result=await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:settings.protectedUniverses,onProgress});
-    const model=previewModel(result,settings);
+    const result=await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:[],onProgress});
+    const model=previewModel(result,{...settings,protectedUniverses:[]});
     if (Buffer.byteLength(JSON.stringify(model)) > 4 * 1024 * 1024) throw Error('Preview too large');
     process.send({model},()=>process.disconnect());
   } catch {process.send({error:'SCAN_FAILED'},()=>process.disconnect());}

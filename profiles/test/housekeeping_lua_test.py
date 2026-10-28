@@ -149,6 +149,10 @@ try:
     detail = [['INFO', 'Protection', 'Not protected', 'Whole universe', ''], ['SAVE', 'Local saves', 'A|B 船.xml.gz', 'Unknown', 'Filesystem modified UTC']]
     reply(REPLY, frame(client, detail_seq, rows=detail))
     vm.run('clock=3.1;P.update();assert(P.protected==false and P.rows[2][3]=="A|B 船.xml.gz");P.render();P.locations();assert(P.pending.verb=="LOCATIONS")')
+    vm.run('P.view="DETAIL";P.selected=1;P.protected=false;P.page=1;P.request("PROTECT",1,true,1)')
+    protect_seq = int(vm.run('return tostring(P.seq)', True))
+    reply(REPLY, frame(client, protect_seq, rows=[['SAVE','File modified (UTC)','save.xml','Unknown','location-1/save.xml']], page=1, pages=2))
+    vm.run('clock=3.36;P.update();assert(P.state=="READY" and P.view=="DETAIL" and P.page==1 and P.selected==1 and P.protected==true);local before=#messages;menu.onCloseElement();assert(P.view=="LIST" and messages[#messages]:find("|LIST|",1,true) and #messages==before+2);P.lastPoll=nil')
     vm.run('assert(columnWidths[1]==20 and columnWidths[2]==24 and columnWidths[3]==18);P.view="LOCATIONS";P.render();assert(columnWidths[2]==58)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|1|INITIAL|END\n')
     vm.run('clock=3.4;P.update();assert(P.state=="STALE" and P.pending==nil and not P.live)')
@@ -232,6 +236,8 @@ s.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:u,p
         native_vm.run('assert(P.rows[1][2]=="Universe 1" and P.rows[1][3]=="1" and P.rows[1][5]=="In use");P.select("1")')
         await_ready('DETAIL')
         native_vm.run('assert(P.protected==false);P.request("PROTECT",1,true)')
+        await_ready('DETAIL')
+        native_vm.run('assert(P.protected==true and P.selected==1);P.back()')
         await_ready('LIST')
         assert json.loads(settings_file.read_text())['protectedUniverses'] == [universe]
         native_vm.run('assert(P.rows[1][5]=="Protected");P.close(false)')

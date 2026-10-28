@@ -262,3 +262,20 @@ There is no cross-refresh metadata/result cache. Full save parsing and database
 validation remain necessary, so large selected save folders can still take
 minutes. The owner confirmed the preceding native layout renders nicely;
 progress presentation and loading duration require the next owner menu check.
+
+## Protection and Back without another scan
+
+Changing Protect this universe saves that preference and immediately updates the
+already completed preview. It keeps the selected detail page. The scan worker
+builds an unprotected base preview even for protected universes, so unchecking
+restores the previous exact counts or Unknown values. Protection excludes all
+history from potential removal; its displayed zero candidates are a policy
+exclusion, not new evidence that an uncertain database passed validation.
+
+Back from details or save locations requests the existing universe list. The
+button and keyboard/controller close action share that behaviour; Back from the
+list exits to the main menu. These actions do not launch a scan. Refresh and
+opening a new preview still perform the full checks. External settings changes,
+service/client replacement and world/load fencing invalidate the completed
+preview as before. No evidence is cached persistently or given destructive
+authority; changed saves/databases require Refresh for updated observations.

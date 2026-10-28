@@ -24,7 +24,7 @@ export function cell(value, maxBytes = 96) {
 }
 export function previewReply(gen, request, state, rows = [], page = 0) {
   if (!generation(gen) || !generation(request.client) || !integer(String(request.seq)) || !/^(READY|SCANNING|CANCELLED|STALE|ERROR|UNAVAILABLE)$/.test(state)) throw Error('Invalid preview frame');
-  const list = ['REFRESH','LIST','PROTECT'].includes(request.verb);
+  const list = ['REFRESH','LIST'].includes(request.verb);
   const pageSize = list ? LIST_PAGE_SIZE : PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   if (!Number.isSafeInteger(page) || page < 0 || page >= pages) throw Error('Invalid preview page');

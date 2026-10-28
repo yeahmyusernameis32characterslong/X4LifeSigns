@@ -4,6 +4,7 @@ import { fork } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { checkPath } from '../bridge/src/session-path.js';
 import { PREVIEW_HELLO, PREVIEW_REPLY, parsePreviewRequest, previewReply, scanProgressRows } from './preview-protocol.mjs';
+import { applyProtection } from './preview-model.mjs';
 import { readSettings, setProtection } from './preview-settings.mjs';
 
 export class PreviewService {
@@ -42,7 +43,7 @@ export class PreviewService {
   stop() {this.stopped=true;this.cancel();this.pending.clear();}
   hasReaders() {return this.readers.size>0;}
   waitForExit() {return Promise.all([...this.readers.values()]);}
-  suspend() {if(this.suspended)return;this.suspended=true;this.cancel();this.model=null;this.pending.delete(PREVIEW_REPLY);this.lastHeartbeat=undefined;this.poll();}
+  suspend() {if(this.suspended)return;this.suspended=true;this.cancel();this.model=null;this.baseModel=null;this.pending.delete(PREVIEW_REPLY);this.lastHeartbeat=undefined;this.poll();}
   scan(request,settings) {
     this.cancel();const ticket={request,settings};this.ticket=ticket;this.scanning=true;
     this.progressRows=[];this.reply(request,'SCANNING');
@@ -64,10 +65,10 @@ export class PreviewService {
       }
       answered=true;this.scanning=false;this.child=null;
       try {
-        if(readSettings(this.root).digest!==settings.digest){this.model=null;this.reply(request,'STALE');return;}
+        if(readSettings(this.root).digest!==settings.digest){this.model=null;this.baseModel=null;this.reply(request,'STALE');return;}
         if(message.error || !message.model)throw Error('Scan failed');
-        this.model=message.model;this.settings=settings;this.reply(request,'READY',this.model.list);
-      } catch {this.model=null;this.reply(request,'ERROR');}
+        this.baseModel=message.model;this.model=applyProtection(this.baseModel,settings.value);this.settings=settings;this.reply(request,'READY',this.model.list);
+      } catch {this.model=null;this.baseModel=null;this.reply(request,'ERROR');}
     });
     const failed=()=>{if(!answered && !this.stopped && this.ticket===ticket){this.scanning=false;this.child=null;this.reply(request,'ERROR');}};
     child.on('error',failed);child.on('exit',failed);
@@ -79,7 +80,7 @@ export class PreviewService {
     if(this.sequences.size>=64 && !this.sequences.has(r.client)){this.reply(r,'ERROR');return true;}
     this.sequences.set(r.client,r.seq);
     if(this.suspended){this.reply(r,'STALE');return true;}
-    if(this.client!==r.client){this.cancel();this.model=null;this.client=r.client;}
+    if(this.client!==r.client){this.cancel();this.model=null;this.baseModel=null;this.client=r.client;}
     try {
       if(r.verb==='CANCEL'){this.cancel();this.reply(r,'CANCELLED');return true;}
       const settings=readSettings(this.root);
@@ -90,10 +91,14 @@ export class PreviewService {
         this.reply(r,'READY',rows,r.page);return true;
       }
       if(this.scanning){this.reply(r,'SCANNING',this.progressRows);return true;}
-      if(!this.model || settings.digest!==this.settings.digest){this.model=null;this.reply(r,'STALE');return true;}
+      if(!this.model || settings.digest!==this.settings.digest){this.model=null;this.baseModel=null;this.reply(r,'STALE');return true;}
       if(r.verb==='PROTECT') {
         const universe=this.model.ids[r.item-1];if(!universe)throw Error('Unknown universe');
-        const updated=setProtection(this.root,settings.digest,universe,r.enabled);this.scan(r,updated);return true;
+        // Validate selection/page before changing even the preference file.
+        previewReply(this.gen,r,'READY',this.model.details[r.item-1],r.page);
+        const updated=setProtection(this.root,settings.digest,universe,r.enabled);
+        this.settings=updated;this.model=applyProtection(this.baseModel,updated.value);
+        this.reply(r,'READY',this.model.details[r.item-1],r.page);return true;
       }
       const rows=r.verb==='LIST'?this.model.list:this.model.details[r.item-1];
       if(!rows)throw Error('Unknown selection');this.reply(r,'READY',rows,r.page);
