@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
 import { PreviewService } from '../preview-service.mjs';
 import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply } from '../preview-protocol.mjs';
-import { previewModel } from '../preview-model.mjs';
+import { previewModel,displaySize } from '../preview-model.mjs';
 import { readSettings,setProtection,validateSettings,SETTINGS_NAME } from '../preview-settings.mjs';
 import { ProfileStore } from '../store.mjs';
 import { startService } from '../service.mjs';
@@ -36,6 +36,25 @@ test('bounded pages encode pipes, newlines, Unicode and hostile text as data',()
  const rows=Array.from({length:8},(_,i)=>[String(i),'A|B\n"\\船', 'x'.repeat(500),'\x1bRED','']);const req={client:C,seq:1};
  const p=previewReply(G,req,'READY',rows,2);assert.ok(Buffer.byteLength(p)<4096);const fields=p.trim().split('|');assert.deepEqual(fields.slice(5,9),['READY','2','3','2']);assert.equal(Buffer.from(fields[10],'hex').toString(),'A|B "\\船');assert.ok(!p.includes('RED'));
  assert.throws(()=>previewReply(G,req,'READY',rows,3));assert.throws(()=>previewReply(G,req,'DELETE'));
+});
+test('ten compact universes fit the native buffer; details retain their wider cells',()=>{
+ const rows=Array.from({length:21},(_,i)=>[String(i+1), '船'.repeat(80), 'x'.repeat(200), 'x'.repeat(200), 'x'.repeat(200)]);
+ for(const verb of ['REFRESH','LIST','PROTECT']) {
+  const req={client:C,seq:999999999,verb};
+  const first=previewReply(G,req,'READY',rows,0),last=previewReply(G,req,'READY',rows,2);
+  assert.ok(Buffer.byteLength(first)<4096);assert.deepEqual(first.trim().split('|').slice(5,9),['READY','0','3','10']);
+  assert.deepEqual(last.trim().split('|').slice(5,9),['READY','2','3','1']);
+  assert.equal(Buffer.from(last.trim().split('|')[9],'hex').toString(),'21');
+  assert.ok(!Buffer.from(first.trim().split('|')[10],'hex').toString().includes('\ufffd'));
+  assert.throws(()=>previewReply(G,req,'READY',rows,3));
+ }
+ const details=previewReply(G,{client:C,seq:1,verb:'DETAIL'},'READY',rows,0).trim().split('|');
+ assert.equal(details[8],'3');assert.equal(Buffer.from(details[11],'hex').length,96);
+});
+test('database size uses decimal MB/GB in list and details without rounding small files to zero',()=>{
+ for(const [input,expected] of [[0,'0 MB'],[1,'<0.01 MB'],[10000,'0.01 MB'],[1000000,'1.00 MB'],[1250000000,'1.25 GB'],[undefined,'Unknown'],[-1,'Unknown'],[NaN,'Unknown'],[Number.MAX_SAFE_INTEGER+1,'Unknown']]) assert.equal(displaySize(input),expected);
+ const r={inventory:{complete:true,roots:[],saves:[],unknowns:[]},databases:[{universe:U,status:'PREVIEW_ONLY',bytes:1250000000}],unknowns:[]};
+ const m=previewModel(r,settings);assert.equal(m.list[0][3],'1.25 GB');assert.equal(m.details[0].find(r=>r[1]==='Database size')[2],'1.25 GB');assert.equal(r.databases[0].bytes,1250000000);
 });
 test('model wording distinguishes in-use, uncertain, unmatched and whole-universe protection without guessed dates',()=>{
  const result={inventory:{complete:true,roots:[],saves:[{name:'save.xml',source:'location-1/save.xml',root:{universe:U}}],unknowns:[]},databases:[{universe:U,status:'PREVIEW_ONLY',bytes:12,retained:[{through:7}],candidates:{records:3,profiles:1,events:2,sessions:0},blocks:[]}],unknowns:[]};

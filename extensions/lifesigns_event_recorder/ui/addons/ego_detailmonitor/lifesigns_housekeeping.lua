@@ -31,7 +31,8 @@ function P.parse(text, expected)
     if not text:match("|END\r?\n$") or #fields<9 then return nil end
     if fields[1]~="LSDB1" or fields[2]~="HOUSEKEEPING" or fields[3]~=expected.gen or fields[4]~=P.client or uint(fields[5])~=expected.seq then return nil end
     local state,page,pages,count=fields[6],uint(fields[7]),uint(fields[8]),uint(fields[9])
-    if not ({READY=true,SCANNING=true,CANCELLED=true,STALE=true,ERROR=true,UNAVAILABLE=true})[state] or not page or not pages or pages<1 or page>=pages or not count or count>3 or #fields~=9+count*5 then return nil end
+    local maxRows=({REFRESH=true,LIST=true,PROTECT=true})[expected.verb] and 10 or 3
+    if not ({READY=true,SCANNING=true,CANCELLED=true,STALE=true,ERROR=true,UNAVAILABLE=true})[state] or not page or not pages or pages<1 or page>=pages or not count or count>maxRows or #fields~=9+count*5 then return nil end
     if state=="READY" and page~=expected.page then return nil end
     local rows={}
     for i=1,count do
@@ -140,8 +141,10 @@ function P.render()
     if not P.active then return end
     local menu=P.menu
     Helper.clearDataForRefresh(menu,4);menu.selectedOption=nil
-    local frame=menu.createOptionsFrame()
-    local t=frame:addTable(4,{tabOrder=1,x=menu.table.x,y=menu.table.y,width=menu.table.width,maxVisibleHeight=menu.table.height})
+    local frame=menu.createOptionsFrame(true)
+    local t=frame:addTable(4,{tabOrder=1,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,maxVisibleHeight=menu.table.height})
+    local widths=P.view=="LIST" and {28,16,24} or {24,30,23}
+    for i,width in ipairs(widths) do t:setColWidthPercent(i,width) end
     local function line(text,large)
         local r=t:addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,{wordwrap=true,fontsize=large and 20 or 12});return r
     end
@@ -157,11 +160,11 @@ function P.render()
     button(controls,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING")
     button(controls,4,"Back",function() if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end end)
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or {"Section","Item","Value","Provenance"}
-    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=12}) end
+    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=14}) end
     for _,data in ipairs(P.rows) do
         local r=t:addRow(P.view=="LIST",{})
-        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],{wordwrap=true,fontsize=12}) end
-        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=12}) end
+        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],{wordwrap=true,fontsize=14}) end
+        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=14}) end
     end
     local paging=t:addRow(true,{fixed=true})
     local function page(delta) P.request(P.view=="DETAIL" and "DETAIL" or P.view=="LOCATIONS" and "LOCATIONS" or "LIST",P.view=="DETAIL" and P.selected or 0,false,P.page+delta) end

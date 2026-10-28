@@ -63,7 +63,7 @@ def frame(client, seq, state='READY', rows=None, page=0, pages=1, gen=GEN):
 
 
 mock = r'''
-clock=0;messages={};replies={};labels={};buttons={};seen={};vanillaUpdates=0;vanillaCloses=0
+clock=0;messages={};replies={};labels={};buttons={};seen={};vanillaUpdates=0;vanillaCloses=0;displays=0
 function getElapsedTime() return clock end
 function DebugError(text) messages[#messages+1]=text end
 LifeSignsDatabaseAdapter={readReply=function(file) return replies[file] end}
@@ -78,9 +78,10 @@ local function cell()
 end
 local t={}
 function t:addRow() return {cell(),cell(),cell(),cell()} end
-local f={addTable=function() return t end,display=function() end}
+function t:setColWidthPercent(col,width) columnWidths[col]=width;return self end
+local f={addTable=function(_,columns,properties) tableProperties=properties;columnWidths={};return t end,display=function() displays=displays+1 end}
 Helper={clearDataForRefresh=function() end}
-menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=1000,height=900},createOptionsFrame=function() return f end}
+menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,height=900},createOptionsFrame=function(wide) wideFrame=wide;return f end}
 function menu.displayOption(_,option) seen[#seen+1]=option;return 'option',nil,42 end
 function menu.displayOptions(name,...)
  menu.currentOption=name
@@ -115,6 +116,9 @@ try:
         vm.run('assert(P.parse(' + literal(bad) + ',P.pending)==nil)')
     reply(REPLY, good)
     vm.run('clock=1.4;P.update();assert(P.state=="READY" and not P.stale and P.rows[1][2]=="Universe 1");P.render();assert(table.concat(labels," "):find(P.copy.notice,1,true));P.refresh();assert(P.stale and #P.rows==1);P.render();assert(table.concat(labels," "):find("Previous results - stale",1,true))')
+    vm.run('assert(wideFrame==true and tableProperties.width==1130 and columnWidths[1]==28 and columnWidths[2]==16 and columnWidths[3]==24)')
+    ten = frame(client, int(vm.run('return tostring(P.seq)', True)), rows=[[str(i), f'Universe {i}', '1', '1.25 GB', 'In use'] for i in range(1, 11)])
+    vm.run('assert(#P.parse(' + literal(ten) + ',P.pending).rows==10);local e={gen=P.gen,seq=P.seq,page=0,verb="DETAIL"};assert(P.parse(' + literal(ten) + ',e)==nil)')
     refresh_seq = int(vm.run('return tostring(P.seq)', True))
     vm.run('P.close(false);assert(not P.active and P.pending==nil)')
     reply(REPLY, frame(client, refresh_seq, rows=row))
@@ -125,11 +129,12 @@ try:
     vm.run('clock=2.5;P.update();assert(P.stale and #P.rows==0)')
     current_seq = int(vm.run('return tostring(P.seq)', True))
     reply(REPLY, frame(client, current_seq, rows=row))
-    vm.run('clock=2.8;P.update();P.select("1");assert(P.view=="DETAIL" and P.selected==1)')
+    vm.run('clock=2.8;menu.onUpdate();local before=displays;clock=2.81;menu.onUpdate();clock=2.82;menu.onUpdate();assert(displays==before);P.select("1");assert(P.view=="DETAIL" and P.selected==1)')
     detail_seq = int(vm.run('return tostring(P.seq)', True))
     detail = [['INFO', 'Protection', 'Not protected', 'Whole universe', ''], ['SAVE', 'Local saves', 'A|B 船.xml.gz', 'Unknown', 'Filesystem modified UTC']]
     reply(REPLY, frame(client, detail_seq, rows=detail))
     vm.run('clock=3.1;P.update();assert(P.protected==false and P.rows[2][3]=="A|B 船.xml.gz");P.render();P.locations();assert(P.pending.verb=="LOCATIONS")')
+    vm.run('assert(columnWidths[1]==24 and columnWidths[2]==30 and columnWidths[3]==23)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|1|INITIAL|END\n')
     vm.run('clock=3.4;P.update();assert(P.state=="STALE" and P.pending==nil and not P.live)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|2|INITIAL|END\n')
@@ -147,7 +152,7 @@ with tempfile.TemporaryDirectory(prefix='lifesigns-preview-native-') as temporar
     (extension / 'native').mkdir(parents=True)
     (extension / 'runtime').mkdir()
     shutil.copyfile(Path(sys.argv[2]).resolve(strict=True), extension / 'native/lifesigns_status.dll')
-    native_frame = frame('2' * 32, 1, rows=[['1', 'Universe 船', '1', '12 bytes', 'In use']])
+    native_frame = frame('2' * 32, 1, rows=[[str(i), f'Universe 船 {i}', '1', '1.25 GB', 'In use'] for i in range(1, 11)])
     (extension / 'runtime' / (REPLY + '.reply')).write_bytes(native_frame.encode('ascii'))
     native_vm = VM()
     service = None

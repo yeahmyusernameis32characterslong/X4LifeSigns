@@ -1,5 +1,12 @@
 const number = x => Number.isSafeInteger(x) && x >= 0 ? String(x) : 'Unknown';
 const problem = x => String(x).toLowerCase().replaceAll('_', ' ');
+// Decimal display units only; inventory and retention continue to use exact bytes.
+export function displaySize(bytes) {
+  if (!Number.isSafeInteger(bytes) || bytes < 0) return 'Unknown';
+  if (bytes === 0) return '0 MB';
+  if (bytes < 10000) return '<0.01 MB';
+  return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${(bytes / 1e6).toFixed(2)} MB`;
+}
 export function previewModel(result, settings) {
   const inventory = result.inventory;
   const items = result.databases.map(d => ({ ...d }));
@@ -11,9 +18,9 @@ export function previewModel(result, settings) {
     const pinned = settings.protectedUniverses.includes(d.universe);
     const uncertain = !d.universe || !inventory.complete || inventory.unknowns.some(u => !u.universe || u.universe === d.universe);
     const status = pinned ? 'Protected' : d.status !== 'PREVIEW_ONLY' || uncertain ? 'Needs attention' : saves.length ? 'In use' : 'Possibly unused';
-    list.push([id, label, uncertain ? `${saves.length} known; Unknown` : String(saves.length), d.bytes === undefined ? 'Unknown' : `${number(d.bytes)} bytes`, status]);
+    list.push([id, label, uncertain ? `${saves.length} known; Unknown` : String(saves.length), displaySize(d.bytes), status]);
     ids.push(d.universe || null);
-    const rows = [['INFO','Universe',label,status,''],['INFO','Protection',!d.universe ? 'Unknown' : pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',d.bytes === undefined ? 'Unknown' : `${number(d.bytes)} bytes`,'Current file size','']];
+    const rows = [['INFO','Universe',label,status,''],['INFO','Protection',!d.universe ? 'Unknown' : pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',displaySize(d.bytes),'Current file size','']];
     for (const s of saves) rows.push(['SAVE','Local saves',s.name,s.modifiedUtc || 'Unknown','Filesystem modified UTC; '+s.source]);
     if (!saves.length) rows.push(['SAVE','Local saves',uncertain ? 'Unknown' : 'No matching saves','','Selected local folders only']);
     const retained = (d.retained || []).reduce((n,r) => n + r.through,0);
