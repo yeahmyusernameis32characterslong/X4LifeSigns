@@ -44,7 +44,7 @@ Back sit in a separate compact control row with a visible gap above the table;
 their widths are independent of the data columns.
 The screen now follows verified Extensions-menu conventions: a 13-size outlined
 bold title/back arrow with a divider, 9-size information text, 10-size body text,
-explicit native row heights and offsets, a content gutter and heading dividers.
+native-derived minimum row heights and offsets, a content gutter and heading dividers.
 Previous/Page/Next has its own compact row, so paging buttons do not inherit
 data-column widths. Footer height is reserved before limiting the scrollable
 data area, and explicit table navigation links connect the interactive groups.
