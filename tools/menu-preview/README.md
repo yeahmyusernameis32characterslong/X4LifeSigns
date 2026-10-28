@@ -4,9 +4,18 @@ Open `index.html` directly in a browser. No server, package installation or X4
 launch is needed. Everything is contained in that file; no fonts, images or
 scripts are downloaded.
 
-The default values follow the optional Database Management menu at `156dc75`.
-This is an approximation, not an X4 widget renderer. Browser font pixels,
-wrapping, padding and colours cannot establish how the game will render it.
+The default values follow the revised Extensions-style Database Management menu
+(`extensions-style-v2` in exports). The original polished browser styling did
+not match the owner's X4 screenshots and has been replaced: title 13, body 10,
+notes 9, native-style 34/22/19/16 row heights, blue controls, title dividers,
+separate compact paging, a gutter and reply-budget text clipping. Scanning and
+unavailable examples show an empty-results placeholder.
+
+This is an approximation, not an X4 widget renderer. The animated game scene is
+omitted; the outlined Zekton font may be unavailable in the browser. Native
+font shapes/scaling, wrapping and widget colours still require X4 verification.
+The fixed-width canvas is now the default; Fit preview is an explicit
+responsive experiment rather than the claimed in-game width.
 The examples are fictional and include long paths, unknown dates and different
 universe statuses. No save, database or service is read or changed.
 

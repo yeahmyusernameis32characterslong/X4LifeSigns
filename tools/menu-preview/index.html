@@ -19,29 +19,34 @@
   .topbar p { margin:0; color:#a6b4c2; font-size:13px; }
   .workspace { display:grid; grid-template-columns:minmax(0,1fr) 310px; align-items:start; gap:22px; padding:24px; }
   .canvas { overflow:auto; min-width:0; border:1px solid #354352; background:#080c11; border-radius:6px; }
-  .screen { width:1130px; min-height:740px; padding:30px; background:linear-gradient(115deg,#111b27,#0c1119 70%); font-family:Arial,sans-serif; }
-  .screen.fit { width:100%; min-width:540px; }
-  .screen h1 { font-size:24px; font-weight:400; margin:0 0 12px; color:#f4be72; }
-  .screen p { font-size:12px; line-height:1.5; margin:6px 0; }
-  .screen .intro { font-size:15px; color:#fff; }
+  .screen { width:1130px; min-height:740px; margin:45px; padding:0; background:transparent; font-family:"Zekton outlined","Arial Narrow",Arial,sans-serif; color:#fff; text-shadow:1px 1px 1px #000; }
+  .screen.fit { width:calc(100% - 90px); min-width:540px; }
+  .native-title { display:flex; align-items:center; min-height:34px; border-bottom:1px solid #008acb; gap:3px; }
+  .screen h1 { font-size:13px; font-weight:700; margin:6px 0 0 5px; color:#fff; }
+  .screen .title-back { width:20px; height:34px; padding:0; font-size:16px; }
+  .screen p { font-size:9px; line-height:1.35; min-height:16px; margin:0 0 0 23px; padding:2px 0 0 5px; }
+  .screen .intro { font-size:10px; min-height:19px; color:#fff; }
   .muted { color:#a0afbd; }
-  .screen .notice { color:#e2bd82; }
-  .state { padding:8px 0; color:#f4c471; }
-  .actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:min(100%,var(--buttons)); margin:var(--gap) 0; gap:3px; }
-  .screen button { border-radius:0; border:1px solid #52606b; background:#26333f; font-family:Arial,sans-serif; }
-  .actions button { font-size:12px; padding:8px 4px; }
-  .table-scroll { overflow:auto; }
+  .screen .notice { color:#fff; }
+  .state { color:#fff; }
+  .actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:min(100%,var(--buttons)); margin:var(--gap) 0 var(--gap) 23px; gap:3px; max-width:calc(100% - 23px); }
+  .screen button { border-radius:0; border:1px solid #138de0; background:#0877b7; font-family:inherit; text-shadow:inherit; }
+  .screen button:hover:not(:disabled),.screen button:focus-visible { background:#00d9fa; }
+  .screen button:disabled { background:#434343; border-color:#555; opacity:1; color:#b7b7b7; }
+  .actions button { font-size:10px; height:19px; padding:0 5px; }
+  .table-scroll { overflow:auto; margin-left:23px; }
   .data { table-layout:fixed; border-collapse:collapse; width:100%; font-size:var(--font); }
-  .data th { color:#ffc46b; font-weight:400; background:#101721; text-align:left; padding:7px 8px; border-bottom:1px solid #64717d; }
-  .data td { padding:var(--padding) 8px; border-bottom:1px solid #2d3945; vertical-align:top; line-height:1.45; overflow-wrap:anywhere; }
-  .data tbody tr:nth-child(even) { background:#ffffff04; }
-  .data .universe { display:block; width:100%; font-size:inherit; text-align:left; padding:5px 7px; }
+  .data th { color:#fff; font-weight:700; background:transparent; text-align:left; height:22px; padding:2px 5px 0; border-bottom:1px solid #008acb; }
+  .data td { height:19px; padding:var(--padding) 5px 0; vertical-align:top; line-height:1.35; overflow:hidden; overflow-wrap:normal; }
+  .data tbody tr { background:#00000015; }
+  .data .universe { display:block; width:100%; font-size:inherit; text-align:left; height:19px; padding:0 5px; }
   .data .attention { color:#f2c078; }
   .data .protected { color:#8dc7dd; }
-  .pagination { display:flex; align-items:center; gap:14px; margin:12px 0 18px; font-size:var(--font); }
-  .pagination button { font-size:12px; padding:6px 20px; }
-  .foot { border-top:1px solid #34414e; padding-top:12px; }
-  .protect { display:flex; gap:8px; align-items:center; font-size:12px; margin:12px 0; }
+  .pagination { display:flex; align-items:center; width:340px; max-width:calc(100% - 23px); gap:3px; margin:var(--gap) 0 var(--gap) 23px; font-size:var(--font); }
+  .pagination span { flex:1; text-align:center; }
+  .pagination button { font-size:10px; width:100px; height:19px; padding:0 5px; }
+  .foot { padding:0; }
+  .protect { display:flex; gap:5px; align-items:center; font-size:10px; min-height:19px; margin:0 0 0 23px; }
   aside { background:#141d27; border:1px solid #354352; border-radius:6px; padding:18px; }
   aside h2 { font-size:17px; margin:0 0 6px; }
   aside p { color:#aebbc7; font-size:12px; line-height:1.5; }
@@ -61,12 +66,12 @@
 </style>
 <header class="topbar">
   <div class="brand">LIFE SIGNS</div>
-  <p>Menu layout preview · Sample data · Approximate X4 appearance</p>
+  <p>Menu layout preview · Extensions-style geometry · Sample data</p>
 </header>
 <main class="workspace">
   <div class="canvas" aria-label="Menu preview">
     <section class="screen fit" id="screen" aria-label="Database Management mock-up">
-      <h1>Database Management</h1>
+      <div class="native-title"><button class="title-back" id="title-back" type="button" aria-label="Back">&#9664;</button><h1>Database Management</h1></div>
       <p class="intro">Manage your universe histories</p>
       <p>See which Life Signs databases belong to your local saves and identify history you may no longer need.</p>
       <p class="notice">Preview only. No databases or history will be changed.</p>
@@ -120,18 +125,25 @@
     <div class="editor-actions"><button id="export" type="button">Export layout</button><button id="reset" type="button">Reset layout</button></div>
     <p id="announcement" role="status" aria-live="polite"></p>
     <details><summary>Layout settings</summary><pre id="settings"></pre></details>
-    <p>Uses fictional examples, not your saves or database. Browser fonts and wrapping differ from X4. The default layout follows menu revision <code>156dc75</code>. Row padding and page size are design experiments; exported values do not edit Lua.</p>
+    <p>Uses fictional examples, not your saves or database. Browser fonts and wrapping differ from X4. The default layout follows the revised Extensions-style menu. X4?s animated scene is omitted; its outlined Zekton font may be unavailable in your browser. Text clipping follows the reply budgets; font shapes/scaling still need an in-game check. Exported values do not edit Lua.</p>
   </aside>
 </main>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const defaults = () => ({font:10,buttons:640,gap:12,padding:5,rows:10,fit:true,widths:{LIST:[18,18,24,40],DETAIL:[20,24,18,38],LOCATIONS:[16,58,16,10]}});
+const defaults = () => ({font:10,buttons:640,gap:12,padding:2,rows:10,fit:false,widths:{LIST:[18,18,24,40],DETAIL:[20,24,18,38],LOCATIONS:[16,58,16,10]}});
 const headings = {LIST:['Universe','Local saves','Database size','Status'],DETAIL:['Section','Item','Value','Save location / source'],LOCATIONS:['Folder','Location','Scope','Notes']};
 const messages = {SCANNING:'Scanning selected local folders… (sample)',STALE:'Results are stale. Refresh to scan the selected folders again.',UNAVAILABLE:'Companion unavailable. Start or restart the companion, then Refresh.',ERROR:'Preview failed. Check your save locations, then Refresh.',CANCELLED:'Cancelled. Previous results are stale.'};
 let layout=defaults(), view='LIST', state='READY', page=0, selected=1;
 const protectedIds=new Set();
 const universeRows=Array.from({length:14},(_,i)=>['Universe '+(i+1), i===5?'2 known; Unknown':String((i%4)+1), i%3===0?'1.25 GB':((i+1)*18.3).toFixed(2)+' MB', i===5?'Needs attention':i===8?'Possibly unused':'In use']);
+// The native transport clips cells by UTF-8 bytes before X4 draws them.
+function clipCell(value,budget) {
+  let text=String(value);const encoder=new TextEncoder();
+  if(encoder.encode(text).length<=budget)return text;
+  while(encoder.encode(text).length>budget-3)text=text.slice(0,-1);
+  return text.replace(/[\ud800-\udbff]$/,'')+'...';
+}
 function sampleRows() {
   if(view==='LIST') return universeRows.map((r,i)=>[r[0],r[1],r[2],protectedIds.has(i+1)?'Protected':r[3]]);
   if(view==='LOCATIONS') return [
@@ -155,7 +167,7 @@ function sampleRows() {
   ];
 }
 function exportValue() {
-  return {tool:'Life Signs menu layout preview',version:1,sourceMenu:'156dc75',sampleData:true,layout:JSON.parse(JSON.stringify(layout))};
+  return {tool:'Life Signs menu layout preview',version:1,sourceMenu:'extensions-style-v2',sampleData:true,layout:JSON.parse(JSON.stringify(layout))};
 }
 function updateEditor() {
   for(const key of ['font','buttons','gap','padding','rows']) {
@@ -174,7 +186,7 @@ function render() {
   const screen=$('screen');
   for(const [key,value] of [['font',layout.font],['buttons',layout.buttons],['gap',layout.gap],['padding',layout.padding]]) screen.style.setProperty('--'+key,value+'px');
   screen.classList.toggle('fit',layout.fit);
-  const all=sampleRows(), size=view==='LIST'?layout.rows:3, pages=Math.max(1,Math.ceil(all.length/size));
+  const all=['SCANNING','UNAVAILABLE','ERROR'].includes(state)?[]:sampleRows(), size=view==='LIST'?layout.rows:3, pages=Math.max(1,Math.ceil(all.length/size));
   page=Math.min(Math.max(page,0),pages-1);
   $('view').value=view; $('state').value=state;
   $('state-message').hidden=state==='READY'; $('state-message').textContent=messages[state]||'';
@@ -182,6 +194,7 @@ function render() {
   document.querySelectorAll('#data col').forEach((col,i)=>{col.style.width=layout.widths[view][i]+'%';});
   document.querySelectorAll('#data th').forEach((th,i)=>{th.textContent=headings[view][i];});
   const body=document.querySelector('#data tbody');body.replaceChildren();
+  if(!all.length) { const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent=state==='SCANNING'?'Waiting for scan results...':'No results to display.';tr.append(td);body.append(tr); }
   all.slice(page*size,(page+1)*size).forEach((row,index)=>{
     const tr=document.createElement('tr');
     row.forEach((value,i)=>{
@@ -190,7 +203,7 @@ function render() {
         const button=document.createElement('button');button.type='button';button.className='universe';button.textContent=value;button.disabled=state!=='READY';
         const id=page*size+index+1;
         button.addEventListener('click',()=>{selected=id;view='DETAIL';page=0;render();});td.append(button);
-      } else td.textContent=value;
+      } else td.textContent=clipCell(value,view==='LIST'?32:96);
       if(value==='Needs attention') td.className='attention';
       if(value==='Protected') td.className='protected';
       tr.append(td);
@@ -225,10 +238,11 @@ $('state').addEventListener('change',()=>{state=$('state').value;render();});
 $('refresh').addEventListener('click',()=>{state='READY';view='LIST';page=0;render();$('announcement').textContent='Sample results refreshed. No files were scanned.';});
 $('locations').addEventListener('click',()=>{view='LOCATIONS';page=0;state='READY';render();});
 $('cancel').addEventListener('click',()=>{state='CANCELLED';render();});
-$('back').addEventListener('click',()=>{if(view!=='LIST'){view='LIST';page=0;render();}else $('announcement').textContent='This is the sample main list. Close this browser tab to exit.';});
+function back() { if(view!=='LIST'){view='LIST';page=0;render();}else $('announcement').textContent='This is the sample main list. Close this browser tab to exit.'; }
+$('back').addEventListener('click',back);$('title-back').addEventListener('click',back);
 $('previous').addEventListener('click',()=>{page--;render();});$('next').addEventListener('click',()=>{page++;render();});
 $('protect').addEventListener('change',()=>{if($('protect').checked)protectedIds.add(selected);else protectedIds.delete(selected);render();});
-$('reset').addEventListener('click',()=>{layout=defaults();page=0;render();$('announcement').textContent='Layout reset to menu revision 156dc75.';});
+$('reset').addEventListener('click',()=>{layout=defaults();page=0;render();$('announcement').textContent='Layout reset to the Extensions-style defaults.';});
 $('export').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(exportValue(),null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='lifesigns-menu-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
