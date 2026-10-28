@@ -34,7 +34,10 @@ counts used by the inventory/planner are unchanged.
 
 Selecting a universe opens associated save names and filesystem-modified UTC
 dates with provenance, History needed by your saves, Potentially removable
-history and Problems requiring attention. The wider options frame and separate
+history and Problems requiring attention. Save rows use the Section label
+`File modified (UTC)` for the displayed date; Save location / source contains
+only the selected-folder-relative source, without a date-provenance prefix.
+The wider options frame and separate
 list/detail column proportions give labels, dates and statuses more room.
 Table headings, cells and selectable universe labels use font size 10 after
 owner feedback that the previous table text was too large. Universe labels have
