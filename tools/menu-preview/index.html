@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Life Signs · Menu layout preview</title>
+<style>
+  :root { color-scheme:dark; font-family:system-ui,sans-serif; background:#0b1016; color:#e2e8ee; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; }
+  button,input,select { font:inherit; }
+  button,select { color:inherit; background:#202b38; border:1px solid #465567; border-radius:4px; padding:8px 12px; }
+  button { cursor:pointer; }
+  button:hover:not(:disabled) { background:#354557; }
+  button:disabled { opacity:.45; cursor:default; }
+  :focus-visible { outline:2px solid #ffd17a; outline-offset:3px; }
+  .topbar { display:flex; gap:24px; align-items:center; padding:20px 28px; border-bottom:1px solid #283542; }
+  .brand { letter-spacing:.15em; font-weight:700; color:#ffc56c; }
+  .topbar p { margin:0; color:#a6b4c2; font-size:13px; }
+  .workspace { display:grid; grid-template-columns:minmax(0,1fr) 310px; align-items:start; gap:22px; padding:24px; }
+  .canvas { overflow:auto; min-width:0; border:1px solid #354352; background:#080c11; border-radius:6px; }
+  .screen { width:1130px; min-height:740px; padding:30px; background:linear-gradient(115deg,#111b27,#0c1119 70%); font-family:Arial,sans-serif; }
+  .screen.fit { width:100%; min-width:540px; }
+  .screen h1 { font-size:24px; font-weight:400; margin:0 0 12px; color:#f4be72; }
+  .screen p { font-size:12px; line-height:1.5; margin:6px 0; }
+  .screen .intro { font-size:15px; color:#fff; }
+  .muted { color:#a0afbd; }
+  .screen .notice { color:#e2bd82; }
+  .state { padding:8px 0; color:#f4c471; }
+  .actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:min(100%,var(--buttons)); margin:var(--gap) 0; gap:3px; }
+  .screen button { border-radius:0; border:1px solid #52606b; background:#26333f; font-family:Arial,sans-serif; }
+  .actions button { font-size:12px; padding:8px 4px; }
+  .table-scroll { overflow:auto; }
+  .data { table-layout:fixed; border-collapse:collapse; width:100%; font-size:var(--font); }
+  .data th { color:#ffc46b; font-weight:400; background:#101721; text-align:left; padding:7px 8px; border-bottom:1px solid #64717d; }
+  .data td { padding:var(--padding) 8px; border-bottom:1px solid #2d3945; vertical-align:top; line-height:1.45; overflow-wrap:anywhere; }
+  .data tbody tr:nth-child(even) { background:#ffffff04; }
+  .data .universe { display:block; width:100%; font-size:inherit; text-align:left; padding:5px 7px; }
+  .data .attention { color:#f2c078; }
+  .data .protected { color:#8dc7dd; }
+  .pagination { display:flex; align-items:center; gap:14px; margin:12px 0 18px; font-size:var(--font); }
+  .pagination button { font-size:12px; padding:6px 20px; }
+  .foot { border-top:1px solid #34414e; padding-top:12px; }
+  .protect { display:flex; gap:8px; align-items:center; font-size:12px; margin:12px 0; }
+  aside { background:#141d27; border:1px solid #354352; border-radius:6px; padding:18px; }
+  aside h2 { font-size:17px; margin:0 0 6px; }
+  aside p { color:#aebbc7; font-size:12px; line-height:1.5; }
+  aside label { display:block; font-size:13px; margin:14px 0 7px; }
+  aside select { width:100%; }
+  aside input[type=range] { width:100%; accent-color:#efba69; }
+  aside output { float:right; color:#f8cd8d; font-variant-numeric:tabular-nums; }
+  fieldset { margin:20px 0 0; padding:4px 0 0; border:0; border-top:1px solid #344352; }
+  legend { font-size:13px; padding:0 8px 0 0; color:#e6bd80; }
+  .check { display:flex; align-items:center; gap:8px; }
+  .editor-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
+  .editor-actions button { font-size:12px; }
+  details { margin-top:18px; font-size:12px; }
+  pre { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.5 monospace; background:#0c121a; padding:10px; }
+  #announcement { min-height:18px; }
+  @media (max-width:950px) { .workspace { grid-template-columns:1fr; padding:12px; } aside { grid-row:1; } .topbar { padding:16px; flex-wrap:wrap; gap:8px; } }
+</style>
+<header class="topbar">
+  <div class="brand">LIFE SIGNS</div>
+  <p>Menu layout preview · Sample data · Approximate X4 appearance</p>
+</header>
+<main class="workspace">
+  <div class="canvas" aria-label="Menu preview">
+    <section class="screen fit" id="screen" aria-label="Database Management mock-up">
+      <h1>Database Management</h1>
+      <p class="intro">Manage your universe histories</p>
+      <p>See which Life Signs databases belong to your local saves and identify history you may no longer need.</p>
+      <p class="notice">Preview only. No databases or history will be changed.</p>
+      <p class="muted">Only the selected local folders are checked. Cloud saves and copies stored elsewhere are not included.</p>
+      <p class="state" id="state-message" role="status" hidden></p>
+      <div class="actions" aria-label="Menu controls">
+        <button id="refresh" type="button">Refresh</button>
+        <button id="locations" type="button">Save locations</button>
+        <button id="cancel" type="button">Cancel</button>
+        <button id="back" type="button">Back</button>
+      </div>
+      <div class="table-scroll">
+        <table class="data" id="data" aria-label="Sample universe inventory">
+          <colgroup><col><col><col><col></colgroup>
+          <thead><tr><th scope="col"></th><th scope="col"></th><th scope="col"></th><th scope="col"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="pagination" aria-label="Sample data pages">
+        <button id="previous" type="button">Previous</button>
+        <span id="page-label"></span>
+        <button id="next" type="button">Next</button>
+      </div>
+      <label class="protect" id="protection-row" hidden><input id="protect" type="checkbox"> Protect this universe (sample only)</label>
+      <div class="foot">
+        <p id="protection-help" hidden>Prevent cleanup of this universe, including history not referenced by your current saves.</p>
+        <p>Earlier history is preserved when a newer save still depends on it, even if the earlier save was overwritten.</p>
+        <p class="muted">Record and projection counts overlap; do not add them together. File size is not reclaimable space.</p>
+      </div>
+    </section>
+  </div>
+  <aside aria-label="Layout editor">
+    <h2>Adjust the layout</h2>
+    <p>Changes affect this page only. Export your preferred settings for review.</p>
+    <label for="view">View</label>
+    <select id="view"><option value="LIST">Universes</option><option value="DETAIL">Save details</option><option value="LOCATIONS">Save locations</option></select>
+    <label for="state">Example state</label>
+    <select id="state"><option value="READY">Ready</option><option value="SCANNING">Scanning</option><option value="STALE">Stale results</option><option value="UNAVAILABLE">Companion unavailable</option><option value="ERROR">Error</option><option value="CANCELLED">Cancelled</option></select>
+    <label for="font">Table font <output id="font-value"></output></label>
+    <input id="font" type="range" min="8" max="20" step="1">
+    <label for="buttons">Four-button row width <output id="buttons-value"></output></label>
+    <input id="buttons" type="range" min="320" max="1000" step="10">
+    <label for="gap">Gap around controls <output id="gap-value"></output></label>
+    <input id="gap" type="range" min="0" max="48" step="1">
+    <label for="padding">Row padding <output id="padding-value"></output></label>
+    <input id="padding" type="range" min="2" max="14" step="1">
+    <label for="rows">Universes per page <output id="rows-value"></output></label>
+    <input id="rows" type="range" min="3" max="20" step="1">
+    <label class="check"><input id="fit" type="checkbox"> Fit preview to this panel</label>
+    <fieldset id="columns"><legend>Column widths · total 100%</legend></fieldset>
+    <div class="editor-actions"><button id="export" type="button">Export layout</button><button id="reset" type="button">Reset layout</button></div>
+    <p id="announcement" role="status" aria-live="polite"></p>
+    <details><summary>Layout settings</summary><pre id="settings"></pre></details>
+    <p>Uses fictional examples, not your saves or database. Browser fonts and wrapping differ from X4. The default layout follows menu revision <code>156dc75</code>. Row padding and page size are design experiments; exported values do not edit Lua.</p>
+  </aside>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const defaults = () => ({font:10,buttons:640,gap:12,padding:5,rows:10,fit:true,widths:{LIST:[18,18,24,40],DETAIL:[20,24,18,38],LOCATIONS:[16,58,16,10]}});
+const headings = {LIST:['Universe','Local saves','Database size','Status'],DETAIL:['Section','Item','Value','Save location / source'],LOCATIONS:['Folder','Location','Scope','Notes']};
+const messages = {SCANNING:'Scanning selected local folders… (sample)',STALE:'Results are stale. Refresh to scan the selected folders again.',UNAVAILABLE:'Companion unavailable. Start or restart the companion, then Refresh.',ERROR:'Preview failed. Check your save locations, then Refresh.',CANCELLED:'Cancelled. Previous results are stale.'};
+let layout=defaults(), view='LIST', state='READY', page=0, selected=1;
+const protectedIds=new Set();
+const universeRows=Array.from({length:14},(_,i)=>['Universe '+(i+1), i===5?'2 known; Unknown':String((i%4)+1), i%3===0?'1.25 GB':((i+1)*18.3).toFixed(2)+' MB', i===5?'Needs attention':i===8?'Possibly unused':'In use']);
+function sampleRows() {
+  if(view==='LIST') return universeRows.map((r,i)=>[r[0],r[1],r[2],protectedIds.has(i+1)?'Protected':r[3]]);
+  if(view==='LOCATIONS') return [
+    ['Local folder 1','Selected folder / local saves','Selected local scope',''],
+    ['Local folder 2','Selected folder / campaign archives / earlier chapters / checkpoint collection','Selected local scope',''],
+    ['Configure locations','Edit local-data/housekeeping-preview-v1.json','Restart companion, then Refresh','No folder picker is used']
+  ];
+  return [
+    ['Universe','Universe '+selected,universeRows[selected-1][3],''],
+    ['Protection',protectedIds.has(selected)?'Protected':'Not protected','Whole universe',''],
+    ['Database size',universeRows[selected-1][2],'Current file size',''],
+    ['Local saves','save_010.xml.gz','2026-10-28T10:15:32.000Z','Filesystem modified UTC; selected folder / campaign archives / chapter-03 / save_010.xml.gz'],
+    ['Local saves','quicksave.xml.gz','2026-10-28T11:02:15.000Z','Filesystem modified UTC; selected folder / local saves / quicksave.xml.gz'],
+    ['Local saves','autosave_001.xml.gz','Unknown','Selected folder / long example folder name / autosave_001.xml.gz'],
+    ['History needed by your saves','Raw record prefix count','184502','Ancestor history included'],
+    ['Potentially removable history','records','4210','Categories overlap; do not sum'],
+    ['Potentially removable history','profiles','305','Categories overlap; do not sum'],
+    ['Potentially removable history','events','3880','Categories overlap; do not sum'],
+    ['Potentially removable history','sessions','2','Categories overlap; do not sum'],
+    ['Problems requiring attention','Example only — not a real inventory','','']
+  ];
+}
+function exportValue() {
+  return {tool:'Life Signs menu layout preview',version:1,sourceMenu:'156dc75',sampleData:true,layout:JSON.parse(JSON.stringify(layout))};
+}
+function updateEditor() {
+  for(const key of ['font','buttons','gap','padding','rows']) {
+    $(key).value=layout[key];
+    $(key+'-value').textContent=layout[key]+(['buttons','gap','padding'].includes(key)?' px':'');
+  }
+  $('fit').checked=layout.fit;
+  headings[view].forEach((name,i)=>{
+    $('column-label-'+i).textContent=name;
+    $('column-'+i).value=layout.widths[view][i];
+    $('column-value-'+i).textContent=layout.widths[view][i].toFixed(1)+'%';
+  });
+  $('settings').textContent=JSON.stringify(exportValue(),null,2);
+}
+function render() {
+  const screen=$('screen');
+  for(const [key,value] of [['font',layout.font],['buttons',layout.buttons],['gap',layout.gap],['padding',layout.padding]]) screen.style.setProperty('--'+key,value+'px');
+  screen.classList.toggle('fit',layout.fit);
+  const all=sampleRows(), size=view==='LIST'?layout.rows:3, pages=Math.max(1,Math.ceil(all.length/size));
+  page=Math.min(Math.max(page,0),pages-1);
+  $('view').value=view; $('state').value=state;
+  $('state-message').hidden=state==='READY'; $('state-message').textContent=messages[state]||'';
+  $('refresh').disabled=state==='UNAVAILABLE'; $('locations').disabled=state==='UNAVAILABLE'; $('cancel').disabled=state!=='SCANNING';
+  document.querySelectorAll('#data col').forEach((col,i)=>{col.style.width=layout.widths[view][i]+'%';});
+  document.querySelectorAll('#data th').forEach((th,i)=>{th.textContent=headings[view][i];});
+  const body=document.querySelector('#data tbody');body.replaceChildren();
+  all.slice(page*size,(page+1)*size).forEach((row,index)=>{
+    const tr=document.createElement('tr');
+    row.forEach((value,i)=>{
+      const td=document.createElement('td');
+      if(view==='LIST'&&i===0) {
+        const button=document.createElement('button');button.type='button';button.className='universe';button.textContent=value;button.disabled=state!=='READY';
+        const id=page*size+index+1;
+        button.addEventListener('click',()=>{selected=id;view='DETAIL';page=0;render();});td.append(button);
+      } else td.textContent=value;
+      if(value==='Needs attention') td.className='attention';
+      if(value==='Protected') td.className='protected';
+      tr.append(td);
+    });body.append(tr);
+  });
+  $('page-label').textContent='Page '+(page+1)+' / '+pages;
+  $('previous').disabled=state!=='READY'||page===0; $('next').disabled=state!=='READY'||page===pages-1;
+  $('protection-row').hidden=view!=='DETAIL'; $('protection-help').hidden=view!=='DETAIL';
+  $('protect').disabled=state!=='READY';$('protect').checked=protectedIds.has(selected);
+  updateEditor();
+}
+function resizeColumn(index,value) {
+  const current=layout.widths[view], chosen=Math.min(75,Math.max(5,Number(value)));
+  const others=[0,1,2,3].filter(i=>i!==index), weights=others.map(i=>Math.max(0,current[i]-5));
+  const total=weights.reduce((a,b)=>a+b,0), available=100-chosen-15;
+  current[index]=chosen;
+  others.forEach((i,j)=>{current[i]=Math.round((5+available*(total?weights[j]/total:1/3))*10)/10;});
+  current[others.at(-1)]=Math.round((100-current.filter((_,i)=>i!==others.at(-1)).reduce((a,b)=>a+b,0))*10)/10;
+  render();
+}
+for(let i=0;i<4;i++) {
+  const label=document.createElement('label');label.htmlFor='column-'+i;
+  const name=document.createElement('span');name.id='column-label-'+i;
+  const out=document.createElement('output');out.id='column-value-'+i;label.append(name,out);
+  const input=document.createElement('input');input.type='range';input.id='column-'+i;input.min='5';input.max='75';input.step='0.1';
+  input.addEventListener('input',()=>resizeColumn(i,input.value));$('columns').append(label,input);
+}
+for(const key of ['font','buttons','gap','padding','rows']) $(key).addEventListener('input',()=>{layout[key]=Number($(key).value);render();});
+$('fit').addEventListener('change',()=>{layout.fit=$('fit').checked;render();});
+$('view').addEventListener('change',()=>{view=$('view').value;page=view==='DETAIL'?1:0;render();});
+$('state').addEventListener('change',()=>{state=$('state').value;render();});
+$('refresh').addEventListener('click',()=>{state='READY';view='LIST';page=0;render();$('announcement').textContent='Sample results refreshed. No files were scanned.';});
+$('locations').addEventListener('click',()=>{view='LOCATIONS';page=0;state='READY';render();});
+$('cancel').addEventListener('click',()=>{state='CANCELLED';render();});
+$('back').addEventListener('click',()=>{if(view!=='LIST'){view='LIST';page=0;render();}else $('announcement').textContent='This is the sample main list. Close this browser tab to exit.';});
+$('previous').addEventListener('click',()=>{page--;render();});$('next').addEventListener('click',()=>{page++;render();});
+$('protect').addEventListener('change',()=>{if($('protect').checked)protectedIds.add(selected);else protectedIds.delete(selected);render();});
+$('reset').addEventListener('click',()=>{layout=defaults();page=0;render();$('announcement').textContent='Layout reset to menu revision 156dc75.';});
+$('export').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(exportValue(),null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='lifesigns-menu-layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  $('announcement').textContent='Layout exported. Send the JSON file to Codex to apply your choices.';
+});
+render();
+</script>
+</html>

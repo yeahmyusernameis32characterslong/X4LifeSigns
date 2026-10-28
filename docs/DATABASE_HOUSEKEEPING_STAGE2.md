@@ -9,6 +9,12 @@ quarantine, compaction or cleanup Apply exists.
 
 ## Screen and scope
 
+For offline layout experiments, open
+[the standalone browser preview](../tools/menu-preview/index.html). Its
+[usage guide](../tools/menu-preview/README.md) explains the fictional data,
+font/column/spacing controls and layout export. It approximates the appearance;
+it neither renders native X4 widgets nor edits the installed menu or game data.
+
 The optional recorder adds **Life Signs** before the settings entry of the
 initial main menu, opening **Database Management**:
 
