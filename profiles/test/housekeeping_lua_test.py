@@ -120,11 +120,17 @@ try:
     vm.run('P.update();assert(P.live and P.pending and P.pending.verb=="REFRESH");assert(P.state=="SCANNING")')
     seq = int(vm.run('return tostring(P.seq)', True))
     row = [['1', 'Universe 1', '2', '120 bytes', 'In use']]
+    progress = frame(client, seq, state='SCANNING', rows=[['PROGRESS', 'SAVES', '2', '', '']])
+    vm.run('assert(P.parse(' + literal(progress) + ',P.pending).progress=="Checking saves: 2 checked.")')
+    for data in [['PROGRESS', 'DATABASES', '3', '2', ''], ['PROGRESS', 'SAVES', '2', '3', ''], ['PROGRESS', 'PATH', '0', '', ''], ['PROGRESS', 'SAVES', '-1', '', '']]:
+        vm.run('assert(P.parse(' + literal(frame(client, seq, state='SCANNING', rows=[data])) + ',P.pending)==nil)')
+    reply(REPLY, progress)
+    vm.run('clock=1.36;P.update();assert(P.state=="SCANNING" and P.pending and P.stale and #P.rows==0);P.render();assert(table.concat(labels," "):find("Checking saves: 2 checked.",1,true));P.lastPoll=nil')
     good = frame(client, seq, rows=row)
     for bad in [good.replace(client, OTHER), good.replace(GEN, OTHER), good.replace('|READY|', '|DELETE|'), good.rstrip('\n'), good + 'extra', good.replace('|0|1|1|', '|0|1|4|'), frame(client, seq, rows=row, page=1, pages=2)]:
         vm.run('assert(P.parse(' + literal(bad) + ',P.pending)==nil)')
     reply(REPLY, good)
-    vm.run('clock=1.4;P.update();assert(P.state=="READY" and not P.stale and P.rows[1][2]=="Universe 1");P.render();assert(table.concat(labels," "):find(P.copy.notice,1,true));P.refresh();assert(P.stale and #P.rows==1);P.render();assert(table.concat(labels," "):find("Previous results - stale",1,true))')
+    vm.run('clock=1.4;P.update();assert(P.state=="READY" and not P.stale and P.progress==nil and P.rows[1][2]=="Universe 1");P.render();assert(table.concat(labels," "):find(P.copy.notice,1,true));P.refresh();assert(P.stale and #P.rows==1);P.render();assert(table.concat(labels," "):find("Previous results - stale",1,true))')
     vm.run('assert(wideFrame==true and tableProperties.width==1107 and columnWidths[1]==18 and columnWidths[2]==18 and columnWidths[3]==24);assert(#renderTables==5);local controls,data,pager,notes=renderTables[2],renderTables[3],renderTables[4],renderTables[5];assert(controls.properties.width<data.properties.width and pager.properties.width<data.properties.width);assert(data.properties.y>controls.properties.y+controls:getVisibleHeight());assert(pager.properties.y>=data.properties.y+data:getVisibleHeight());assert(notes.properties.y>pager.properties.y+pager:getVisibleHeight());assert(notes.properties.y+notes:getVisibleHeight()<=menu.table.height);assert(renderTables[1].rows[1][2].textProperties.fontsize==13 and renderTables[1].rows[1][2].textProperties.titleColor==Color.row_title);assert(data.rows[1][1].textProperties.minRowHeight==22);assert(controls.properties.nextTable==data.index and pager.properties.prevTable==data.index)')
     ten = frame(client, int(vm.run('return tostring(P.seq)', True)), rows=[[str(i), f'Universe {i}', '1', '1.25 GB', 'In use'] for i in range(1, 11)])
     vm.run('assert(#P.parse(' + literal(ten) + ',P.pending).rows==10);local e={gen=P.gen,seq=P.seq,page=0,verb="DETAIL"};assert(P.parse(' + literal(ten) + ',e)==nil)')

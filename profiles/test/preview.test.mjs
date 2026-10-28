@@ -6,7 +6,7 @@ import os from 'node:os';
 import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
 import { PreviewService } from '../preview-service.mjs';
-import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply } from '../preview-protocol.mjs';
+import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply,scanProgressRows } from '../preview-protocol.mjs';
 import { previewModel,displaySize } from '../preview-model.mjs';
 import { readSettings,setProtection,validateSettings,SETTINGS_NAME } from '../preview-settings.mjs';
 import { ProfileStore } from '../store.mjs';
@@ -102,7 +102,9 @@ test('real cancellable scan process reuses Stage 1 on disposable inputs and pres
  const row=(n,kind,fields={})=>({run,session:'UNAVAILABLE',seq:'1',age:String(n),kind,fields:{record:String(n),...fields}});
  store.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:U,parent_run:'NONE',parent_record:'0'}),row(2,'SNAPSHOT_BEGIN'),row(3,'SNAPSHOT_END',{profiles:'0'})]);const file=store.final;store.close();const before=hash(file);
  fs.writeFileSync(path.join(root,'local-data',SETTINGS_NAME),JSON.stringify(settings));const service=new PreviewService({root,replyDirectory:replies});t.after(()=>service.stop());service.handle(request(service.gen,1));
- const deadline=Date.now()+70000;while(service.scanning&&Date.now()<deadline)await new Promise(r=>setTimeout(r,30));assert.equal(service.scanning,false);assert.match(fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8'),/\|READY\|/);assert.equal(hash(file),before);
+ const deadline=Date.now()+70000;let reply='';
+ while(Date.now()<deadline){service.poll();reply=fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8');if(!service.scanning&&reply.includes('|READY|'))break;await new Promise(r=>setTimeout(r,30));}
+ assert.equal(service.scanning,false);assert.match(reply,/\|READY\|/);assert.equal(hash(file),before);
 });
 test('cancellation terminates a real scan process without replacing its cancelled reply', {timeout:20000},async t=>{
  const {root,replies}=fixture(t),s=new PreviewService({root,replyDirectory:replies});t.after(()=>s.stop());s.handle(request(s.gen,1));const child=s.child;const exited=once(child,'exit');s.handle(request(s.gen,2,'CANCEL'));assert.equal(s.hasReaders(),true);await exited;assert.equal(s.hasReaders(),false);
@@ -124,7 +126,41 @@ test('real service consumes preview requests from debuglog and load fencing canc
 test('future companion package manifest resolves the complete read-only scan dependency tree on a disposable copy',{timeout:30000},async t=>{
  const repo=fileURLToPath(new URL('../../',import.meta.url)),{root}=fixture(t),manifest=JSON.parse(fs.readFileSync(path.join(repo,'profiles/companion-files.json')));
  for(const relative of manifest.files){assert.ok(!relative.includes('..'));const target=path.join(root,'bundle',relative);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(path.join(repo,relative),target);}
- const child=fork(path.join(root,'bundle/profiles/preview-scan-worker.mjs'),[],{stdio:['ignore','ignore','pipe','ipc'],windowsHide:true,execArgv:[]});let stderr='';child.stderr.on('data',d=>stderr+=d);const message=once(child,'message'),exited=once(child,'exit');child.send({root,settings});const [result]=await message;assert.ok(result.model,JSON.stringify(result)+stderr);await exited;
+ const child=fork(path.join(root,'bundle/profiles/preview-scan-worker.mjs'),[],{stdio:['ignore','ignore','pipe','ipc'],windowsHide:true,execArgv:[]});let stderr='';child.stderr.on('data',d=>stderr+=d);const progress=[];let result;child.on('message',m=>{if(m.progress)progress.push(m.progress);else result=m;});const exited=once(child,'exit');child.send({root,settings});await exited;assert.ok(result?.model,JSON.stringify(result)+stderr);assert.ok(progress.length);progress.forEach(scanProgressRows);
  // SAXES is required only by the nested save scanner; verify its shipped runtime files too.
  const {createRequire}=await import('node:module');const require=createRequire(path.join(root,'bundle/profiles/preview-scan-worker.mjs'));assert.equal(typeof require('saxes').SaxesParser,'function');
+});
+
+test('scan progress stays scanning, bounded and correlated through cancellation, load fencing and completion',t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));const child=f.children[0];
+ child.emit('message',{progress:{stage:'SAVES',completed:2,total:null}});
+ assert.equal(s.scanning,true);assert.equal(s.child,child);assert.equal(s.model,null);assert.equal(s.hasReaders(),true);
+ assert.match(f.text(),/\|SCANNING\|/);assert.ok(f.text().includes(Buffer.from('PROGRESS').toString('hex')));assert.ok(Buffer.byteLength(f.text())<4096);
+ const before=f.text();child.emit('message',{progress:{stage:'SAVES',completed:-1,total:null}});assert.equal(f.text(),before);
+ child.emit('message',{model});assert.equal(s.scanning,false);assert.match(f.text(),/\|READY\|/);
+ child.emit('message',{progress:{stage:'DATABASES',completed:1,total:2}});assert.match(f.text(),/\|READY\|/);
+ child.emit('exit',0);assert.equal(s.hasReaders(),false);
+ s.handle(request(s.gen,2));const next=f.children[1];s.handle(request(s.gen,3,'CANCEL'));
+ next.emit('message',{progress:{stage:'DATABASES',completed:0,total:1}});assert.match(f.text(),/CANCELLED/);
+ s.handle(request(s.gen,4));const last=f.children[2];s.suspend();const cancelled=f.text();
+ last.emit('message',{progress:{stage:'DATABASES',completed:0,total:1}});assert.equal(f.text(),cancelled);
+});
+
+test('progress rows admit fixed stages and numeric counts only, without provisional retention results',()=>{
+ for(const progress of [{stage:'SAVES',completed:999999999,total:null},{stage:'DATABASES',completed:2,total:3},{stage:'SAVE_RECHECK',completed:0,total:0},{stage:'DATABASE_RECHECK',completed:3,total:3}]) {
+  const rows=scanProgressRows(progress);assert.equal(rows.length,1);
+  assert.ok(Buffer.byteLength(previewReply(G,{client:C,seq:1,verb:'REFRESH'},'SCANNING',rows))<4096);
+ }
+ for(const progress of [null,{stage:'PATH',completed:0,total:0},{stage:'SAVES',completed:0,total:3},{stage:'SAVES',completed:NaN,total:null},{stage:'DATABASES',completed:4,total:3},{stage:'DATABASES',completed:0,total:null},{stage:'SAVE_RECHECK',completed:1000000000,total:1000000000}])assert.throws(()=>scanProgressRows(progress));
+});
+
+test('progress alone cannot hide scan failure or stale settings, and old-client updates are fenced',t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));const child=f.children[0];
+ child.emit('message',{progress:{stage:'SAVES',completed:0,total:null}});child.emit('exit',1);
+ assert.match(f.text(),/ERROR/);assert.equal(s.scanning,false);assert.equal(s.hasReaders(),false);
+ s.handle(request(s.gen,2));const old=f.children[1];s.handle(request(s.gen,1,'REFRESH',0,0,0,D));
+ const current=f.children[2],before=f.text();old.emit('message',{progress:{stage:'DATABASES',completed:0,total:1}});assert.equal(f.text(),before);
+ fs.writeFileSync(path.join(f.root,'local-data',SETTINGS_NAME),JSON.stringify(settings));
+ current.emit('message',{progress:{stage:'DATABASES',completed:1,total:1}});assert.equal(s.scanning,true);
+ current.emit('message',{model});assert.match(f.text(),/STALE/);assert.equal(s.model,null);
 });

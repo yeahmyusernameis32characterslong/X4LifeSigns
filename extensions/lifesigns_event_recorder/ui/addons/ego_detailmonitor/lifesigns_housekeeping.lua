@@ -39,7 +39,20 @@ function P.parse(text, expected)
         local row={};for j=1,5 do row[j]=decode(fields[9+(i-1)*5+j]);if row[j]==nil then return nil end end
         rows[i]=row
     end
-    return {state=state,page=page,pages=pages,rows=rows}
+    local progress
+    if state=="SCANNING" and count>0 then
+        local labels={SAVES="Checking saves",SAVE_RECHECK="Rechecking save inputs",DATABASES="Checking databases",DATABASE_RECHECK="Rechecking databases"}
+        local row=rows[1];local label=labels[row[2]];local completed=uint(row[3]);local total=uint(row[4])
+        if count~=1 or row[1]~="PROGRESS" or not label or not completed or row[5]~="" then return nil end
+        if row[2]=="SAVES" then
+            if row[4]~="" then return nil end
+            progress=label..": "..completed.." checked."
+        else
+            if not total or completed>total then return nil end
+            progress=label..": "..completed.." of "..total.." checked."
+        end
+    end
+    return {state=state,page=page,pages=pages,rows=rows,progress=progress}
 end
 local function read(file)
     local adapter=LifeSignsDatabaseAdapter
@@ -49,14 +62,14 @@ end
 function P.request(verb,item,enabled,page)
     if not P.gen or P.seq>=999999999 then P.state="UNAVAILABLE";P.dirty=true;return end
     P.seq=P.seq+1
-    P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,since=getElapsedTime()};P.lastText=nil
+    P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,since=getElapsedTime()};P.lastText=nil;P.progress=nil
     if verb~="CANCEL" then P.state="SCANNING";P.stale=true end
     DebugError("LSHK1|"..P.gen.."|"..P.client.."|"..P.seq.."|"..verb.."|"..(item or 0).."|"..(enabled and 1 or 0).."|"..(page or 0).."|END")
     P.dirty=true
 end
 function P.close(back)
     if P.active and P.gen then P.request("CANCEL") end
-    P.active=false;P.pending=nil;P.rows={};P.stale=true;P.awaitInitial=false
+    P.active=false;P.pending=nil;P.progress=nil;P.rows={};P.stale=true;P.awaitInitial=false
     if back and P.menu then P.menu.displayOptions("main") end
 end
 function P.worldObserved()
@@ -72,7 +85,7 @@ end
 function P.open(menu)
     if not P.initial(menu) or menu.animationDelay or menu.contextMenuMode then return end
     P.menu=menu;P.active=true;P.view="LIST";P.selected=nil;P.rows={};P.listRows=nil;P.page=0;P.pages=1
-    P.gen=nil;P.heartbeat=nil;P.live=false;P.opened=getElapsedTime();P.state="UNAVAILABLE";P.stale=true;P.awaitInitial=true;P.dirty=true
+    P.gen=nil;P.heartbeat=nil;P.progress=nil;P.live=false;P.opened=getElapsedTime();P.state="UNAVAILABLE";P.stale=true;P.awaitInitial=true;P.dirty=true
     P.update()
     P.render()
 end
@@ -100,7 +113,7 @@ function P.update()
     if token(gen) and uint(tick) and phase=="INITIAL" then
         if gen~=P.gen then
             local restarting=P.gen~=nil
-            P.gen=gen;P.heartbeat=tick;P.heartbeatAt=now;P.live=false;P.pending=nil
+            P.gen=gen;P.heartbeat=tick;P.heartbeatAt=now;P.live=false;P.pending=nil;P.progress=nil
             if restarting then P.state="STALE";P.stale=true;P.dirty=true;P.awaitInitial=false end
         elseif tick~=P.heartbeat then
             P.heartbeat=tick;P.heartbeatAt=now;if not P.live then P.dirty=true end;P.live=true
@@ -116,7 +129,7 @@ function P.update()
     local text=read(replyFile)
     if text==P.lastText then return end
     local reply=P.parse(text,pending);if not reply then return end
-    P.lastText=text;P.state=reply.state;P.dirty=true
+    P.lastText=text;P.state=reply.state;P.progress=reply.progress;P.dirty=true
     if reply.state=="READY" then
         P.pending=nil;P.stale=false;P.page=reply.page;P.pages=reply.pages;P.rows=reply.rows
         if pending.verb=="REFRESH" or pending.verb=="PROTECT" then P.view="LIST";P.selected=nil end
@@ -166,7 +179,7 @@ function P.render()
         local row=header:addRow(false,{fixed=true});row[2]:createText(text,properties or info)
     end
     headerLine(copy.intro,normal);headerLine(copy.description);headerLine(copy.notice);headerLine(copy.scope)
-    if P.state~="READY" then headerLine(messages[P.state] or "Waiting for companion...") end
+    if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
     local gap=Helper.scaleY(12)
     local gutter=menu.table.arrowColumnWidth+Helper.borderSize

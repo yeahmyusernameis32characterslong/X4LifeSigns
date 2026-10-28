@@ -37,6 +37,8 @@ export async function inventorySaves(locations, options = {}) {
   const output = { mode: 'READ_ONLY_PREVIEW', coverage: 'DECLARED_LOCATIONS_ONLY', atomicInventory: false,
     complete: true, locations: [], saves: [], roots: [], unknowns: [], warnings: ['External/unregistered saves are outside this inventory.', 'No Apply operation is implemented.'] };
   const getAvailability = options.getAvailability || availability;
+  let checked = 0;
+  options.onProgress?.({ stage: 'SAVES', completed: 0, total: null });
   if (!Array.isArray(locations) || !locations.length) { output.complete = false; output.unknowns.push({ code: 'NO_DECLARED_SAVE_LOCATIONS' }); return output; }
   const seen = new Set(), observations = []; let files = 0;
   async function walk(dir, location, relative = '') {
@@ -55,6 +57,7 @@ export async function inventorySaves(locations, options = {}) {
         if (!/\.xml(?:\.gz)?$/i.test(name)) entry = { name, status: 'UNKNOWN', code: 'UNSUPPORTED_FILE' };
         else entry = await inspectSave(file, { ...options, getAvailability });
         entry.source = location + '/' + rel; output.saves.push(entry);
+        options.onProgress?.({ stage: 'SAVES', completed: ++checked, total: null });
         if (entry.status === 'CHECKPOINT') output.roots.push({ ...entry.root, source: entry.source });
         if (entry.status === 'UNKNOWN') output.unknowns.push({ source: entry.source, universe: entry.universe, code: entry.code });
       }
@@ -67,10 +70,13 @@ export async function inventorySaves(locations, options = {}) {
   }
   // A later scan may outlast a change to an earlier file/location. Recheck all
   // metadata/listings before publishing; this is still not an atomic snapshot.
+  let rechecked = 0;
+  options.onProgress?.({ stage: 'SAVE_RECHECK', completed: 0, total: observations.length });
   for (const o of observations) {
     try {
       checkAvailability(o.file, getAvailability);
       if (o.listing ? JSON.stringify(o.listing) !== JSON.stringify(fs.readdirSync(o.file).sort()) : !sameSnapshot(o.info, checkPath(o.file))) throw Error('INVENTORY_CHANGED');
+      options.onProgress?.({ stage: 'SAVE_RECHECK', completed: ++rechecked, total: observations.length });
     } catch { output.complete = false; output.unknowns.push({ code: 'INVENTORY_CHANGED' }); break; }
   }
   output.saves.sort((a, b) => a.source < b.source ? -1 : a.source > b.source ? 1 : 0);

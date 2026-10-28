@@ -146,3 +146,14 @@ test('inventory rechecks earlier saves after later files are scanned',async t=>{
   const r=await inventorySaves([dir],{...local,beforeVerify:f=>{if(f===last)fs.appendFileSync(first,' ');}});
   assert.equal(r.complete,false);assert.ok(r.unknowns.some(u=>u.code==='INVENTORY_CHANGED'));
 });
+
+test('scan progress counts completed checks without changing preview, roots or input bytes',async t=>{
+ const {dir,file}=database(t),saves=path.join(dir,'saves');fs.mkdirSync(saves);const save=path.join(saves,'save.xml.gz');fs.writeFileSync(save,gzipSync(xml()));
+ const before=[hash(file),hash(save)],events=[];
+ const a=await housekeeping({saves:[saves],profiles:path.dirname(file),...local,onProgress:p=>events.push(p)});
+ const b=await housekeeping({saves:[saves],profiles:path.dirname(file),...local});assert.deepEqual(a,b);
+ assert.ok(events.some(p=>p.stage==='SAVES'&&p.completed===1&&p.total===null));
+ assert.ok(events.some(p=>p.stage==='DATABASES'&&p.completed===a.databases.length&&p.total===a.databases.length),JSON.stringify({events,unknowns:a.unknowns}));
+ for(const stage of ['SAVE_RECHECK','DATABASE_RECHECK'])assert.ok(events.some(p=>p.stage===stage&&p.completed===p.total));
+ assert.deepEqual([hash(file),hash(save)],before);
+});

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fork } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { checkPath } from '../bridge/src/session-path.js';
-import { PREVIEW_HELLO, PREVIEW_REPLY, parsePreviewRequest, previewReply } from './preview-protocol.mjs';
+import { PREVIEW_HELLO, PREVIEW_REPLY, parsePreviewRequest, previewReply, scanProgressRows } from './preview-protocol.mjs';
 import { readSettings, setProtection } from './preview-settings.mjs';
 
 export class PreviewService {
@@ -36,7 +36,7 @@ export class PreviewService {
     this.poll();
   }
   cancel() {
-    this.ticket=null;this.scanning=false;
+    this.ticket=null;this.scanning=false;this.progressRows=[];
     if(this.child){this.child.kill();this.child=null;}
   }
   stop() {this.stopped=true;this.cancel();this.pending.clear();}
@@ -45,7 +45,7 @@ export class PreviewService {
   suspend() {if(this.suspended)return;this.suspended=true;this.cancel();this.model=null;this.pending.delete(PREVIEW_REPLY);this.lastHeartbeat=undefined;this.poll();}
   scan(request,settings) {
     this.cancel();const ticket={request,settings};this.ticket=ticket;this.scanning=true;
-    this.reply(request,'SCANNING');
+    this.progressRows=[];this.reply(request,'SCANNING');
     let child;
     try {child=this.launch();this.child=child;}
     catch {this.scanning=false;this.reply(request,'ERROR');return;}
@@ -57,6 +57,11 @@ export class PreviewService {
     let answered=false;
     child.on('message',message=>{
       if(this.stopped || this.ticket!==ticket)return;
+      if (answered) return;
+      if (message?.progress) {
+        try { this.progressRows=scanProgressRows(message.progress);this.reply(request,'SCANNING',this.progressRows); } catch { /* Malformed progress cannot complete a scan. */ }
+        return;
+      }
       answered=true;this.scanning=false;this.child=null;
       try {
         if(readSettings(this.root).digest!==settings.digest){this.model=null;this.reply(request,'STALE');return;}
@@ -84,7 +89,7 @@ export class PreviewService {
         rows.push(['0','Configure locations','Edit local-data/housekeeping-preview-v1.json','Restart companion, then Refresh','No folder picker is used']);
         this.reply(r,'READY',rows,r.page);return true;
       }
-      if(this.scanning){this.reply(r,'SCANNING');return true;}
+      if(this.scanning){this.reply(r,'SCANNING',this.progressRows);return true;}
       if(!this.model || settings.digest!==this.settings.digest){this.model=null;this.reply(r,'STALE');return true;}
       if(r.verb==='PROTECT') {
         const universe=this.model.ids[r.item-1];if(!universe)throw Error('Unknown universe');

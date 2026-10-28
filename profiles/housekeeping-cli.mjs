@@ -1,4 +1,4 @@
-// Standalone offline preview: never imported by the watcher/service or game.
+// Read-only planner shared by the offline CLI and isolated menu scan process.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -17,17 +17,24 @@ export async function housekeeping({ saves, profiles, pins = [], ...options }) {
   try {
     checkAvailability(profiles, getAvailability); checkPath(profiles, { directory: true });
     const names = fs.readdirSync(profiles).sort(), observed = [];
+    const total = names.filter(name => name.endsWith('.db')).length;
+    options.onProgress?.({ stage: 'DATABASES', completed: 0, total });
     for (const name of names) {
       const file = path.join(profiles, name);
       if (!name.endsWith('.db')) { output.unknowns.push({ file: name, code: 'UNSUPPORTED_DATABASE_ENTRY' }); continue; }
       const before = fs.lstatSync(file);
       const snapshot = inspectProfileDatabase(file, options);
       observed.push({ file, before });
+      options.onProgress?.({ stage: 'DATABASES', completed: observed.length, total });
       output.databases.push({ file: name, bytes: snapshot.bytes, ...retentionPreview(snapshot, inventory.roots, {
         complete: inventory.complete, unknowns: inventory.unknowns, pinned: pinned.has(snapshot.universe)
       }) });
     }
-    for (const o of observed) if (!sameSnapshot(o.before, checkPath(o.file))) throw Error('DATABASE_INVENTORY_CHANGED');
+    options.onProgress?.({ stage: 'DATABASE_RECHECK', completed: 0, total: observed.length });
+    for (const [i,o] of observed.entries()) {
+      if (!sameSnapshot(o.before, checkPath(o.file))) throw Error('DATABASE_INVENTORY_CHANGED');
+      options.onProgress?.({ stage: 'DATABASE_RECHECK', completed: i + 1, total: observed.length });
+    }
     if (JSON.stringify(names) !== JSON.stringify(fs.readdirSync(profiles).sort())) throw Error('DATABASE_INVENTORY_CHANGED');
   } catch { output.unknowns.push({ code: 'UNAVAILABLE_OR_CHANGED_DATABASE_LOCATION' }); }
   for (const root of inventory.roots) if (!output.databases.some(d => d.universe === root.universe)) {

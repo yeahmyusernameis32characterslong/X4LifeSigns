@@ -234,3 +234,28 @@ but does not reproduce Windows minimise/restore behaviour.
 
 These are instructions only; no deployment, game launch or live test is
 authorised by this document. Return observations to Agent before later work.
+
+## Scan progress and Windows metadata batching
+
+While the inventory runs, the status line shows completed save checks, then
+save-input rechecks, database checks and database rechecks. Save totals are not
+known until traversal finishes, so this phase shows a completed count rather
+than an invented percentage. Rechecks include directory observations. Counts
+include inspected inputs that may require attention; they do not mean every
+input passed validation. Results remain stale and unavailable for selection
+until the complete planner result arrives.
+
+The scan process emits bounded, count-only progress through existing correlated
+SCANNING replies. Updates are limited to about once per second, plus stage
+changes and known-total completion. They contain no filenames, paths or
+provisional retention conclusions. Cancellation, companion generation changes
+and world/load fencing still invalidate late replies. No new native API or
+reply-file namespace is required.
+
+On Windows, each ancestor chain is checked in one hidden PowerShell process;
+every path still receives a fresh attribute check in each original before/after
+phase. Provider/reparse/unavailable or failed probes remain conservative blocks.
+There is no cross-refresh metadata/result cache. Full save parsing and database
+validation remain necessary, so large selected save folders can still take
+minutes. The owner confirmed the preceding native layout renders nicely;
+progress presentation and loading duration require the next owner menu check.

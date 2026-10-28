@@ -4,7 +4,14 @@ import { housekeeping } from './housekeeping-cli.mjs';
 import { previewModel } from './preview-model.mjs';
 process.once('message', async ({root,settings}) => {
   try {
-    const result=await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:settings.protectedUniverses});
+    let lastStage, lastAt=0;
+    const onProgress=progress=>{
+      const now=Date.now();
+      if (progress.stage!==lastStage || progress.completed===progress.total || now-lastAt>=1000) {
+        lastStage=progress.stage;lastAt=now;process.send({progress});
+      }
+    };
+    const result=await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:settings.protectedUniverses,onProgress});
     const model=previewModel(result,settings);
     if (Buffer.byteLength(JSON.stringify(model)) > 4 * 1024 * 1024) throw Error('Preview too large');
     process.send({model},()=>process.disconnect());
