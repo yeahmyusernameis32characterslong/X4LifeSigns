@@ -142,46 +142,74 @@ function P.render()
     local menu=P.menu
     Helper.clearDataForRefresh(menu,4);menu.selectedOption=nil
     local frame=menu.createOptionsFrame(true)
-    local header=frame:addTable(4,{tabOrder=0,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,maxVisibleHeight=menu.table.height})
-    local function line(text,large,target)
-        local r=(target or header):addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,{wordwrap=true,fontsize=large and 20 or 12});return r
+    -- Match the verified OptionsMenu/Extensions text and title conventions.
+    local normal={font="Zekton outlined",fontsize=10,x=5,y=2,minRowHeight=19,wordwrap=true}
+    local info={font="Zekton outlined",fontsize=9,x=5,y=2,minRowHeight=16,wordwrap=true}
+    local heading={font="Zekton bold outlined",fontsize=10,x=5,y=2,minRowHeight=22,titleColor=Color["row_title"]}
+    local title={font="Zekton bold outlined",fontsize=13,x=5,y=6,minRowHeight=34,titleColor=Color["row_title"]}
+    local function back()
+        if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end
     end
-    local function button(row,col,text,callback,active,fontsize)
-        row[col]:createButton({active=active~=false}):setText(text,fontsize and {fontsize=fontsize} or nil);row[col].handlers.onClick=callback
+    local function button(row,col,text,callback,active)
+        row[col]:createButton({active=active~=false,height=19}):setText(text,{font="Zekton outlined",fontsize=10,halign="center"})
+        row[col].handlers.onClick=callback
     end
-    line(copy.title,true);line(copy.intro);line(copy.description);line(copy.notice);line(copy.scope)
-    if P.state~="READY" then line(messages[P.state] or "Waiting for companion...") end
-    if P.stale and #P.rows>0 then line("Previous results - stale. Refresh to update.") end
+    local function line(t,text,properties)
+        local r=t:addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,properties or info);return r
+    end
+    local header=frame:addTable(2,{tabOrder=1,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,skipTabChange=true})
+    header:setColWidth(1,menu.table.arrowColumnWidth,false)
+    local r=header:addRow(true,{fixed=true})
+    r[1]:setBackgroundColSpan(2):createButton({height=34}):setIcon("table_arrow_inv_left",{x=3})
+    r[1].handlers.onClick=back;r[2]:createText(copy.title,title)
+    local function headerLine(text,properties)
+        local row=header:addRow(false,{fixed=true});row[2]:createText(text,properties or info)
+    end
+    headerLine(copy.intro,normal);headerLine(copy.description);headerLine(copy.notice);headerLine(copy.scope)
+    if P.state~="READY" then headerLine(messages[P.state] or "Waiting for companion...") end
+    if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
     local gap=Helper.scaleY(12)
+    local gutter=menu.table.arrowColumnWidth+Helper.borderSize
+    local x,width=menu.table.x+gutter,menu.table.widthExtraWide-gutter
     local controlY=header.properties.y+header:getVisibleHeight()+gap
-    local controlTable=frame:addTable(4,{tabOrder=1,x=menu.table.x,y=controlY,width=math.min(menu.table.widthExtraWide,Helper.scaleX(640))})
-    local controls=controlTable:addRow(true,{fixed=true})
-    button(controls,1,"Refresh",P.refresh,P.live,12)
-    button(controls,2,"Save locations",P.locations,P.live,12)
-    button(controls,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING",12)
-    button(controls,4,"Back",function() if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end end,true,12)
-    local dataY=controlY+controlTable:getVisibleHeight()+gap
-    local t=frame:addTable(4,{tabOrder=2,x=menu.table.x,y=dataY,width=menu.table.widthExtraWide,maxVisibleHeight=math.max(1,menu.table.height-(dataY-menu.table.y))})
+    local controls=frame:addTable(4,{tabOrder=2,x=x,y=controlY,width=math.min(width,Helper.scaleX(640))})
+    r=controls:addRow(true,{fixed=true})
+    button(r,1,"Refresh",P.refresh,P.live);button(r,2,"Save locations",P.locations,P.live)
+    button(r,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING");button(r,4,"Back",back)
+    local dataY=controlY+controls:getVisibleHeight()+gap
+    local t=frame:addTable(4,{tabOrder=3,x=x,y=dataY,width=width})
     local widths=P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
-    for i,width in ipairs(widths) do t:setColWidthPercent(i,width) end
+    for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Save location / source"}
-    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=10}) end
+    r=t:addRow(false,{fixed=true});for i=1,4 do r[i]:createText(headers[i],heading) end
     for _,data in ipairs(P.rows) do
-        local r=t:addRow(P.view=="LIST",{})
-        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0",10) else r[1]:createText(data[2],{wordwrap=true,fontsize=10}) end
-        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=10}) end
+        r=t:addRow(P.view=="LIST",{})
+        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],normal) end
+        for i=2,4 do r[i]:createText(data[i+1],normal) end
     end
-    local paging=t:addRow(true,{fixed=true})
+    if #P.rows==0 then line(t,P.state=="SCANNING" and "Waiting for scan results..." or "No results to display.") end
+    local pager=frame:addTable(3,{tabOrder=4,x=x,y=0,width=math.min(width,Helper.scaleX(340))})
+    pager:setColWidth(1,Helper.scaleX(100),false);pager:setColWidth(3,Helper.scaleX(100),false)
+    r=pager:addRow(true,{fixed=true})
     local function page(delta) P.request(P.view=="DETAIL" and "DETAIL" or P.view=="LOCATIONS" and "LOCATIONS" or "LIST",P.view=="DETAIL" and P.selected or 0,false,P.page+delta) end
-    button(paging,1,"Previous",function() page(-1) end,P.state=="READY" and P.page>0)
-    paging[2]:setColSpan(2):createText("Page "..(P.page+1).." / "..P.pages,{fontsize=10})
-    button(paging,4,"Next",function() page(1) end,P.state=="READY" and P.page+1<P.pages)
+    button(r,1,"Previous",function() page(-1) end,P.state=="READY" and P.page>0)
+    r[2]:createText("Page "..(P.page+1).." / "..P.pages,{font="Zekton outlined",fontsize=10,x=5,y=2,minRowHeight=19,halign="center"})
+    button(r,3,"Next",function() page(1) end,P.state=="READY" and P.page+1<P.pages)
+    local notes=frame:addTable(4,{tabOrder=5,x=x,y=0,width=width})
+    notes:setColWidth(1,menu.table.arrowColumnWidth,false)
     if P.view=="DETAIL" then
-        local r=t:addRow(true,{fixed=true});r[1]:createCheckBox(P.protected==true,{active=P.state=="READY" and P.protected~=nil and not P.stale})
+        r=notes:addRow(true,{fixed=true});r[1]:createCheckBox(P.protected==true,{active=P.state=="READY" and P.protected~=nil and not P.stale})
         r[1].handlers.onClick=function() P.request("PROTECT",P.selected,not P.protected) end
-        r[2]:setColSpan(3):createText("Protect this universe",{wordwrap=true,fontsize=12});line(copy.protection,false,t)
+        r[2]:setColSpan(3):createText("Protect this universe",normal);line(notes,copy.protection)
     end
-    line(copy.ancestry,false,t);line("Record and projection counts overlap; do not add them together. File size is not reclaimable space.",false,t)
+    line(notes,copy.ancestry);line(notes,"Record and projection counts overlap; do not add them together. File size is not reclaimable space.")
+    local footerHeight=pager:getVisibleHeight()+notes:getVisibleHeight()+3*gap
+    t.properties.maxVisibleHeight=math.max(1,menu.table.height-(dataY-menu.table.y)-footerHeight)
+    pager.properties.y=dataY+t:getVisibleHeight()+gap
+    notes.properties.y=pager.properties.y+pager:getVisibleHeight()+gap
+    local chain={header,controls,t,pager}
+    if P.view=="DETAIL" then chain[#chain+1]=notes end
+    for i=1,#chain-1 do chain[i].properties.nextTable=chain[i+1].index;chain[i+1].properties.prevTable=chain[i].index end
     frame:display();P.dirty=false
 end
 function P.install(menu)

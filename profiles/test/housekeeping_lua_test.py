@@ -67,26 +67,30 @@ clock=0;messages={};replies={};labels={};buttons={};seen={};vanillaUpdates=0;van
 function getElapsedTime() return clock end
 function DebugError(text) messages[#messages+1]=text end
 LifeSignsDatabaseAdapter={readReply=function(file) return replies[file] end}
-local function cell()
+local function cell(row)
  local c={handlers={}}
  function c:setColSpan() return self end
- function c:createText(text) labels[#labels+1]=text;return self end
- function c:createButton(properties) self.properties=properties;buttons[#buttons+1]=self;return self end
+ function c:setBackgroundColSpan() return self end
+ function c:setIcon() return self end
+ function c:createText(text,properties) labels[#labels+1]=text;self.textProperties=properties;row.height=math.max(row.height,properties and properties.minRowHeight or 16);return self end
+ function c:createButton(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);buttons[#buttons+1]=self;return self end
  function c:setText(text) self.text=text;return self end
- function c:createCheckBox(value,properties) self.check=value;self.properties=properties;return self end
+ function c:createCheckBox(value,properties) self.check=value;self.properties=properties;row.height=math.max(row.height,19);return self end
  return c
 end
 local function makeTable(properties)
- local t={properties=properties or {},rowCount=0,widths={}}
- function t:addRow() self.rowCount=self.rowCount+1;return {cell(),cell(),cell(),cell()} end
+ local t={properties=properties or {},rows={},widths={}}
+ function t:addRow() local row={height=0};for i=1,4 do row[i]=cell(row) end;self.rows[#self.rows+1]=row;return row end
  function t:setColWidthPercent(col,width) self.widths[col]=width;return self end
- function t:getVisibleHeight() return self.rowCount*20 end
+ function t:setColWidth(col,width) self.widths[col]=width;return self end
+ function t:getVisibleHeight() local height=0;for _,row in ipairs(self.rows) do height=height+row.height end;return math.min(height,self.properties.maxVisibleHeight or height) end
  return t
 end
 local t=makeTable()
-local f={addTable=function(_,columns,properties) local result=makeTable(properties);renderTables[#renderTables+1]=result;tableProperties=properties;columnWidths=result.widths;return result end,display=function() displays=displays+1 end}
-Helper={clearDataForRefresh=function() end,scaleX=function(v) return v end,scaleY=function(v) return v end}
-menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};return f end}
+local f={addTable=function(_,columns,properties) local result=makeTable(properties);result.index=#renderTables+1;renderTables[#renderTables+1]=result;tableProperties=properties;columnWidths=result.widths;return result end,display=function() displays=displays+1;tableProperties=renderTables[3].properties;columnWidths=renderTables[3].widths end}
+Color={row_title={r=0,g=128,b=255,a=100}}
+Helper={borderSize=3,clearDataForRefresh=function() end,scaleX=function(v) return v end,scaleY=function(v) return v end}
+menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,arrowColumnWidth=20,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};return f end}
 function menu.displayOption(_,option) seen[#seen+1]=option;return 'option',nil,42 end
 function menu.displayOptions(name,...)
  menu.currentOption=name
@@ -121,7 +125,7 @@ try:
         vm.run('assert(P.parse(' + literal(bad) + ',P.pending)==nil)')
     reply(REPLY, good)
     vm.run('clock=1.4;P.update();assert(P.state=="READY" and not P.stale and P.rows[1][2]=="Universe 1");P.render();assert(table.concat(labels," "):find(P.copy.notice,1,true));P.refresh();assert(P.stale and #P.rows==1);P.render();assert(table.concat(labels," "):find("Previous results - stale",1,true))')
-    vm.run('assert(wideFrame==true and tableProperties.width==1130 and columnWidths[1]==18 and columnWidths[2]==18 and columnWidths[3]==24);assert(#renderTables==3);local controls,data=renderTables[2],renderTables[3];assert(controls.properties.width<data.properties.width);assert(data.properties.y>controls.properties.y+controls:getVisibleHeight());assert(data.properties.maxVisibleHeight==menu.table.height-data.properties.y)')
+    vm.run('assert(wideFrame==true and tableProperties.width==1107 and columnWidths[1]==18 and columnWidths[2]==18 and columnWidths[3]==24);assert(#renderTables==5);local controls,data,pager,notes=renderTables[2],renderTables[3],renderTables[4],renderTables[5];assert(controls.properties.width<data.properties.width and pager.properties.width<data.properties.width);assert(data.properties.y>controls.properties.y+controls:getVisibleHeight());assert(pager.properties.y>=data.properties.y+data:getVisibleHeight());assert(notes.properties.y>pager.properties.y+pager:getVisibleHeight());assert(notes.properties.y+notes:getVisibleHeight()<=menu.table.height);assert(renderTables[1].rows[1][2].textProperties.fontsize==13 and renderTables[1].rows[1][2].textProperties.titleColor==Color.row_title);assert(data.rows[1][1].textProperties.minRowHeight==22);assert(controls.properties.nextTable==data.index and pager.properties.prevTable==data.index)')
     ten = frame(client, int(vm.run('return tostring(P.seq)', True)), rows=[[str(i), f'Universe {i}', '1', '1.25 GB', 'In use'] for i in range(1, 11)])
     vm.run('assert(#P.parse(' + literal(ten) + ',P.pending).rows==10);local e={gen=P.gen,seq=P.seq,page=0,verb="DETAIL"};assert(P.parse(' + literal(ten) + ',e)==nil)')
     refresh_seq = int(vm.run('return tostring(P.seq)', True))
