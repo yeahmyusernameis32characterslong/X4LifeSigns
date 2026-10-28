@@ -76,12 +76,17 @@ local function cell()
  function c:createCheckBox(value,properties) self.check=value;self.properties=properties;return self end
  return c
 end
-local t={}
-function t:addRow() return {cell(),cell(),cell(),cell()} end
-function t:setColWidthPercent(col,width) columnWidths[col]=width;return self end
-local f={addTable=function(_,columns,properties) tableProperties=properties;columnWidths={};return t end,display=function() displays=displays+1 end}
-Helper={clearDataForRefresh=function() end}
-menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,height=900},createOptionsFrame=function(wide) wideFrame=wide;return f end}
+local function makeTable(properties)
+ local t={properties=properties or {},rowCount=0,widths={}}
+ function t:addRow() self.rowCount=self.rowCount+1;return {cell(),cell(),cell(),cell()} end
+ function t:setColWidthPercent(col,width) self.widths[col]=width;return self end
+ function t:getVisibleHeight() return self.rowCount*20 end
+ return t
+end
+local t=makeTable()
+local f={addTable=function(_,columns,properties) local result=makeTable(properties);renderTables[#renderTables+1]=result;tableProperties=properties;columnWidths=result.widths;return result end,display=function() displays=displays+1 end}
+Helper={clearDataForRefresh=function() end,scaleX=function(v) return v end,scaleY=function(v) return v end}
+menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};return f end}
 function menu.displayOption(_,option) seen[#seen+1]=option;return 'option',nil,42 end
 function menu.displayOptions(name,...)
  menu.currentOption=name
@@ -116,7 +121,7 @@ try:
         vm.run('assert(P.parse(' + literal(bad) + ',P.pending)==nil)')
     reply(REPLY, good)
     vm.run('clock=1.4;P.update();assert(P.state=="READY" and not P.stale and P.rows[1][2]=="Universe 1");P.render();assert(table.concat(labels," "):find(P.copy.notice,1,true));P.refresh();assert(P.stale and #P.rows==1);P.render();assert(table.concat(labels," "):find("Previous results - stale",1,true))')
-    vm.run('assert(wideFrame==true and tableProperties.width==1130 and columnWidths[1]==28 and columnWidths[2]==16 and columnWidths[3]==24)')
+    vm.run('assert(wideFrame==true and tableProperties.width==1130 and columnWidths[1]==18 and columnWidths[2]==18 and columnWidths[3]==24);assert(#renderTables==3);local controls,data=renderTables[2],renderTables[3];assert(controls.properties.width<data.properties.width);assert(data.properties.y>controls.properties.y+controls:getVisibleHeight());assert(data.properties.maxVisibleHeight==menu.table.height-data.properties.y)')
     ten = frame(client, int(vm.run('return tostring(P.seq)', True)), rows=[[str(i), f'Universe {i}', '1', '1.25 GB', 'In use'] for i in range(1, 11)])
     vm.run('assert(#P.parse(' + literal(ten) + ',P.pending).rows==10);local e={gen=P.gen,seq=P.seq,page=0,verb="DETAIL"};assert(P.parse(' + literal(ten) + ',e)==nil)')
     refresh_seq = int(vm.run('return tostring(P.seq)', True))
@@ -134,7 +139,7 @@ try:
     detail = [['INFO', 'Protection', 'Not protected', 'Whole universe', ''], ['SAVE', 'Local saves', 'A|B 船.xml.gz', 'Unknown', 'Filesystem modified UTC']]
     reply(REPLY, frame(client, detail_seq, rows=detail))
     vm.run('clock=3.1;P.update();assert(P.protected==false and P.rows[2][3]=="A|B 船.xml.gz");P.render();P.locations();assert(P.pending.verb=="LOCATIONS")')
-    vm.run('assert(columnWidths[1]==24 and columnWidths[2]==30 and columnWidths[3]==23)')
+    vm.run('assert(columnWidths[1]==20 and columnWidths[2]==24 and columnWidths[3]==18);P.view="LOCATIONS";P.render();assert(columnWidths[2]==58)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|1|INITIAL|END\n')
     vm.run('clock=3.4;P.update();assert(P.state=="STALE" and P.pending==nil and not P.live)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|2|INITIAL|END\n')

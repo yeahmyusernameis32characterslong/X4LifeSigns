@@ -142,11 +142,9 @@ function P.render()
     local menu=P.menu
     Helper.clearDataForRefresh(menu,4);menu.selectedOption=nil
     local frame=menu.createOptionsFrame(true)
-    local t=frame:addTable(4,{tabOrder=1,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,maxVisibleHeight=menu.table.height})
-    local widths=P.view=="LIST" and {28,16,24} or {24,30,23}
-    for i,width in ipairs(widths) do t:setColWidthPercent(i,width) end
-    local function line(text,large)
-        local r=t:addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,{wordwrap=true,fontsize=large and 20 or 12});return r
+    local header=frame:addTable(4,{tabOrder=0,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,maxVisibleHeight=menu.table.height})
+    local function line(text,large,target)
+        local r=(target or header):addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,{wordwrap=true,fontsize=large and 20 or 12});return r
     end
     local function button(row,col,text,callback,active,fontsize)
         row[col]:createButton({active=active~=false}):setText(text,fontsize and {fontsize=fontsize} or nil);row[col].handlers.onClick=callback
@@ -154,29 +152,36 @@ function P.render()
     line(copy.title,true);line(copy.intro);line(copy.description);line(copy.notice);line(copy.scope)
     if P.state~="READY" then line(messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then line("Previous results - stale. Refresh to update.") end
-    local controls=t:addRow(true,{fixed=true})
-    button(controls,1,"Refresh",P.refresh,P.live)
-    button(controls,2,"Save locations",P.locations,P.live)
-    button(controls,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING")
-    button(controls,4,"Back",function() if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end end)
-    local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or {"Section","Item","Value","Provenance"}
-    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=12}) end
+    local gap=Helper.scaleY(12)
+    local controlY=header.properties.y+header:getVisibleHeight()+gap
+    local controlTable=frame:addTable(4,{tabOrder=1,x=menu.table.x,y=controlY,width=math.min(menu.table.widthExtraWide,Helper.scaleX(640))})
+    local controls=controlTable:addRow(true,{fixed=true})
+    button(controls,1,"Refresh",P.refresh,P.live,12)
+    button(controls,2,"Save locations",P.locations,P.live,12)
+    button(controls,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING",12)
+    button(controls,4,"Back",function() if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end end,true,12)
+    local dataY=controlY+controlTable:getVisibleHeight()+gap
+    local t=frame:addTable(4,{tabOrder=2,x=menu.table.x,y=dataY,width=menu.table.widthExtraWide,maxVisibleHeight=math.max(1,menu.table.height-(dataY-menu.table.y))})
+    local widths=P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
+    for i,width in ipairs(widths) do t:setColWidthPercent(i,width) end
+    local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Save location / source"}
+    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=10}) end
     for _,data in ipairs(P.rows) do
         local r=t:addRow(P.view=="LIST",{})
-        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0",12) else r[1]:createText(data[2],{wordwrap=true,fontsize=12}) end
-        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=12}) end
+        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0",10) else r[1]:createText(data[2],{wordwrap=true,fontsize=10}) end
+        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=10}) end
     end
     local paging=t:addRow(true,{fixed=true})
     local function page(delta) P.request(P.view=="DETAIL" and "DETAIL" or P.view=="LOCATIONS" and "LOCATIONS" or "LIST",P.view=="DETAIL" and P.selected or 0,false,P.page+delta) end
     button(paging,1,"Previous",function() page(-1) end,P.state=="READY" and P.page>0)
-    paging[2]:setColSpan(2):createText("Page "..(P.page+1).." / "..P.pages,{fontsize=12})
+    paging[2]:setColSpan(2):createText("Page "..(P.page+1).." / "..P.pages,{fontsize=10})
     button(paging,4,"Next",function() page(1) end,P.state=="READY" and P.page+1<P.pages)
     if P.view=="DETAIL" then
         local r=t:addRow(true,{fixed=true});r[1]:createCheckBox(P.protected==true,{active=P.state=="READY" and P.protected~=nil and not P.stale})
         r[1].handlers.onClick=function() P.request("PROTECT",P.selected,not P.protected) end
-        r[2]:setColSpan(3):createText("Protect this universe",{wordwrap=true,fontsize=12});line(copy.protection)
+        r[2]:setColSpan(3):createText("Protect this universe",{wordwrap=true,fontsize=12});line(copy.protection,false,t)
     end
-    line(copy.ancestry);line("Record and projection counts overlap; do not add them together. File size is not reclaimable space.")
+    line(copy.ancestry,false,t);line("Record and projection counts overlap; do not add them together. File size is not reclaimable space.",false,t)
     frame:display();P.dirty=false
 end
 function P.install(menu)
