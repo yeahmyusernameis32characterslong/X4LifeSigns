@@ -148,8 +148,8 @@ function P.render()
     local function line(text,large)
         local r=t:addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,{wordwrap=true,fontsize=large and 20 or 12});return r
     end
-    local function button(row,col,text,callback,active)
-        row[col]:createButton({active=active~=false}):setText(text);row[col].handlers.onClick=callback
+    local function button(row,col,text,callback,active,fontsize)
+        row[col]:createButton({active=active~=false}):setText(text,fontsize and {fontsize=fontsize} or nil);row[col].handlers.onClick=callback
     end
     line(copy.title,true);line(copy.intro);line(copy.description);line(copy.notice);line(copy.scope)
     if P.state~="READY" then line(messages[P.state] or "Waiting for companion...") end
@@ -160,11 +160,11 @@ function P.render()
     button(controls,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING")
     button(controls,4,"Back",function() if P.view~="LIST" then P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST") else P.close(true) end end)
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or {"Section","Item","Value","Provenance"}
-    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=14}) end
+    local heading=t:addRow(false,{fixed=true});for i=1,4 do heading[i]:createText(headers[i],{fontsize=12}) end
     for _,data in ipairs(P.rows) do
         local r=t:addRow(P.view=="LIST",{})
-        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],{wordwrap=true,fontsize=14}) end
-        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=14}) end
+        if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0",12) else r[1]:createText(data[2],{wordwrap=true,fontsize=12}) end
+        for i=2,4 do r[i]:createText(data[i+1],{wordwrap=true,fontsize=12}) end
     end
     local paging=t:addRow(true,{fixed=true})
     local function page(delta) P.request(P.view=="DETAIL" and "DETAIL" or P.view=="LOCATIONS" and "LOCATIONS" or "LIST",P.view=="DETAIL" and P.selected or 0,false,P.page+delta) end

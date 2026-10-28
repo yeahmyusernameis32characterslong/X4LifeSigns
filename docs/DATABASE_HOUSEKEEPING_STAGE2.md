@@ -30,6 +30,8 @@ Selecting a universe opens associated save names and filesystem-modified UTC
 dates with provenance, History needed by your saves, Potentially removable
 history and Problems requiring attention. The wider options frame and separate
 list/detail column proportions give labels, dates and statuses more room.
+Table headings, cells and selectable universe labels use font size 12 after
+owner feedback that the previous table text was too large.
 Universe lists contain up to ten rows per page; details and save locations retain
 three rows per page for longer values. Compact list cells have smaller byte
 budgets so even a full ten-row reply stays below the native 4096-byte limit.
