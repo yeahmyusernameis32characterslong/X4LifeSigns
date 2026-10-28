@@ -138,3 +138,13 @@ offline evidence and native acceptance gates. Destructive writer exclusion,
 schema-v2 replay seals, catalogue recovery, quarantine, pruning and compaction
 remain proposed work in the [implementation design](DATABASE_HOUSEKEEPING_IMPLEMENTATION_DESIGN.md).
 Stage 1 does not authorise deployment, gameplay testing or merge.
+
+## Windows metadata overhead
+
+Ancestor availability checks now obtain fresh attributes for the file and every
+ancestor in one hidden PowerShell invocation per check, rather than launching
+PowerShell separately for each path. Paths travel as JSON environment data.
+Unavailable/provider/reparse flags, malformed results, missing paths and failed
+probes still block the preview. Before/after checks remain separate, and no
+metadata or retention result is cached across files, refreshes or restarts.
+Full XML/gzip EOF validation, input hashing and SQLite validation are unchanged.
