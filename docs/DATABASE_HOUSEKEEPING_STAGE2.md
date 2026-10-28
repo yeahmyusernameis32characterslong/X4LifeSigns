@@ -1,11 +1,15 @@
 # Database Management menu preview
 
-PR #25 Stage 2: the owner confirmed the initial-menu entry and save scanning at
-`6ca9858`. The subsequent layout, size-formatting and pagination refinements are
-tested offline; their native appearance and focus behaviour remain unverified.
-Stage 1's
-read-only parser and retention policy remain in use. No deletion, migration,
-quarantine, compaction or cleanup Apply exists.
+PR #25 Stage 2 read-only menu/transport is accepted by Agent review on
+28 October 2026. Owner-run observations confirm initial-menu access, save
+scanning, satisfactory layout, checked-save counts and responsive protection
+toggling without rescanning at the applicable deployed revisions through
+`c29bb3f`. These are scoped observations, not every navigation/load route.
+Back/detail-page retention, persistence across a real restart and the reported
+minimise/restore flicker were not separately confirmed by the latest owner test.
+Stage 1's read-only parser and retention policy remain in use. No deletion,
+migration, quarantine, compaction or cleanup Apply exists. Full destructive
+load/start blocking and maintenance writer exclusion remain future gates.
 
 ## Screen and scope
 
@@ -51,8 +55,9 @@ native-derived minimum row heights and offsets, a content gutter and heading div
 Previous/Page/Next has its own compact row, so paging buttons do not inherit
 data-column widths. Footer height is reserved before limiting the scrollable
 data area, and explicit table navigation links connect the interactive groups.
-These changes address the owner's screenshot comparison; native appearance and
-keyboard/controller navigation remain pending owner testing after deployment.
+These changes address the owner's screenshot comparison; the owner confirmed
+the layout renders nicely. Full keyboard/controller navigation remains
+unconfirmed by the latest owner observation.
 Universe lists contain up to ten rows per page; details and save locations retain
 three rows per page for longer values. Compact list cells have smaller byte
 budgets so even a full ten-row reply stays below the native 4096-byte limit.
@@ -260,8 +265,9 @@ every path still receives a fresh attribute check in each original before/after
 phase. Provider/reparse/unavailable or failed probes remain conservative blocks.
 There is no cross-refresh metadata/result cache. Full save parsing and database
 validation remain necessary, so large selected save folders can still take
-minutes. The owner confirmed the preceding native layout renders nicely;
-progress presentation and loading duration require the next owner menu check.
+minutes. The owner confirmed the native layout, checked-save count display
+and responsive protection toggling. No full loading-duration measurement was
+provided.
 
 ## Protection and Back without another scan
 

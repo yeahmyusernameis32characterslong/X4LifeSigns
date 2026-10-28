@@ -1,10 +1,11 @@
 # Proposed housekeeping implementation and evidence gates
 
-Status: **Proposed for Agent review; no cleaner implemented.** PR #25, 27 October 2026. Read the [task plan](DATABASE_HOUSEKEEPING_PLAN.md) and [retention design](DATABASE_HOUSEKEEPING_RETENTION_DESIGN.md). Existing databases, schemas, saves, logs and installations remain unchanged.
+Status: **Read-only Stages 1 and 2 accepted; destructive stages remain proposals.** PR #25, updated 28 October 2026. Read the [task plan](DATABASE_HOUSEKEEPING_PLAN.md) and [retention design](DATABASE_HOUSEKEEPING_RETENTION_DESIGN.md). Existing history and schemas are preserved; the optional read-only menu has separate owner-authorised deployment evidence. No cleaner is implemented.
 
 Stage 1 is now owner-approved and implemented as an offline read-only inventory
-and preview, documented [separately](DATABASE_HOUSEKEEPING_STAGE1.md). The Stage 2 read-only menu/transport prototype now has separate
-[implementation and native acceptance notes](DATABASE_HOUSEKEEPING_STAGE2.md).
+and preview, documented [separately](DATABASE_HOUSEKEEPING_STAGE1.md). Stage 2
+read-only menu/transport acceptance has separate
+[implementation and scoped owner observations](DATABASE_HOUSEKEEPING_STAGE2.md).
 Schema-v2, catalogue and destructive operations below remain proposals. Source
 ranges in this planning record refer to `dcb4317` and its installed-source research.
 
@@ -139,7 +140,7 @@ Inventory must use a read-only connection and read-only validation helpers, not 
 | Stage | Deliverable | Gate before continuing |
 | --- | --- | --- |
 | 1 | Supported save-format mapping; read-only inventory/retention preview; deterministic diagnostics | Agent accepts scope; correct post-ID fixture and unknown handling; existing data remains byte-identical |
-| 2 | Disposable menu/transport/lifecycle prototype | Initial-menu entry, return-to-menu distinction, all required load/start routes and writer exclusion demonstrated; no destructive Apply |
+| 2 | Read-only initial-menu inventory/preview and preference transport | Agent accepts scoped menu/transport tests and owner observations; no destructive Apply. Full load/start blocking and maintenance writer exclusion remain future destructive-operation gates, not part of this acceptance |
 | 3 | Versioned replay/maintenance schema and catalogue on disposable copies | Explicit risky-change approval; exact retained replay, tombstone, new child-run and recovery tests pass |
 | 4 | Backup/quarantine/pruning only on synthetic or approved disposable copies | Every retained-root view matches; atomicity/stale-plan/concurrent-writer/crash/disk-full/restore checks pass |
 | 5 | Separately approved deployment and owner-run preview | No deletion implied by deployment/preview approval; owner checks inventory and labels |

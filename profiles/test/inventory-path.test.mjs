@@ -37,4 +37,3 @@ test('real Windows batch metadata agrees with individual probes and rechecks fre
  assert.deepEqual(availabilityMany([path.join(dir,'absent')]),['UNKNOWN']);
  checkAvailability(actual);fs.unlinkSync(actual);assert.throws(()=>checkAvailability(actual));
 });
-
