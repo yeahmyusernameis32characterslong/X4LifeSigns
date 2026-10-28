@@ -1,7 +1,9 @@
 # Database Management menu preview
 
-PR #25 Stage 2: implemented and tested offline; **native menu behaviour remains
-unverified** until separately approved deployment and owner testing. Stage 1's
+PR #25 Stage 2: the owner confirmed the initial-menu entry and save scanning at
+`6ca9858`. The subsequent layout, size-formatting and pagination refinements are
+tested offline; their native appearance and focus behaviour remain unverified.
+Stage 1's
 read-only parser and retention policy remain in use. No deletion, migration,
 quarantine, compaction or cleanup Apply exists.
 
@@ -19,12 +21,19 @@ numbers are temporary display labels mapped to exact underlying IDs in the
 companion; they are not names or replacement identities. Status is In use,
 Possibly unused, Protected or Needs attention. Uncertain saves never become
 confirmed absence. Unknown dates/sizes remain Unknown. Size means current file
-size, not reclaimable space.
+size, not reclaimable space. Sizes use decimal MB/GB (1 MB = 1,000,000 bytes;
+1 GB = 1,000,000,000 bytes), with two decimal places. Small nonempty files below
+0.01 MB display `<0.01 MB`; unavailable/invalid sizes remain Unknown. Exact byte
+counts used by the inventory/planner are unchanged.
 
 Selecting a universe opens associated save names and filesystem-modified UTC
 dates with provenance, History needed by your saves, Potentially removable
-history and Problems requiring attention. The three-row pages keep each native
-reply below 4096 bytes. Long values are visibly clipped with `...`; full paths
+history and Problems requiring attention. The wider options frame and separate
+list/detail column proportions give labels, dates and statuses more room.
+Universe lists contain up to ten rows per page; details and save locations retain
+three rows per page for longer values. Compact list cells have smaller byte
+budgets so even a full ten-row reply stays below the native 4096-byte limit.
+Long values are visibly clipped with `...`; full paths
 remain in the local settings file. Counts are technical overlapping categories,
 not distinct activities to add together.
 
@@ -161,11 +170,31 @@ hash-pinned installed X4 9.00 UI/MD schemas, generator freshness and installer
 syntax also passed. This evidence does not establish native widget rendering,
 initial-versus-returned menu dispatch or compatibility with other UI mods.
 
+## First owner observation and refinement
+
+On 28 October the owner confirmed that Life Signs appeared without loading a
+save and that scanning worked. The table was cramped, raw byte sizes were hard
+to read and three universes per page were too few. The refinements above address
+those observations; offline layout tests mock widgets and cannot prove visual
+fit at a particular screen resolution or UI scale.
+
+The owner also observed flicker between X4 and the desktop while restoring the
+minimised game. Its cause is unresolved. The inspected run contains a date
+line-wrap warning and a restricted vanilla online-status function warning on
+return from the custom menu; neither proves a cause for the focus behaviour.
+No graphics, window mode or focus settings were changed. A mocked idle-update
+check verifies that unchanged preview state does not repeatedly display frames,
+but does not reproduce Windows minimise/restore behaviour.
+
 ## Owner-run tests after separate deployment approval
 
 1. Start at the initial menu. Confirm one Life Signs entry before Settings and
    the exact title, introduction, notices and table columns. Check layout,
    keyboard/controller navigation, mouse activation, wrapping and scrolling.
+   Confirm up to ten universes on a list page, readable MB/GB sizes and no
+   clipped date/status columns in details at the chosen resolution/UI scale.
+   Compare minimise/restore on the vanilla main menu and on the preview; record
+   which screen was active if the reported desktop/X4 flicker recurs.
 2. Confirm unavailable companion state with an absent/restarted companion.
    After it becomes live, Refresh should scan only the configured folders.
 3. Open details; verify real names, dates/provenance, current sizes and statuses.
