@@ -86,3 +86,9 @@ test('live lease and live checkpoint owner cannot be stolen by explicit recovery
   const f=fixture(t),j=readOperation(f.lab);const lease=acquireLease(f.lab,{recoverDead:true});try{assert.throws(()=>recoverPruneFixture(f.lab.receipt),/MAINTENANCE_BUSY/);}finally{lease.close();}
   j.transaction.pid=process.pid;fs.writeFileSync(operation(f.lab),JSON.stringify(j));assert.throws(()=>recoverPruneFixture(f.lab.receipt),/CHECKPOINT_OWNER_NOT_DEAD/);assert.equal(fileDigest(f.file+'-journal'),f.journalHash);
 });
+
+test('completed recovery resume refuses newer child history instead of rewinding it',t=>{
+  const f=fixture(t);recoverPruneFixture(f.lab.receipt);const run='session-15-16-loaded-2026-10-29_14-02-00',s=new ReplayV2(f.lab,U,run);
+  try{s.append([start(run,B,'2'),event(run,2)]);}finally{s.close();}
+  const current=fileDigest(f.file);assert.throws(()=>resumePruneRecoveryFixture(f.lab.receipt),/RECOVERY_DESTINATION_CHANGED/);assert.equal(fileDigest(f.file),current);openLab(f.lab.receipt);
+});
