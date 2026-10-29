@@ -11,8 +11,9 @@ import { retentionPreview } from '../retention-plan.mjs';
 
 const fail = code => { throw Error(code); };
 export const digest = text => createHash('sha256').update(text).digest('hex');
-export function fileDigest(file) { return digest(fs.readFileSync(file)); }
+export function fileDigest(file) { if(checkPath(file).size>64*1024*1024)fail('FIXTURE_RESOURCE_LIMIT');return digest(fs.readFileSync(file)); }
 const issuedLeases = new WeakMap();
+const CONTRACT='LS_PROFILE_MAINTENANCE_V2_LAB1', POLICY='MAX_PREFIX_UNION_V1';
 const normal = sql => sql.trim().replace(/\s+/g, ' ');
 const catalogueSql = [
   `CREATE TABLE root_state (singleton INTEGER PRIMARY KEY CHECK(singleton=1), root_id TEXT NOT NULL, catalogue_id TEXT NOT NULL, generation INTEGER NOT NULL CHECK(generation>=0), phase TEXT NOT NULL) STRICT`,
@@ -32,7 +33,7 @@ function schema(db, sql, app, version) {
   if (db.prepare('PRAGMA quick_check').get().quick_check !== 'ok') fail('INTEGRITY_FAILED');
 }
 function openSql(file, readOnly = true) {
-  checkPath(file); checkSidecars(file);
+  if(checkPath(file).size>64*1024*1024)fail('FIXTURE_RESOURCE_LIMIT');checkSidecars(file);
   const fd=fs.openSync(file,'r'),h=Buffer.alloc(20);
   try {fs.readSync(fd,h,0,20,0);} finally {fs.closeSync(fd);}
   if(h[18]===2 || h[19]===2) fail('WAL_NOT_SUPPORTED');
@@ -99,8 +100,14 @@ export function validateV2(db,lab,id,expected) {
   if(m.root_id!==lab.anchor.rootId || m.catalogue_id!==lab.anchor.catalogueId || m.generation!==expected.generation || m.manifest_digest!==expected.digest || !!m.retired!==(expected.state==='RETIRED'))fail('DATABASE_GENERATION_MISMATCH');
   const seals=db.prepare('SELECT run_id AS run,cutoff FROM sealed_runs ORDER BY run_id').all();
   if(JSON.stringify(seals)!==JSON.stringify(expected.manifest.seals))fail('DISPOSITION_MISMATCH');
-  for(const s of seals){runId(s.run);ordinal(s.cutoff);const n=db.prepare('SELECT count(*) n,max(record_id) last FROM records WHERE run_id=?').get(s.run);if(!n.n || n.n!==n.last || s.cutoff>n.last)fail('INVALID_SEALED_PREFIX');}
+  for(const s of seals){runId(s.run);ordinal(s.cutoff);const n=db.prepare('SELECT count(*) n,max(record_id) last FROM records WHERE run_id=?').get(s.run);if((n.n && n.n!==n.last) || (s.cutoff>0 && (!n.n || s.cutoff>n.last)))fail('INVALID_SEALED_PREFIX');}
   return m;
+}
+function operationManifest(lab,op) {
+  if(digest(op.manifest)!==op.digest)fail('OPERATION_RECEIPT_MISMATCH');
+  const m=JSON.parse(op.manifest);
+  if(m.contract!==CONTRACT || m.policy!==POLICY || m.rootId!==lab.anchor.rootId || m.catalogueId!==lab.anchor.catalogueId || m.generation!==op.generation || m.universe!==op.universe_id || m.rootsDigest!==digest(JSON.stringify(m.roots)))fail('OPERATION_RECEIPT_MISMATCH');
+  universeId(m.universe);ordinal(m.generation);return m;
 }
 function verifyEntry(lab,db,entry) {
   const file=path.join(lab.profiles,universeId(entry.universe_id)+'.db'),ro=openSql(file);
@@ -109,7 +116,7 @@ function verifyEntry(lab,db,entry) {
     else {
       const op=db.prepare('SELECT * FROM operations WHERE generation=?').get(entry.generation);
       if(!op || op.phase!=='COMPLETE' || op.digest!==entry.digest || digest(op.manifest)!==op.digest)fail('OPERATION_RECEIPT_MISMATCH');
-      validateV2(ro,lab,entry.universe_id,{...entry,manifest:JSON.parse(op.manifest)});
+      validateV2(ro,lab,entry.universe_id,{...entry,manifest:operationManifest(lab,op)});
     }
   } finally{ro.close();}
 }
@@ -132,7 +139,7 @@ export function acquireLease(lab,{recoverDead=false}={}) {
   lab=descriptor(lab.receipt);
   if(fs.existsSync(lab.lock)) {
     const old=readJson(lab.lock);
-    if(!recoverDead || old.rootId!==lab.anchor.rootId || !Number.isSafeInteger(old.pid) || old.pid<=0)fail('MAINTENANCE_BUSY');
+    if(!recoverDead || old.rootId!==lab.anchor.rootId || !/^[0-9a-f-]{36}$/.test(old.token || '') || !Number.isSafeInteger(old.pid) || old.pid<=0)fail('MAINTENANCE_BUSY');
     let dead=false;try{process.kill(old.pid,0);}catch(e){dead=e.code==='ESRCH';}
     if(!dead)fail('MAINTENANCE_BUSY');
     // Explicit recovery only. No lease timeout or live-owner stealing.
@@ -161,19 +168,19 @@ export function sealFixture(lab,id,roots,{retire=false,onPhase=()=>{}}={}) {
   try {
     cat=catalogue(lab,false);const entry=cat.prepare('SELECT * FROM universes WHERE universe_id=?').get(id);
     if(!entry || entry.state!=='SOURCE')fail('FIRST_COPY_MIGRATION_ONLY');
-    if(!Array.isArray(roots) || (!roots.length && !retire) || (roots.length && retire))fail('EXPLICIT_RETIREMENT_REQUIRED');
+    if(!Array.isArray(roots) || roots.length>10000 || (!roots.length && !retire) || (roots.length && retire))fail('EXPLICIT_RETIREMENT_REQUIRED');
     roots=roots.map(r=>{if(r.universe!==id)fail('ROOT_UNIVERSE_MISMATCH');const record=ordinal(r.record);if(!record)fail('INVALID_ROOT');return {universe:id,run:runId(r.run),record};}).sort((a,b)=>a.run.localeCompare(b.run)||a.record-b.record);
     const file=path.join(lab.profiles,id+'.db'),snap=inspectProfileDatabase(file),plan=retentionPreview(snap,roots,{complete:true});
     if(snap.status!=='OWNED' || plan.status!=='PREVIEW_ONLY')fail('UNSAFE_RETAINED_ROOTS');
-    const keep=new Map(plan.retained.map(r=>[r.run,r.through])),generation=cat.prepare('SELECT generation FROM root_state').get().generation+1;
-    const manifest={rootId:lab.anchor.rootId,catalogueId:lab.anchor.catalogueId,universe:id,generation,sourceDigest:entry.digest,retire,roots,seals:snap.runs.map(r=>({run:r.run,cutoff:keep.get(r.run)||0})).sort((a,b)=>a.run.localeCompare(b.run))};
+    const keep=new Map(plan.retained.map(r=>[r.run,r.through])),generation=ordinal(cat.prepare('SELECT generation FROM root_state').get().generation+1);
+    const manifest={contract:CONTRACT,policy:POLICY,rootsDigest:digest(JSON.stringify(roots)),rootId:lab.anchor.rootId,catalogueId:lab.anchor.catalogueId,universe:id,generation,sourceDigest:entry.digest,retire,roots,seals:snap.runs.map(r=>({run:r.run,cutoff:keep.get(r.run)||0})).sort((a,b)=>a.run.localeCompare(b.run))};
     const text=JSON.stringify(manifest),hash=digest(text);
     cat.exec('BEGIN IMMEDIATE');try{cat.prepare("INSERT INTO operations VALUES(?,?,?,?,'PREPARED')").run(generation,id,text,hash);cat.prepare("UPDATE root_state SET generation=?,phase='PREPARED'").run(generation);cat.exec('COMMIT');}catch(e){cat.exec('ROLLBACK');throw e;}
     onPhase('RESERVED');writeJson(lab.marker,markerValue(lab,generation,'PREPARED'));onPhase('MARKER_PREPARED');
     db=openSql(file,false);db.exec('BEGIN EXCLUSIVE');
     try {
       validateProfileDatabase(db,id);if(fileDigest(file)!==entry.digest)fail('SOURCE_COPY_CHANGED');
-      for(const sql of v2Sql)db.exec(sql);
+      for(const sql of v2Sql)db.exec(sql);onPhase('DATABASE_TRANSACTION');
       db.prepare('INSERT INTO maintenance_metadata VALUES(1,?,?,?,?,?)').run(lab.anchor.rootId,lab.anchor.catalogueId,generation,hash,retire?1:0);
       const insert=db.prepare('INSERT INTO sealed_runs VALUES(?,?)');for(const r of manifest.seals)insert.run(r.run,r.cutoff);
       db.exec('PRAGMA user_version=2; COMMIT');
@@ -199,6 +206,7 @@ export function recoverLab(receipt) {
   try {
     if(lab.anchor.phase==='BOOTSTRAP') {
       if(fs.readdirSync(lab.profiles).length)fail('BOOTSTRAP_HAS_DATABASES');
+      if(fs.existsSync(lab.marker)){const m=readJson(lab.marker);if(m.kind!=='LS_STAGE3_MARKER' || m.rootId!==lab.anchor.rootId || m.catalogueId!==lab.anchor.catalogueId || m.generation!==0 || m.phase!=='READY')fail('MARKER_MISMATCH');}
       if(!fs.existsSync(lab.catalogue))makeCatalogue(lab);
       cat=catalogue(lab,false);const s=cat.prepare('SELECT * FROM root_state').get();
       if(s.generation!==0 || cat.prepare('SELECT count(*) n FROM operations').get().n || cat.prepare('SELECT count(*) n FROM universes').get().n)fail('INVALID_BOOTSTRAP');
@@ -209,7 +217,7 @@ export function recoverLab(receipt) {
       const s=cat.prepare('SELECT * FROM root_state').get(),op=cat.prepare("SELECT * FROM operations WHERE generation=? AND phase IN ('PREPARED','VERIFIED')").get(s.generation);
       if(!op)fail('NO_RECOVERABLE_OPERATION');
       if(marker.kind!=='LS_STAGE3_MARKER' || marker.rootId!==lab.anchor.rootId || marker.catalogueId!==lab.anchor.catalogueId || ![s.generation,s.generation-1].includes(marker.generation) || !['READY','PREPARED'].includes(marker.phase))fail('MARKER_MISMATCH');
-      if(digest(op.manifest)!==op.digest)fail('OPERATION_RECEIPT_MISMATCH');const m=JSON.parse(op.manifest);
+      const m=operationManifest(lab,op);
       if(m.rootId!==lab.anchor.rootId || m.catalogueId!==lab.anchor.catalogueId || m.generation!==s.generation || m.universe!==op.universe_id)fail('OPERATION_RECEIPT_MISMATCH');
       const file=path.join(lab.profiles,universeId(op.universe_id)+'.db'),db=openSql(file);let version;
       try{version=db.prepare('PRAGMA user_version').get().user_version;if(version===1){validateProfileDatabase(db,op.universe_id);if(fileDigest(file)!==m.sourceDigest)fail('SOURCE_COPY_CHANGED');}}finally{db.close();}
@@ -229,5 +237,5 @@ export function openRegisteredV2(lab,id,lease) {
   const cat=catalogue(lab);let entry,op;
   try{entry=cat.prepare('SELECT * FROM universes WHERE universe_id=?').get(id);if(!entry || entry.state!=='ACTIVE')fail('UNIVERSE_NOT_ACTIVE');op=cat.prepare('SELECT * FROM operations WHERE generation=?').get(entry.generation);}finally{cat.close();}
   const file=path.join(lab.profiles,id+'.db'),db=openSql(file,false);
-  try{validateV2(db,lab,id,{...entry,manifest:JSON.parse(op.manifest)});return {file,db,info:checkPath(file)};}catch(e){db.close();throw e;}
+  try{validateV2(db,lab,id,{...entry,manifest:operationManifest(lab,op)});return {file,db,info:checkPath(file)};}catch(e){db.close();throw e;}
 }

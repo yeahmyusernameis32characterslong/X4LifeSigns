@@ -18,7 +18,7 @@ export class ReplayV2 {
   close() {if(this.db?.isOpen)this.db.close();this.lease.close();}
   disposition(run=this.run) {return this.db.prepare('SELECT cutoff FROM sealed_runs WHERE run_id=?').get(runId(run));}
   status() {
-    const seal=this.disposition();
+    this.guard();const seal=this.disposition();
     if(seal)return {state:seal.cutoff?'SEALED':'RETIRED',retainedCutoff:seal.cutoff};
     if(!this.db.prepare('SELECT 1 FROM sessions WHERE run_id=?').get(this.run))return {state:'NEED_CHILD',record:0};
     return ProfileStore.prototype.status.call(this);
@@ -44,10 +44,10 @@ export class ReplayV2 {
     this.guard();runId(run);ordinal(record);const chain=[],seen=new Set();
     for(let cursor=run,limit=record;cursor;) {
       if(seen.has(cursor))fail('ANCESTRY_CYCLE');seen.add(cursor);
+      const seal=this.disposition(cursor);if(seal?.cutoff===0)fail('RETIRED_PARENT');
       const s=this.db.prepare('SELECT * FROM sessions WHERE run_id=?').get(cursor);
       if(!s)fail('MISSING_PARENT');
       const head=this.db.prepare('SELECT coalesce(max(record_id),0) n FROM records WHERE run_id=?').get(cursor).n;
-      const seal=this.disposition(cursor);if(seal?.cutoff===0)fail('RETIRED_PARENT');
       const ceiling=seal?seal.cutoff:head;
       if(limit===Number.MAX_SAFE_INTEGER && cursor===run)limit=ceiling;
       if(!limit || limit>ceiling)fail('PARENT_BEYOND_RETAINED_CUTOFF');

@@ -74,9 +74,15 @@ test('retired universe keeps its v2 refusal object; old writer refuses it unchan
  assert.throws(()=>new ProfileStore(lab.root,U,E),/Incompatible/);assert.equal(fileDigest(file),before);assert.equal(rawTables(file).sessions.length,4);
 });
 
-test('exact old-writer missing-path hazard is demonstrated on a separate temporary fixture',t=>{
- const lab=createLab();cleanup(t,lab.receipt);
- const old=new ProfileStore(lab.sourceRoot,U,E);try{const status=old.ingest([start(E,B,'2'),row(E,2,'SNAPSHOT_BEGIN'),row(E,3,'SNAPSHOT_END',{profiles:'0'})]);assert.equal(status.state,'READY');assert.equal(old.db.prepare('SELECT parent_run FROM sessions').get().parent_run,null);}finally{old.close();}
+test('exact old-writer missing-path hazard persists even while the catalogue says RETIRED',t=>{
+ const {lab,file}=fixture(t);sealFixture(lab,U,[],{retire:true});
+ // Fault fixture only: preserve the retired v2 file elsewhere in this lab,
+ // exposing the original missing-path case. No quarantine API is implemented.
+ fs.renameSync(file,path.join(lab.workspace,'fault-removed-v2.db'));
+ const old=new ProfileStore(lab.root,U,E);
+ try{const status=old.ingest([start(E,B,'2'),row(E,2,'SNAPSHOT_BEGIN'),row(E,3,'SNAPSHOT_END',{profiles:'0'})]);assert.equal(status.state,'READY');assert.equal(old.db.prepare('SELECT parent_run FROM sessions').get().parent_run,null);}finally{old.close();}
+ const cat=new DatabaseSync(lab.catalogue,{readOnly:true});try{assert.equal(cat.prepare('SELECT state FROM universes WHERE universe_id=?').get(U).state,'RETIRED');}finally{cat.close();}
+ assert.throws(()=>openLab(lab.receipt));
 });
 
 for(const phase of ['ANCHOR','CATALOGUE','MARKER'])test(`explicit bootstrap recovery after ${phase}`,t=>{
@@ -158,4 +164,58 @@ test('wrong recovery marker and unexplained sidecars never get repaired or ignor
  const before=fileDigest(file),original=fs.readFileSync(lab.marker),marker=JSON.parse(original);
  fs.writeFileSync(lab.marker,JSON.stringify({...marker,rootId:'foreign'}));assert.throws(()=>recoverLab(lab.receipt),/MARKER_MISMATCH/);assert.equal(fileDigest(file),before);
  fs.writeFileSync(lab.marker,original);fs.writeFileSync(file+'-journal','unexplained');assert.throws(()=>recoverLab(lab.receipt));assert.equal(fs.readFileSync(file+'-journal','utf8'),'unexplained');assert.equal(fileDigest(file),before);
+});
+
+test('retired-run tombstone still refuses recreation when its disposable raw/session rows are absent',t=>{
+ const {lab,file,rows}=fixture(t);sealFixture(lab,U,[root(B,2)]);
+ const db=new DatabaseSync(file);db.exec('BEGIN');for(const table of ['events','records','sessions'])db.prepare(`DELETE FROM ${table} WHERE run_id=?`).run(D);db.exec('COMMIT');db.close();
+ // Fault fixture only, not a pruning API: Stage3 never deletes history itself.
+ const before=fileDigest(file),s=new ReplayV2(lab,U,D);
+ try{assert.equal(s.replay(rows.get(D)).state,'RETIRED_REPLAY');assert.throws(()=>s.append(rows.get(D)),/SEALED_RUN/);assert.equal(s.db.prepare('SELECT count(*) n FROM sessions WHERE run_id=?').get(D).n,0);}finally{s.close();}
+ assert.equal(fileDigest(file),before);
+});
+
+test('unexpected bootstrap marker is not overwritten or treated as permission to initialise a catalogue',t=>{
+ let receipt;assert.throws(()=>createLab({onPhase(p,r){receipt=r;if(p==='ANCHOR')throw Error('INTERRUPTED');}}));cleanup(t,receipt);
+ const root=path.join(receipt.workspace,'managed'),marker=path.join(root,'maintenance.json');fs.writeFileSync(marker,JSON.stringify({kind:'FOREIGN'}));
+ assert.throws(()=>recoverLab(receipt),/MARKER_MISMATCH/);assert.equal(fs.existsSync(path.join(root,'maintenance.db')),false);assert.equal(JSON.parse(fs.readFileSync(marker)).kind,'FOREIGN');
+});
+
+test('matching old marker/catalogue restore alone cannot hide a newer v2 database generation',t=>{
+ const {lab,file}=fixture(t),marker=fs.readFileSync(lab.marker),catalogue=fs.readFileSync(lab.catalogue);sealFixture(lab,U,[root(B,2)]);
+ const before=fileDigest(file);fs.writeFileSync(lab.marker,marker);fs.writeFileSync(lab.catalogue,catalogue);
+ assert.throws(()=>openLab(lab.receipt));assert.throws(()=>recoverLab(lab.receipt),/NO_RECOVERABLE_OPERATION/);assert.equal(fileDigest(file),before);
+});
+
+test('multiple disposable universe registrations keep independent generations and do not mix identities',t=>{
+ const lab=createLab();cleanup(t,lab.receipt);const other='lsu1-2026-10-28_12-00-00-5-6-7-8';
+ for(const id of [U,other]){const s=new ProfileStore(lab.sourceRoot,id,A);try{s.ingest([{...start(A),fields:{...start(A).fields,lifesigns_universe_id:id}},row(A,2,'SNAPSHOT_BEGIN'),row(A,3,'SNAPSHOT_END',{profiles:'0'})]);}finally{s.close();}copyFixture(lab,id);}
+ const first=sealFixture(lab,U,[root(A,3)]);const second=sealFixture(lab,other,[{universe:other,run:A,record:3}]);
+ assert.equal(first.generation,1);assert.equal(second.generation,2);const a=new ReplayV2(lab,U,A);try{assert.equal(a.status().retainedCutoff,3);}finally{a.close();}
+ const b=new ReplayV2(lab,other,A);try{assert.equal(b.status().retainedCutoff,3);}finally{b.close();}
+});
+
+test('an open prototype writer refuses status and append after registration loss',t=>{
+ const {lab,file}=fixture(t);sealFixture(lab,U,[root(B,2)]);const s=new ReplayV2(lab,U,E),before=fileDigest(file);
+ try{fs.unlinkSync(lab.catalogue);assert.throws(()=>s.status());assert.throws(()=>s.append([start(E,B,'2')]));assert.equal(fileDigest(file),before);assert.equal(fs.existsSync(lab.catalogue),false);}finally{s.close();}
+});
+
+test('store-level session trigger refuses a parent beyond its sealed cutoff even for raw v1-style SQL',t=>{
+ const {lab,file}=fixture(t);sealFixture(lab,U,[root(B,2)]);const before=fileDigest(file),db=new DatabaseSync(file);
+ try{assert.throws(()=>db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?)').run(E,'UNAVAILABLE',B,3,0),/SEALED_PARENT_OR_RUN/);assert.throws(()=>db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?)').run(E,'UNAVAILABLE',D,1,0),/SEALED_PARENT_OR_RUN/);}finally{db.close();}
+ assert.equal(fileDigest(file),before);
+});
+
+test('an injected exception inside the SQLite migration transaction rolls back data and schema',t=>{
+ const {lab,file}=fixture(t),before=fileDigest(file);
+ assert.throws(()=>sealFixture(lab,U,[root(B,2)],{onPhase(p){if(p==='DATABASE_TRANSACTION')throw Error('SQL_FAILURE');}}),/SQL_FAILURE/);
+ assert.equal(fileDigest(file),before);assert.throws(()=>openLab(lab.receipt));recoverLab(lab.receipt);assert.equal(fileDigest(file),before);
+});
+
+test('hard exit during SQL leaves journal evidence blocked rather than invoking implicit SQLite repair',t=>{
+ const {lab,file}=fixture(t),module=new URL('../experimental/maintenance-v2.mjs',import.meta.url).href;
+ const code=`import {openLab,sealFixture} from ${JSON.stringify(module)};const [r,u,b]=process.argv.slice(1);sealFixture(openLab(JSON.parse(r)),u,[{universe:u,run:b,record:2}],{onPhase(p){if(p==='DATABASE_TRANSACTION')process.exit(82);}});`;
+ const child=spawnSync(process.execPath,['--input-type=module','-e',code,JSON.stringify(lab.receipt),U,B],{encoding:'utf8',windowsHide:true,timeout:30000});
+ assert.equal(child.status,82,child.stderr);assert.ok(fs.existsSync(file+'-journal'));
+ const before=fileDigest(file),journal=fileDigest(file+'-journal');assert.throws(()=>recoverLab(lab.receipt));assert.equal(fileDigest(file),before);assert.equal(fileDigest(file+'-journal'),journal);
 });
