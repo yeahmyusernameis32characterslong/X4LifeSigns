@@ -255,3 +255,14 @@ python profiles/test/load_permission_lua_test.py '<installed lua51_64.dll>' '<bu
 It must reject old READY after recreation and missing/mismatched service permission,
 while allowing current NEED_BASELINE/READY. This is not an in-game test; see the
 [load-boundary test plan](docs/LUA_LOAD_FENCE_TEST.md) for native acceptance.
+
+## Offline housekeeping Stage3 laboratory
+
+Run `node --test profiles/test/maintenance-v2.test.mjs` or include it through
+`npm.cmd --prefix profiles test`. The [Stage3 contract and limits](docs/DATABASE_HOUSEKEEPING_STAGE3.md)
+describe the factory-created temporary fixture roots, source preservation,
+sealed replay, child ancestry, catalogue/refusal and explicit recovery tests.
+Real disposable child processes exit during migration to test crash evidence;
+X4 and actual owner databases are not started or migrated. The modules are not
+packaged/imported by the production companion. Fixture fault tests deliberately
+remove or move temporary rows/files; there is no cleanup/pruning API.

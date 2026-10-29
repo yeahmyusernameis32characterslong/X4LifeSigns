@@ -6,7 +6,10 @@ Stage 1 is now owner-approved and implemented as an offline read-only inventory
 and preview, documented [separately](DATABASE_HOUSEKEEPING_STAGE1.md). Stage 2
 read-only menu/transport acceptance has separate
 [implementation and scoped owner observations](DATABASE_HOUSEKEEPING_STAGE2.md).
-Schema-v2, catalogue and destructive operations below remain proposals. Source
+An owner-approved [Stage3 laboratory](DATABASE_HOUSEKEEPING_STAGE3.md) now tests
+the first schema-v2/replay/catalogue contract on synthetic temporary copies.
+Production migration, maintenance wiring and destructive operations below remain
+proposals. Source
 ranges in this planning record refer to `dcb4317` and its installed-source research.
 
 ## Recommendation
@@ -71,7 +74,10 @@ A newly loaded retained save uses a **new recorder run** with its exact preserve
 
 Two targeted disposable-fixture checks passed: adding a synthetic metadata table and setting version2 left all existing table contents exact; the unmodified v1 constructor refused that file without modifying its bytes. This rebuts a Qwen review overstatement that old binaries need patching to reject version2 or that a renamed universe file is mandatory. Do not rename the routed universe file or depend only on a service-layer guard.
 
-This is a proposal, not a schema definition or tested migration. Details of catalogue durability and replay-status integration need Agent approval and focused synthetic failure tests before implementation.
+The Stage3 laboratory now defines and tests a deliberately isolated first-copy
+contract; it is not production migration or a deployed schema. Catalogue
+durability, repeated maintenance and replay-status integration still require
+further design review and implementation before production adoption.
 
 ### Retirement and catalogue prerequisites clarified after Agent review
 
@@ -150,4 +156,4 @@ Pending acceptance cases include all cases in the Agent plan, plus replay of who
 
 ## Exact decisions for Agent
 
-Approve or revise the schema-v2/sealed-run/catalogue proposal; choose whether a closed-game apply fallback is acceptable; define supported save/profile/archive scope and pinning; arrange a post-checkpoint fixture for exact decoding; agree that uncertain roots and mid-profile checkpoints block deletion; select the first read-only stage. No current instruction authorises destructive implementation, schema migration, deployment, game launch, owner-data pruning or merge.
+Approve or revise the schema-v2/sealed-run/catalogue proposal; choose whether a closed-game apply fallback is acceptable; define supported save/profile/archive scope and pinning; arrange a post-checkpoint fixture for exact decoding; agree that uncertain roots and mid-profile checkpoints block deletion; select the first read-only stage. The later owner-approved Stage3 laboratory is the limited exception for synthetic temporary-copy contract work. It does not authorise owner-data migration/pruning, destructive Apply, deployment, game launch or merge.
