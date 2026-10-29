@@ -67,7 +67,7 @@ function validate(db,id,c,s) {
   if(m.length!==1||m[0].root_id!==c.registration.id||m[0].generation!==s.dbGeneration||m[0].plan_digest!==s.planDigest||owners.length!==1||owners[0].universe_id!==id||owners[0].ready!==1)fail('TEST_DATABASE_IDENTITY_MISMATCH');
   if(db.prepare('PRAGMA quick_check').get().quick_check!=='ok')fail('INTEGRITY_FAILED');return owners[0];
 }
-function ready(c,id,p){const s=json(p.state);if(s.kind!=='LifeSignsTestUniverse'||s.rootId!==c.registration.id||s.universe!==id||s.phase!=='READY')fail('RECOVERY_REQUIRED_CLOSE_X4_REPORT_TO_CODEX');if(hashFile(p.file)!==s.dbHash)fail('TEST_DATABASE_CHANGED');const db=open(p.file);try{validate(db,id,c,s);}finally{db.close();}return s;}
+function ready(c,id,p){const s=json(p.state);if(s.kind!=='LifeSignsTestUniverse'||s.rootId!==c.registration.id||s.universe!==id||s.phase!=='READY'||!Number.isSafeInteger(s.generation)||s.generation<0||!HEX.test(s.dbHash))fail('RECOVERY_REQUIRED_CLOSE_X4_REPORT_TO_CODEX');if(hashFile(p.file)!==s.dbHash)fail('TEST_DATABASE_CHANGED');const db=open(p.file);try{validate(db,id,c,s);}finally{db.close();}return s;}
 function digestRows(db,retained) {
   const h=createHash('sha256');for(const table of ['sessions','records','profile_versions','events']){h.update(table+'\n');for(const r of retained){const q=table==='sessions'?'SELECT * FROM sessions WHERE run_id=?':`SELECT * FROM ${table} WHERE run_id=? AND record_id<=? ORDER BY record_id`;for(const row of db.prepare(q).iterate(...(table==='sessions'?[r.run]:[r.run,r.through])))h.update(JSON.stringify(row)+'\n');}}
   return h.digest('hex');
@@ -82,6 +82,8 @@ export async function createMenuTest(host,{saveFiles,profileFiles,onProgress=()=
   host=path.resolve(host);checkPath(path.join(host,'local-data'),{directory:true});if(hasTestRegistration(host))fail('TEST_ALREADY_REGISTERED');
   if(!saveFiles.length||saveFiles.length>64||!profileFiles.length||profileFiles.length>32)fail('EXPLICIT_COPIED_INPUTS_REQUIRED');
   const id=randomUUID(),root=path.join(host,'local-data','housekeeping-menu-test-'+id);fs.mkdirSync(root);
+  const needed=[...saveFiles.map(f=>checkPath(f).size),...profileFiles.map(f=>checkPath(f).size*2)].reduce((a,b)=>a+b,64*1024**2),space=fs.statfsSync(root);
+  if(space.bavail*space.bsize<needed)fail('INSUFFICIENT_COPY_SPACE');
   for(const from of profileFiles)if(process.platform==='win32'&&path.join(root,'universes',universeFolder(path.basename(from,'.db')),'backups',randomUUID(),path.basename(from)).length>248)fail('TEST_HOST_PATH_TOO_LONG');
   write(path.join(root,'maintenance-owned.json'),{rootId:id,kind:'LifeSignsIsolatedMenuTest'});
   for(const rel of ['evidence/saves','evidence/profiles','universes','local-data'])fs.mkdirSync(path.join(root,rel),{recursive:true});
@@ -116,19 +118,21 @@ export async function reviewMenuTest(host,id,kind) {
     const s=ready(c,id,p),settings=readSettings(c.root);if(settings.value.protectedUniverses.includes(id))fail('UNIVERSE_PROTECTED');
     const {snap,result}=preview(c,id,p,s,settings);if(kind==='CLEAN'&&(result.status!=='PREVIEW_ONLY'||!result.roots.length||!result.candidates.records))fail('NO_SAFE_HISTORY_TO_PRUNE');
     if(kind==='RESTORE'&&!s.lastBackup)fail('NO_VERIFIED_BACKUP');
+    if(kind==='RESTORE')backupReceipt(c,p,id,s.lastBackup);
     const db=open(p.file);let retainedHash;try{retainedHash=digestRows(db,result.retained);}finally{db.close();}
     const plan={rootId:c.registration.id,universe:id,kind,generation:s.generation,dbHash:s.dbHash,settingsDigest:settings.digest,manifestDigest:c.registration.manifestDigest,retained:result.retained,candidates:result.candidates,retainedHash,priorSeals:s.version===2?(()=>{const d=open(p.file);try{return d.prepare('SELECT run_id run,cutoff FROM maintenance_test_seals ORDER BY run_id').all();}finally{d.close();}})():[],lastBackup:s.lastBackup};
     if(s.version===2&&kind==='CLEAN')for(const r of result.retained){const old=plan.priorSeals.find(x=>x.run===r.run);if(old&&r.through>old.cutoff)fail('SEALED_CUTOFF_WIDENING');}
     const token=sha(JSON.stringify(plan));write(p.plan,{token,plan});return {token,plan,rows:[['CONFIRM','TEST COPY universe',id,'',''],['CONFIRM',kind==='CLEAN'?'Keep / remove raw rows':'Restore selected universe',kind==='CLEAN'?`${result.retained.reduce((n,r)=>n+r.through,0)} / ${result.candidates.records}`:'Verified backup before last cleanup','Ancestor history preserved',''],['CONFIRM','Scope',kind==='CLEAN'?'Back up, then prune this test copy':'Rewind this test universe only','Other universes / live data unchanged','Backups retained; no promised disk savings']]};
   }finally{release();}
 }
-function backupReceipt(c,p,id,receipt){uuid(receipt);const dir=path.join(p.root,'backups',receipt),m=json(path.join(dir,'receipt.json'));if(m.rootId!==c.registration.id||m.universe!==id||m.id!==receipt||hashFile(path.join(dir,id+'.db'))!==m.hash)fail('BACKUP_CHANGED');const db=open(path.join(dir,id+'.db'));try{validate(db,id,c,m.before);if(contentDigest(db,m.before.version)!==m.contentDigest)fail('BACKUP_CONTENT_CHANGED');}finally{db.close();}return {dir,m};}
+function backupReceipt(c,p,id,receipt){uuid(receipt);const dir=path.join(p.root,'backups',receipt),m=json(path.join(dir,'receipt.json'));if(m.rootId!==c.registration.id||m.universe!==id||m.id!==receipt||m.before?.rootId!==c.registration.id||m.before?.universe!==id||m.before?.phase!=='READY'||m.before.dbHash!==m.hash||!Number.isSafeInteger(m.before.generation)||m.before.generation<0||hashFile(path.join(dir,id+'.db'))!==m.hash)fail('BACKUP_CHANGED');const db=open(path.join(dir,id+'.db'));try{validate(db,id,c,m.before);if(contentDigest(db,m.before.version)!==m.contentDigest)fail('BACKUP_CONTENT_CHANGED');}finally{db.close();}return {dir,m};}
 export async function executeMenuTest(host,confirmation,{onProgress=()=>{},onPhase=()=>{}}={}) {
   const c=testRegistration(host),plan=confirmation.plan,id=universeId(plan.universe);if(plan.rootId!==c.registration.id||confirmation.token!==sha(JSON.stringify(plan)))fail('INVALID_CONFIRMATION');inputs(c);const p=locations(c,id),release=lease(p);let db;
   try {
     const current=ready(c,id,p),settings=readSettings(c.root),stored=json(p.plan);
     if(settings.value.protectedUniverses.includes(id))fail('UNIVERSE_PROTECTED');
-    if(stored.token!==confirmation.token||settings.digest!==plan.settingsDigest||current.dbHash!==plan.dbHash||current.generation!==plan.generation||c.registration.manifestDigest!==plan.manifestDigest)fail('STALE_CONFIRMATION_REFRESH');
+    if(stored.token!==confirmation.token||settings.digest!==plan.settingsDigest||current.dbHash!==plan.dbHash||current.generation!==plan.generation||current.lastBackup!==plan.lastBackup||c.registration.manifestDigest!==plan.manifestDigest)fail('STALE_CONFIRMATION_REFRESH');
+    if(plan.kind==='RESTORE')backupReceipt(c,p,id,plan.lastBackup);
     const free=fs.statfsSync(p.root);if(free.bavail*free.bsize<checkPath(p.file).size*3+16*1024**2)fail('INSUFFICIENT_BACKUP_SPACE');
     const backupId=randomUUID(),dir=path.join(p.root,'backups',backupId);fs.mkdirSync(dir,{recursive:true});onProgress('Creating verified backup');
     let dataDigest;db=open(p.file);try{dataDigest=contentDigest(db,current.version);await backup(db,path.join(dir,id+'.db'));}finally{db.close();db=null;}

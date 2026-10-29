@@ -59,6 +59,11 @@ test('a changed database after review is not silently adopted',{timeout:120000},
   const f=await fixture(t),p=await reviewMenuTest(f.host,U,'CLEAN'),db=new DatabaseSync(f.file);db.exec("UPDATE records SET game_time='999' WHERE record_id=3");db.close();const before=hashFile(f.file);await assert.rejects(executeMenuTest(f.host,p),/TEST_DATABASE_CHANGED/);assert.equal(hashFile(f.file),before);
 });
 
+test('corrupt restore receipt ownership refuses before changing the selected copy',{timeout:120000},async t=>{
+  const f=await fixture(t),result=await executeMenuTest(f.host,await reviewMenuTest(f.host,U,'CLEAN')),receipt=path.join(f.root,'backups',result.backupId,'receipt.json'),value=JSON.parse(fs.readFileSync(receipt));value.before.rootId='foreign';fs.writeFileSync(receipt,JSON.stringify(value));const before=hashFile(f.file);
+  await assert.rejects(reviewMenuTest(f.host,U,'RESTORE'),/BACKUP_CHANGED/);assert.equal(hashFile(f.file),before);assert.equal(JSON.parse(fs.readFileSync(path.join(f.root,'state.json'))).phase,'READY');
+});
+
 test('actual companion worker transport scans, confirms, applies and restores the selected test copy',{timeout:240000},async t=>{
   const f=await fixture(t),replies=path.join(f.host,'replies');fs.mkdirSync(replies);let childErrors='';const s=new PreviewService({root:f.host,replyDirectory:replies,launch:()=>{const child=fork(new URL('../preview-scan-worker.mjs',import.meta.url),[],{stdio:['ignore','ignore','pipe','ipc'],windowsHide:true,execArgv:['--max-old-space-size=384']});child.stderr.on('data',d=>childErrors+=d);child.on('exit',(code,signal)=>childErrors+=`exit ${code} ${signal}\n`);return child;}});t.after(async()=>{s.stop();await s.waitForExit();});let seq=0;
   const send=async(verb,item=0,enabled=0)=>{const n=++seq;s.handle(`LSHK1|${s.gen}|${'2'.repeat(32)}|${n}|${verb}|${item}|${enabled}|0|END`);const until=Date.now()+60000;while(Date.now()<until){s.poll();const text=fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8');if(!s.scanning&&text.includes(`|${n}|READY|`))return text;if(!s.scanning&&text.includes(`|${n}|ERROR|`))throw Error(text+'\n'+childErrors);await new Promise(r=>setTimeout(r,20));}throw Error('TIMEOUT '+verb);};
