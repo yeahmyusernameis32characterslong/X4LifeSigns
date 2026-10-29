@@ -59,7 +59,7 @@ export class PreviewService {
     let release;
     const exited=new Promise(resolve=>{let done=false;release=()=>{if(!done){done=true;this.readers.delete(child);resolve();}};});
     this.readers.set(child,exited);
-    child.once('exit',release);child.once('close',release);
+    child.once('close',release);
     child.once('error',()=>{if(!child.pid)release();});
     let answered=false;
     child.on('message',message=>{
@@ -74,10 +74,10 @@ export class PreviewService {
         if(this.readSettings().digest!==settings.digest){this.model=null;this.baseModel=null;this.reply(request,'STALE');return;}
         if(message.error || !message.model)throw Error('Scan failed');
         this.baseModel=message.model;this.model=applyProtection(this.baseModel,settings.value);this.settings=settings;this.reply(request,'READY',this.model.list);
-      } catch {this.model=null;this.baseModel=null;this.reply(request,'ERROR');}
+      } catch {this.model=null;this.baseModel=null;this.reply(request,'ERROR',this.testMode?[['ERROR','Test scan blocked',message.error||'SCAN_FAILED','Close X4 and report to Codex','Preserve test copies and backups']]:[]);}
     });
     const failed=()=>{if(!answered && !this.stopped && this.ticket===ticket){this.scanning=false;this.child=null;this.reply(request,'ERROR');}};
-    child.on('error',failed);child.on('exit',failed);
+    child.on('error',failed);child.on('close',failed);
     child.send({root:this.root,settings:settings.value,testMode:this.testMode});
   }
   action(request,settings) {

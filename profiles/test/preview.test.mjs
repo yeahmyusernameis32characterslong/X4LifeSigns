@@ -24,7 +24,7 @@ function fixture(t) {
 const settings={owner:'LifeSignsReadOnlyPreview',version:1,saveLocations:[],protectedUniverses:[]};
 function fake(t) {
  const f=fixture(t),children=[];let clock=0;
- const service=new PreviewService({root:f.root,replyDirectory:f.replies,now:()=>clock,launch:()=>{const child=new EventEmitter();child.send=x=>child.input=x;child.kill=()=>{child.killed=true;queueMicrotask(()=>child.emit('exit',0));};children.push(child);return child;}});
+ const service=new PreviewService({root:f.root,replyDirectory:f.replies,now:()=>clock,launch:()=>{const child=new EventEmitter();child.send=x=>child.input=x;child.kill=()=>{child.killed=true;queueMicrotask(()=>{child.emit('exit',0);child.emit('close',0);});};children.push(child);return child;}});
  t.after(()=>service.stop());return {...f,service,children,clock:x=>clock=x,text:()=>fs.readFileSync(path.join(f.replies,PREVIEW_REPLY+'.reply'),'utf8')};
 }
 const model={list:[['1','Universe 1','1','12 bytes','In use']],details:[[['KEEP','History needed by your saves','records','7','']]],ids:[U],locations:[],issues:[]};
@@ -110,7 +110,7 @@ test('real cancellable scan process reuses Stage 1 on disposable inputs and pres
  assert.equal(service.model.details[i].find(r=>r[0]==='TAIL'&&r[2]==='records')[3],'3');assert.equal(launches,1);assert.equal(hash(file),before);
 });
 test('cancellation terminates a real scan process without replacing its cancelled reply', {timeout:20000},async t=>{
- const {root,replies}=fixture(t),s=new PreviewService({root,replyDirectory:replies});t.after(()=>s.stop());s.handle(request(s.gen,1));const child=s.child;const exited=once(child,'exit');s.handle(request(s.gen,2,'CANCEL'));assert.equal(s.hasReaders(),true);await exited;assert.equal(s.hasReaders(),false);
+ const {root,replies}=fixture(t),s=new PreviewService({root,replyDirectory:replies});t.after(()=>s.stop());s.handle(request(s.gen,1));const child=s.child;const exited=once(child,'close');s.handle(request(s.gen,2,'CANCEL'));assert.equal(s.hasReaders(),true);await exited;assert.equal(s.hasReaders(),false);
  assert.match(fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8'),/CANCELLED/);assert.equal(s.scanning,false);
 });
 test('service stop waits for its real preview reader before completing drain',{timeout:20000},async t=>{
@@ -142,7 +142,7 @@ test('scan progress stays scanning, bounded and correlated through cancellation,
  const before=f.text();child.emit('message',{progress:{stage:'SAVES',completed:-1,total:null}});assert.equal(f.text(),before);
  child.emit('message',{model});assert.equal(s.scanning,false);assert.match(f.text(),/\|READY\|/);
  child.emit('message',{progress:{stage:'DATABASES',completed:1,total:2}});assert.match(f.text(),/\|READY\|/);
- child.emit('exit',0);assert.equal(s.hasReaders(),false);
+ child.emit('exit',0);child.emit('close',0);assert.equal(s.hasReaders(),false);
  s.handle(request(s.gen,2));const next=f.children[1];s.handle(request(s.gen,3,'CANCEL'));
  next.emit('message',{progress:{stage:'DATABASES',completed:0,total:1}});assert.match(f.text(),/CANCELLED/);
  s.handle(request(s.gen,4));const last=f.children[2];s.suspend();const cancelled=f.text();
@@ -159,7 +159,7 @@ test('progress rows admit fixed stages and numeric counts only, without provisio
 
 test('progress alone cannot hide scan failure or stale settings, and old-client updates are fenced',t=>{
  const f=fake(t),s=f.service;s.handle(request(s.gen,1));const child=f.children[0];
- child.emit('message',{progress:{stage:'SAVES',completed:0,total:null}});child.emit('exit',1);
+ child.emit('message',{progress:{stage:'SAVES',completed:0,total:null}});child.emit('exit',1);child.emit('close',1);
  assert.match(f.text(),/ERROR/);assert.equal(s.scanning,false);assert.equal(s.hasReaders(),false);
  s.handle(request(s.gen,2));const old=f.children[1];s.handle(request(s.gen,1,'REFRESH',0,0,0,D));
  const current=f.children[2],before=f.text();old.emit('message',{progress:{stage:'DATABASES',completed:0,total:1}});assert.equal(f.text(),before);
@@ -199,7 +199,7 @@ test('protection replies use detail budgets, never a compact universe-list page'
 });
 
 test('mutating worker drains after CANCEL/load/stop and exit cannot race its final IPC message',async t=>{
- const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('exit',0);
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('exit',0);f.children[0].emit('close',0);
  s.testMode=true;s.readSettings=()=>readSettings(f.root);s.handle(request(s.gen,2,'REVIEW',1));const review=f.children[1];
  review.emit('message',{action:{plan:{kind:'CLEAN'},token:'x',rows:[]}});review.emit('close',0);s.handle(request(s.gen,3,'APPLY',1,1));const worker=f.children[2];
  assert.equal(s.mutating,true);s.handle(request(s.gen,4,'CANCEL'));assert.equal(worker.killed,undefined);s.suspend();s.stop();assert.equal(worker.killed,undefined);assert.equal(s.hasReaders(),true);
@@ -207,7 +207,12 @@ test('mutating worker drains after CANCEL/load/stop and exit cannot race its fin
 });
 
 test('a final action reply arriving after exit is accepted until close, without a false failure',t=>{
- const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('exit',0);s.testMode=true;s.readSettings=()=>readSettings(f.root);
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('exit',0);f.children[0].emit('close',0);s.testMode=true;s.readSettings=()=>readSettings(f.root);
  s.handle(request(s.gen,2,'REVIEW',1));const worker=f.children[1];worker.emit('exit',0);assert.equal(s.hasReaders(),true);assert.match(f.text(),/SCANNING/);
  worker.emit('message',{action:{plan:{kind:'CLEAN'},token:'x',rows:[]}});worker.emit('close',0);assert.match(f.text(),/READY/);assert.equal(s.hasReaders(),false);assert.ok(s.confirmation);
+});
+
+test('scan IPC may arrive after exit, and isolated scan errors retain an actionable code',t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));const worker=f.children[0];worker.emit('exit',0);assert.match(f.text(),/SCANNING/);worker.emit('message',{model});worker.emit('close',0);assert.match(f.text(),/READY/);
+ s.testMode=true;s.readSettings=()=>readSettings(f.root);s.handle(request(s.gen,2));f.children[1].emit('message',{error:'EVIDENCE_CHANGED'});assert.match(f.text(),/ERROR/);assert.ok(f.text().includes(Buffer.from('EVIDENCE_CHANGED').toString('hex')));f.children[1].emit('close',0);
 });

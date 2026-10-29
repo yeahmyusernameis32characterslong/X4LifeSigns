@@ -231,7 +231,7 @@ s.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:u,p
                 if service.poll() is not None:
                     raise AssertionError(service.stderr.read().decode(errors='replace'))
                 time.sleep(0.1)
-            raise AssertionError('Actual companion/native/Lua preview timed out: ' + str(native_vm.run('return P.state', True)))
+            raise AssertionError('Actual companion/native/Lua preview timed out: ' + str(native_vm.run('return P.state', True)) + ' frame=' + str(native_vm.run('return native.readReply(' + literal(REPLY) + ')', True)))
         await_ready('LIST')
         native_vm.run('assert(P.rows[1][2]=="Universe 1" and P.rows[1][3]=="1" and P.rows[1][5]=="In use");P.select("1")')
         await_ready('DETAIL')

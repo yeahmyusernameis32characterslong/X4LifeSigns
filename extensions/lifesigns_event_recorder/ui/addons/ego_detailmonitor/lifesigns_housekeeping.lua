@@ -158,7 +158,7 @@ function P.update()
         for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then
             if row[3]=="Protected" then P.protected=true elseif row[3]=="Not protected" then P.protected=false else P.protected=nil end
         end end
-    elseif reply.state~="SCANNING" then P.pending=nil;P.mutating=false;P.stale=true;if action then P.view="RESULT";P.rows=reply.rows end end
+    elseif reply.state~="SCANNING" then P.pending=nil;P.mutating=false;P.stale=true;if action or (P.testMode and reply.state=="ERROR") then P.view="RESULT";P.rows=reply.rows end end
 end
 
 local copy={
@@ -201,7 +201,7 @@ function P.render()
     headerLine(P.testMode and "Clean and restore individual test universes. Original saves and live history are not cleanup targets." or copy.description)
     headerLine(P.testMode and "Explicit confirmation and a verified backup are required. No compaction or permanent purge." or copy.notice)
     headerLine(P.testMode and "Inventory uses copied local native saves only. Gameplay routing is unchanged." or copy.scope)
-    if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or messages[P.state] or "Waiting for companion...") end
+    if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or (P.testMode and P.state=="ERROR" and "Test operation blocked. Close X4 and report the result below. Preserve test copies and backups.") or messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
     local gap=Helper.scaleY(12)
     local gutter=menu.table.arrowColumnWidth+Helper.borderSize

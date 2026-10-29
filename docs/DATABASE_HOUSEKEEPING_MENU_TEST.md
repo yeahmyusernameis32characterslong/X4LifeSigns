@@ -129,8 +129,8 @@ workers, SQLite backup/pruning/restoration and native replies. They do not prove
 the final X4-rendered appearance; that is the owner menu test above. MD/XML/native
 source remains unchanged, so no regenerated MD or schema change is required.
 
-Final Node suites: profiles181, bridge112, recorder89: **382 passed**, zero
-failures/skips. Includes seven new backend/real-worker tests and two worker-drain
+Final Node suites: profiles182, bridge112, recorder89: **383 passed**, zero
+failures/skips. Includes seven new backend/real-worker tests and three worker-drain
 regressions. The separate LuaJIT/native script also covers the isolated confirm,
 apply and restore button path. Owner-rendered X4 acceptance remains pending.
 
