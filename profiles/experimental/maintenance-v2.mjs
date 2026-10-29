@@ -126,6 +126,7 @@ export function openLab(receipt) {
 }
 export function assertReady(lab) {
   const actual=descriptor(lab.receipt);if(actual.anchor.phase!=='READY')fail('BOOTSTRAP_RECOVERY_REQUIRED');
+  stage4Barrier(actual);
   const marker=readJson(actual.marker),db=catalogue(actual);
   try {
     const state=db.prepare('SELECT * FROM root_state').get();
@@ -208,6 +209,7 @@ function finish(lab,cat,manifest,hash,onPhase=()=>{}) {
 export function recoverLab(receipt) {
   const lab=descriptor(receipt),lease=acquireLease(lab,{recoverDead:true});let cat;
   try {
+    stage4Barrier(lab);
     if(lab.anchor.phase==='BOOTSTRAP') {
       if(fs.readdirSync(lab.profiles).length)fail('BOOTSTRAP_HAS_DATABASES');
       if(fs.existsSync(lab.marker)){const m=readJson(lab.marker);if(m.kind!=='LS_STAGE3_MARKER' || m.rootId!==lab.anchor.rootId || m.catalogueId!==lab.anchor.catalogueId || m.generation!==0 || m.phase!=='READY')fail('MARKER_MISMATCH');}
@@ -243,3 +245,10 @@ export function openRegisteredV2(lab,id,lease) {
   const file=path.join(lab.profiles,id+'.db'),db=openSql(file,false);
   try{validateV2(db,lab,id,{...entry,manifest:operationManifest(lab,op)});return {file,db,info:checkPath(file)};}catch(e){db.close();throw e;}
 }
+
+function stage4Barrier(lab) {
+  const file=path.join(lab.workspace,'stage4-operation.json');
+  if(fs.existsSync(file) && !['COMPLETE','RESTORED'].includes(readJson(file).phase))fail('STAGE4_RESTORATION_REQUIRED');
+}
+// Private laboratory building blocks. No production import or arbitrary roots.
+export const labTools=Object.freeze({descriptor,catalogue,openSql,readJson,writeJson,markerValue,operationManifest,verifyEntry,finish});

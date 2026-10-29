@@ -40,3 +40,39 @@ SQLite and official SQLite backup/transaction documentation are the references.
 Publish incremental coherent commits and the sanitised Stage 4 report/status in
 the private handoff; next owner Agent reviews. Allowance telemetry is unavailable;
 use verified-unit checkpoints and leave unresolved findings explicit.
+
+## First verified implementation unit
+
+The new `profiles/experimental/pruning-v2.mjs` operates only on factory-created
+Stage 3 lab receipts. No arbitrary database path is accepted. Plans bind the
+entire registered pair and exact retained views/rows. Existing seals may narrow;
+retired tombstones persist. Child runs created since the previous operation are
+sealed by the next operation. A root past an existing seal is always refused.
+
+Unique backup sets contain registration, marker, catalogue and all registered
+databases. Hashes, ownership, schema, generations and inventory are verified by
+restoring to a separate new lab before any pruning reservation. Closed-file
+copies run under the cooperating lab lease, after an SQLite exclusive-lock probe
+and with source hashes checked again. This does **not** establish exclusion of
+idle/unmanaged production handles or an SQLite online backup guarantee.
+
+Pruning updates raw records, profile/event projections, sessions, tombstones and
+per-database generation in one transaction. Exact row-prefix and retained-root
+profile/event/NPC-history digests are checked inside the transaction and again on
+an independent connection after commit. Both retained ancestors and leaf roots
+are included. The original schema-v2 file stays in place. No automatic VACUUM.
+
+The external lab operation record blocks ordinary opens and Stage 3 recovery
+until Stage 4 completes or explicit paired restoration succeeds. Restoration
+first validates its backup, preserves the complete current set in a unique
+rollback directory and fully stages replacement bytes. Each member replacement
+is atomic; the set is not cross-file atomic. An interrupted restore accepts only
+known old/backup hashes and resumes explicitly. New/foreign destination files,
+changed backup members and hot/unexplained SQLite sidecars refuse unchanged.
+
+Initial Windows/Node 24.21.0 checks: 31 focused tests pass. Includes actual
+pruning, repeated maintenance/new children, paired restore, every operation-phase
+exception, real child-process exit after commit/during restoration, real
+SQLITE_FULL on the pruning connection using a page cap, simulated backup/staging
+ENOSPC/cancellation, corrupt backups, stale plans and independent reader locks.
+This is not real disk exhaustion, power-loss testing or production acceptance.
