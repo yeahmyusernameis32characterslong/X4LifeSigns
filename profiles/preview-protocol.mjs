@@ -6,11 +6,13 @@ export const LIST_PAGE_SIZE = 10;
 export const generation = x => typeof x === 'string' && /^[0-9a-f]{32}$/.test(x);
 const integer = x => /^(0|[1-9]\d{0,8})$/.test(x);
 export function parsePreviewRequest(line) {
-  const m = /(?:^|\s)LSHK1\|([0-9a-f]{32})\|([0-9a-f]{32})\|([1-9]\d{0,8})\|(REFRESH|LIST|DETAIL|LOCATIONS|PROTECT|CANCEL)\|(0|[1-9]\d{0,8})\|(0|1)\|(0|[1-9]\d{0,8})\|END\s*$/.exec(line);
+  const m = /(?:^|\s)LSHK1\|([0-9a-f]{32})\|([0-9a-f]{32})\|([1-9]\d{0,8})\|(REFRESH|LIST|DETAIL|LOCATIONS|PROTECT|CANCEL|REVIEW|RESTOREREVIEW|APPLY|RESTORE)\|(0|[1-9]\d{0,8})\|(0|1)\|(0|[1-9]\d{0,8})\|END\s*$/.exec(line);
   if (!m || line.length > 512) return null;
   const [, gen, client, seq, verb, item, enabled, page] = m;
-  if ((verb === 'DETAIL' || verb === 'PROTECT') ? item === '0' : item !== '0') return null;
-  if (verb !== 'PROTECT' && enabled !== '0') return null;
+  const action=['REVIEW','RESTOREREVIEW','APPLY','RESTORE'].includes(verb);
+  if ((verb === 'DETAIL' || verb === 'PROTECT' || action) ? item === '0' : item !== '0') return null;
+  if (['APPLY','RESTORE'].includes(verb) ? enabled!=='1' : verb !== 'PROTECT' && enabled !== '0') return null;
+  if(action&&page!=='0')return null;
   return { gen, client, seq: Number(seq), verb, item: Number(item), enabled: enabled === '1', page: Number(page) };
 }
 export function cell(value, maxBytes = 96) {

@@ -8,7 +8,7 @@ import { availability, checkAvailability } from './inventory-path.mjs';
 const stable = (a, b) => sameFile(a, b) && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
 const fail = code => { throw Error(code); };
 
-export function inspectProfileDatabase(file, { maxBoundaries = 1000000, maxRecords = 5000000, getAvailability = availability } = {}) {
+export function inspectProfileDatabase(file, { maxBoundaries = 1000000, maxRecords = 5000000, getAvailability = availability, validateDatabase = validateProfileDatabase } = {}) {
   const result = { file: path.basename(file), status: 'BLOCKED', universe: null };
   let db, fd;
   try {
@@ -23,7 +23,7 @@ export function inspectProfileDatabase(file, { maxBoundaries = 1000000, maxRecor
     if (header[18] === 2 || header[19] === 2) fail('WAL_DATABASE');
     db = new DatabaseSync(file, { readOnly: true, timeout: 0, allowExtension: false });
     db.exec('PRAGMA query_only=ON'); const version = db.prepare('PRAGMA data_version').get().data_version;
-    db.exec('BEGIN'); const owner = validateProfileDatabase(db, result.universe);
+    db.exec('BEGIN'); const owner = validateDatabase(db, result.universe);
     if (!owner.ready) fail('INCOMPLETE_DATABASE');
     const rows = db.prepare('SELECT * FROM sessions ORDER BY run_id').all();
     const runs = new Map(rows.map(r => [r.run_id, { run: runId(r.run_id), parent: r.parent_run,

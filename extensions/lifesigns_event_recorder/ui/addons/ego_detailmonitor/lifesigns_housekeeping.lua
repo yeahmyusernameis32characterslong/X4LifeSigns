@@ -43,8 +43,10 @@ function P.parse(text, expected)
     if state=="SCANNING" and count>0 then
         local labels={SAVES="Checking saves",SAVE_RECHECK="Rechecking save inputs",DATABASES="Checking databases",DATABASE_RECHECK="Rechecking databases"}
         local row=rows[1];local label=labels[row[2]];local completed=uint(row[3]);local total=uint(row[4])
-        if count~=1 or row[1]~="PROGRESS" or not label or not completed or row[5]~="" then return nil end
-        if row[2]=="SAVES" then
+        if count==1 and row[1]=="ACTION" and row[2]=="Progress" then
+            progress=row[3].." (test copies only)"
+        elseif count~=1 or row[1]~="PROGRESS" or not label or not completed or row[5]~="" then return nil
+        elseif row[2]=="SAVES" then
             if row[4]~="" then return nil end
             progress=label..": "..completed.." checked."
         else
@@ -63,6 +65,7 @@ function P.request(verb,item,enabled,page)
     if not P.gen or P.seq>=999999999 then P.state="UNAVAILABLE";P.dirty=true;return end
     P.seq=P.seq+1
     P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,enabled=enabled==true,since=getElapsedTime()};P.lastText=nil;P.progress=nil
+    P.mutating=verb=="APPLY" or verb=="RESTORE"
     if verb~="CANCEL" then P.state="SCANNING";P.stale=true end
     if verb=="PROTECT" then P.progress="Saving protection preference..." end
     DebugError("LSHK1|"..P.gen.."|"..P.client.."|"..P.seq.."|"..verb.."|"..(item or 0).."|"..(enabled and 1 or 0).."|"..(page or 0).."|END")
@@ -102,7 +105,14 @@ function P.locations()
     if P.active and P.gen then P.request("CANCEL") end
     P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
 end
+function P.review(id,restore)
+    if not P.testMode or P.state~="READY" or P.stale then return end
+    P.selected=tonumber(id);P.view="CONFIRM";P.confirmVerb=restore and "RESTORE" or "APPLY";P.rows={};P.page=0
+    P.request(restore and "RESTOREREVIEW" or "REVIEW",P.selected)
+end
 function P.back()
+    if P.mutating then return end
+    if P.view=="RESULT" then P.refresh();return end
     if P.view~="LIST" then
         P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST")
     else P.close(true) end
@@ -116,7 +126,8 @@ function P.update()
     local h=read(helloFile)
     local gen,tick,phase
     if h then gen,tick,phase=h:match("^LSDB1|HOUSEKEEPING|HELLO|([0-9a-f]+)|(%d+)|([A-Z]+)|END\r?\n$") end
-    if token(gen) and uint(tick) and phase=="INITIAL" then
+    if token(gen) and uint(tick) and (phase=="INITIAL" or phase=="TEST") then
+        P.testMode=phase=="TEST"
         if gen~=P.gen then
             local restarting=P.gen~=nil
             P.gen=gen;P.heartbeat=tick;P.heartbeatAt=now;P.live=false;P.pending=nil;P.progress=nil
@@ -131,20 +142,23 @@ function P.update()
     if P.awaitInitial and P.live then P.awaitInitial=false;P.refresh() end
     local pending=P.pending
     if not pending or not P.live then return end
-    if pending.verb~="REFRESH" and now-pending.since>15 then P.state="ERROR";P.pending=nil;P.stale=true;P.dirty=true;return end
+    local action=({REVIEW=true,RESTOREREVIEW=true,APPLY=true,RESTORE=true})[pending.verb]
+    if pending.verb~="REFRESH" and not action and now-pending.since>15 then P.state="ERROR";P.pending=nil;P.stale=true;P.dirty=true;return end
     local text=read(replyFile)
     if text==P.lastText then return end
     local reply=P.parse(text,pending);if not reply then return end
     P.lastText=text;P.state=reply.state;P.progress=reply.progress;P.dirty=true
     if reply.state=="READY" then
+        P.mutating=false
         P.pending=nil;P.stale=false;P.page=reply.page;P.pages=reply.pages;P.rows=reply.rows
         if pending.verb=="PROTECT" then P.protected=pending.enabled end
         if pending.verb=="REFRESH" then P.view="LIST";P.selected=nil end
+        if pending.verb=="APPLY" or pending.verb=="RESTORE" then P.view="RESULT" end
         if P.view=="LIST" then P.listRows=P.rows end
         for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then
             if row[3]=="Protected" then P.protected=true elseif row[3]=="Not protected" then P.protected=false else P.protected=nil end
         end end
-    elseif reply.state~="SCANNING" then P.pending=nil;P.stale=true end
+    elseif reply.state~="SCANNING" then P.pending=nil;P.mutating=false;P.stale=true;if action then P.view="RESULT";P.rows=reply.rows end end
 end
 
 local copy={
@@ -183,7 +197,10 @@ function P.render()
     local function headerLine(text,properties)
         local row=header:addRow(false,{fixed=true});row[2]:createText(text,properties or info)
     end
-    headerLine(copy.intro,normal);headerLine(copy.description);headerLine(copy.notice);headerLine(copy.scope)
+    headerLine(P.testMode and "ISOLATED MAINTENANCE TEST - disposable copies only" or copy.intro,normal)
+    headerLine(P.testMode and "Clean and restore individual test universes. Original saves and live history are not cleanup targets." or copy.description)
+    headerLine(P.testMode and "Explicit confirmation and a verified backup are required. No compaction or permanent purge." or copy.notice)
+    headerLine(P.testMode and "Inventory uses copied local native saves only. Gameplay routing is unchanged." or copy.scope)
     if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
     local gap=Helper.scaleY(12)
@@ -192,18 +209,25 @@ function P.render()
     local controlY=header.properties.y+header:getVisibleHeight()+gap
     local controls=frame:addTable(4,{tabOrder=2,x=x,y=controlY,width=math.min(width,Helper.scaleX(640))})
     r=controls:addRow(true,{fixed=true})
-    button(r,1,"Refresh",P.refresh,P.live);button(r,2,"Save locations",P.locations,P.live)
-    button(r,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING");button(r,4,"Back",back)
+    button(r,1,"Refresh",P.refresh,P.live and not P.mutating);button(r,2,"Save locations",P.locations,P.live and not P.mutating)
+    button(r,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING" and not P.mutating);button(r,4,"Back",back,not P.mutating)
     local dataY=controlY+controls:getVisibleHeight()+gap
-    local t=frame:addTable(4,{tabOrder=3,x=x,y=dataY,width=width})
-    local widths=P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
+    local actions=P.testMode and P.view=="LIST"
+    local t=frame:addTable(actions and 6 or 4,{tabOrder=3,x=x,y=dataY,width=width})
+    local widths=actions and {16,12,17,25,15} or P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
     for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Save location / source"}
-    r=t:addRow(false,{fixed=true});for i=1,4 do r[i]:createText(headers[i],heading) end
+    if actions then headers[5]="Clean test copy";headers[6]="Restore backup" end
+    r=t:addRow(false,{fixed=true});for i=1,(actions and 6 or 4) do r[i]:createText(headers[i],heading) end
     for _,data in ipairs(P.rows) do
         r=t:addRow(P.view=="LIST",{})
         if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],normal) end
         for i=2,4 do r[i]:createText(data[i+1],normal) end
+        if actions then
+            local id=data[1];local available=P.state=="READY" and not P.stale and id~="0"
+            button(r,5,"Clean...",function() P.review(id,false) end,available and data[5]:sub(1,6)=="In use")
+            button(r,6,"Restore...",function() P.review(id,true) end,available and data[5]:find("backup",1,true)~=nil and data[5]:sub(1,9)~="Protected")
+        end
     end
     if #P.rows==0 then line(t,P.state=="SCANNING" and "Waiting for scan results..." or "No results to display.") end
     local pager=frame:addTable(3,{tabOrder=4,x=x,y=0,width=math.min(width,Helper.scaleX(340))})
@@ -220,13 +244,18 @@ function P.render()
         r[1].handlers.onClick=function() P.request("PROTECT",P.selected,not P.protected,P.page) end
         r[2]:setColSpan(3):createText("Protect this universe",normal);line(notes,copy.protection)
     end
+    if P.view=="CONFIRM" then
+        r=notes:addRow(true,{fixed=true});r[1]:setColSpan(2);r[3]:setColSpan(2)
+        button(r,1,P.confirmVerb=="APPLY" and "Confirm cleanup" or "Confirm restoration",function() P.request(P.confirmVerb,P.selected,true,0) end,P.state=="READY" and not P.stale)
+        button(r,3,"Cancel",P.back,not P.mutating)
+    end
     line(notes,copy.ancestry);line(notes,"Record and projection counts overlap; do not add them together. File size is not reclaimable space.")
     local footerHeight=pager:getVisibleHeight()+notes:getVisibleHeight()+3*gap
     t.properties.maxVisibleHeight=math.max(1,menu.table.height-(dataY-menu.table.y)-footerHeight)
     pager.properties.y=dataY+t:getVisibleHeight()+gap
     notes.properties.y=pager.properties.y+pager:getVisibleHeight()+gap
     local chain={header,controls,t,pager}
-    if P.view=="DETAIL" then chain[#chain+1]=notes end
+    if P.view=="DETAIL" or P.view=="CONFIRM" then chain[#chain+1]=notes end
     for i=1,#chain-1 do chain[i].properties.nextTable=chain[i+1].index;chain[i+1].properties.prevTable=chain[i].index end
     frame:display();P.dirty=false
 end

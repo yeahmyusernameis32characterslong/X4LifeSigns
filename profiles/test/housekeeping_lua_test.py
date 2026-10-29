@@ -80,7 +80,7 @@ local function cell(row)
 end
 local function makeTable(properties)
  local t={properties=properties or {},rows={},widths={}}
- function t:addRow() local row={height=0};for i=1,4 do row[i]=cell(row) end;self.rows[#self.rows+1]=row;return row end
+ function t:addRow() local row={height=0};for i=1,6 do row[i]=cell(row) end;self.rows[#self.rows+1]=row;return row end
  function t:setColWidthPercent(col,width) self.widths[col]=width;return self end
  function t:setColWidth(col,width) self.widths[col]=width;return self end
  function t:getVisibleHeight() local height=0;for _,row in ipairs(self.rows) do height=height+row.height end;return math.min(height,self.properties.maxVisibleHeight or height) end
@@ -165,7 +165,7 @@ finally:
 # The unchanged first-party reader accepts reserved preview frames from a Unicode
 # disposable extension root. No broader filesystem/native interface is introduced.
 original_cwd = Path.cwd()
-with tempfile.TemporaryDirectory(prefix='lifesigns-preview-native-') as temporary:
+with tempfile.TemporaryDirectory(prefix='ls-ui-') as temporary:
     root = Path(temporary)
     extension = root / 'Unicode 船' / 'extensions/lifesigns_event_recorder'
     (extension / 'native').mkdir(parents=True)
@@ -243,6 +243,42 @@ s.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:u,p
         native_vm.run('assert(P.rows[1][5]=="Protected");P.close(false)')
         assert all(hashlib.sha256(p.read_bytes()).hexdigest() == digest for p, digest in hashes.items())
         print('PASS: real Node service -> native reader -> Lua preview; local gzip root/details/protection persisted; save and SQLite bytes unchanged')
+        service.stdin.write(b'STOP\n');service.stdin.flush();service.stdin.close();service.wait(timeout=15)
+        assert service.returncode == 0
+        service = None
+        isolated_setup = """
+import {ProfileStore} from STORE;
+import {createMenuTest} from MAINTENANCE;
+const [root,u,run,save,db]=process.argv.slice(1),s=new ProfileStore(root,u,run);
+s.ingest([{run,session:'UNAVAILABLE',seq:'1',age:'4',kind:'ENTITY_EVENT',fields:{record:'4',subject_kind:'SHIP',event_type:'ATTACKED',subject_seed:'42'}}]);s.close();
+await createMenuTest(root,{saveFiles:[save],profileFiles:[db]});
+""".replace('STORE', literal((repo / 'profiles/store.mjs').as_uri())).replace('MAINTENANCE', literal((repo / 'profiles/maintenance-test.mjs').as_uri()))
+        subprocess.run(['node','--input-type=module','-e',isolated_setup,str(storage),universe,run,str(save),str(db)],check=True,capture_output=True,timeout=60)
+        original_hashes = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in [db, save]}
+        service = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if '|TEST|END' in (extension / 'runtime' / (HELLO + '.reply')).read_text():
+                break
+            time.sleep(0.05)
+        native_vm.run((repo / 'extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_housekeeping.lua').read_text(encoding='utf-8'))
+        native_vm.run('P=LifeSignsHousekeeping;messages={};clock=0;P.open(menu)')
+        sent = 0
+        beginning = time.monotonic()
+        await_ready('LIST')
+        native_vm.run('assert(P.testMode);P.render();local found=false;for _,b in ipairs(buttons) do if b.text=="Clean..." and b.properties.active then found=true end end;assert(found);P.review("1",false)')
+        await_ready('CONFIRM')
+        native_vm.run('assert(P.rows[1][2]=="TEST COPY universe");P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Confirm cleanup" and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked and P.mutating)')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[2][2]=="Cleanup completed");P.back()')
+        await_ready('LIST')
+        native_vm.run('assert(P.rows[1][5]:find("backup",1,true));P.review("1",true)')
+        await_ready('CONFIRM')
+        native_vm.run('P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Confirm restoration" and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked)')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[2][2]=="Restoration completed");P.close(false)')
+        assert all(hashlib.sha256(p.read_bytes()).hexdigest() == digest for p,digest in original_hashes.items())
+        print('PASS: real Lua buttons -> debug transport -> Node test worker -> backup/prune/selected restore -> native reply; original source save/DB unchanged')
     finally:
         if service is not None:
             service.stdin.write(b'STOP\n')

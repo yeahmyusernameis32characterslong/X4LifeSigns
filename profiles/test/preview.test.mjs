@@ -197,3 +197,17 @@ test('protection replies use detail budgets, never a compact universe-list page'
  const frame=previewReply(G,{client:C,seq:1,verb:'PROTECT'},'READY',rows,1),fields=frame.trim().split('|');
  assert.deepEqual(fields.slice(5,9),['READY','1','3','3']);assert.equal(Buffer.from(fields[11],'hex').length,96);assert.ok(Buffer.byteLength(frame)<4096);
 });
+
+test('mutating worker drains after CANCEL/load/stop and exit cannot race its final IPC message',async t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('exit',0);
+ s.testMode=true;s.readSettings=()=>readSettings(f.root);s.handle(request(s.gen,2,'REVIEW',1));const review=f.children[1];
+ review.emit('message',{action:{plan:{kind:'CLEAN'},token:'x',rows:[]}});review.emit('close',0);s.handle(request(s.gen,3,'APPLY',1,1));const worker=f.children[2];
+ assert.equal(s.mutating,true);s.handle(request(s.gen,4,'CANCEL'));assert.equal(worker.killed,undefined);s.suspend();s.stop();assert.equal(worker.killed,undefined);assert.equal(s.hasReaders(),true);
+ const before=f.text();worker.emit('exit',0);assert.equal(s.hasReaders(),true);worker.emit('message',{action:{rows:[['RESULT','Done','','','']]}});assert.equal(f.text(),before);worker.emit('close',0);await s.waitForExit();assert.equal(s.hasReaders(),false);
+});
+
+test('a final action reply arriving after exit is accepted until close, without a false failure',t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('exit',0);s.testMode=true;s.readSettings=()=>readSettings(f.root);
+ s.handle(request(s.gen,2,'REVIEW',1));const worker=f.children[1];worker.emit('exit',0);assert.equal(s.hasReaders(),true);assert.match(f.text(),/SCANNING/);
+ worker.emit('message',{action:{plan:{kind:'CLEAN'},token:'x',rows:[]}});worker.emit('close',0);assert.match(f.text(),/READY/);assert.equal(s.hasReaders(),false);assert.ok(s.confirmation);
+});

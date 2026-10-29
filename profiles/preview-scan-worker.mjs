@@ -2,8 +2,15 @@
 import path from 'node:path';
 import { housekeeping } from './housekeeping-cli.mjs';
 import { previewModel } from './preview-model.mjs';
-process.once('message', async ({root,settings}) => {
+import {scanMenuTest,reviewMenuTest,executeMenuTest} from './maintenance-test.mjs';
+process.once('message', async ({root,settings,testMode,task}) => {
   try {
+    if(testMode&&task){
+      const result=task.verb==='REVIEW'||task.verb==='RESTOREREVIEW'?
+        await reviewMenuTest(root,task.universe,task.verb==='REVIEW'?'CLEAN':'RESTORE'):
+        await executeMenuTest(root,task.confirmation,{onProgress:text=>process.send({actionProgress:text})});
+      process.send({action:result},()=>process.disconnect());return;
+    }
     let lastStage, lastAt=0;
     const onProgress=progress=>{
       const now=Date.now();
@@ -11,9 +18,13 @@ process.once('message', async ({root,settings}) => {
         lastStage=progress.stage;lastAt=now;process.send({progress});
       }
     };
-    const result=await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:[],onProgress});
+    const result=testMode?await scanMenuTest(root,{onProgress,ignoreProtection:true}):await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:[],onProgress});
     const model=previewModel(result,{...settings,protectedUniverses:[]});
+    if(testMode)for(const [i,id] of model.ids.entries()){
+      const d=result.databases.find(d=>d.universe===id);if(d?.status==='PREVIEW_ONLY'&&d.candidates?.records===0)model.list[i][4]='Nothing to clean';
+      if(d?.hasBackup)model.list[i][4]+='; backup';
+    }
     if (Buffer.byteLength(JSON.stringify(model)) > 4 * 1024 * 1024) throw Error('Preview too large');
     process.send({model},()=>process.disconnect());
-  } catch {process.send({error:'SCAN_FAILED'},()=>process.disconnect());}
+  } catch(e) {process.send({error:/^[A-Z0-9_]+$/.test(e.message)?e.message:'TEST_OR_SCAN_FAILED'},()=>process.disconnect());}
 });

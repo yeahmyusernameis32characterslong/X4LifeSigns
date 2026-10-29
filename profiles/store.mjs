@@ -21,6 +21,7 @@ function directory(root) {
 }
 export class ProfileStore {
   constructor(root, id, run) {
+    if(fs.existsSync(path.join(root,'maintenance-owned.json')))throw Error('Maintenance test roots cannot receive gameplay ingestion');
     this.id = universeId(id); this.run = runId(run);
     const dir = directory(path.resolve(root));
     this.final = path.join(dir, id + '.db');
