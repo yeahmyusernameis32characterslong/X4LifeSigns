@@ -44,3 +44,35 @@ API retains that pair and uses the independently verified backup for active stat
 References: [SQLite corruption and journal pairing](https://sqlite.org/howtocorrupt.html),
 [rollback journals and locking](https://sqlite.org/lockingv3.html),
 [Stage 4 backup/pruning contract](DATABASE_HOUSEKEEPING_STAGE4.md).
+
+## First verified implementation unit
+
+The separate `profiles/experimental/recovery-v2.mjs` API restores a known
+interrupted prune checkpoint. `pruning-v2.mjs` records the creating process,
+database/journal file identities, journal hash and operation digest before the
+existing `PRUNE_TRANSACTION` hook. The journal is read separately; no raw database
+descriptor is opened/closed while SQLite holds the write transaction lock.
+
+Recovery requires the checkpoint owner to be dead and acquires the cooperating
+lab lease. It verifies registration, backup/plan binding, the pending catalogue
+operation, marker, exact journal and unaffected registered files. The damaged
+database is never opened with SQLite. The complete observed set, with database
+and journal at their original relative names, is copied and verified in a unique
+evidence directory. All backup replacements are staged before the operation moves
+to `RECOVERING`. The original journal is then preserved separately in that evidence
+directory; the complete damaged pair copy remains unchanged. Backup members are
+atomically replaced while the ordinary-open barrier remains raised.
+
+Explicit resume verifies evidence, backup, staging, active-member hashes and the
+original-or-preserved journal location. Repeated successful resume is idempotent
+while the restored pair is unchanged. No damaged file or recovery copy is purged.
+Interruptions before `RECOVERING` leave active files unchanged and require a new
+explicit recovery attempt; their partial evidence/staging directories remain.
+
+Initial Windows/Node v24.21.0: **22 focused tests pass**. Real child processes exit
+inside pruning with cache spilling enabled, producing changed database bytes and
+a matching rollback journal. Exact backup readback and retained NPC/profile/event
+views match after recovery. Real exits at all declared recovery boundaries and
+repeated exits during resume pass. Unknown/missing/changed journals, identities,
+registration, catalogue, marker, backup, active files, evidence and staging refuse;
+live lease/checkpoint owners cannot be stolen. Full regression gate pending.

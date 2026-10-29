@@ -159,9 +159,16 @@ export function pruneFixture(input,plan,{onPhase=()=>{}}={}) {
     const before=checkPath(file);if(fileDigest(file)!==manifest.sourceDigest)fail('SOURCE_CHANGED');db=T.openSql(file,false);db.exec('BEGIN EXCLUSIVE');
     try {
       validateV2(db,lab,plan.universe,entry);if(!sameSnapshot(before,checkPath(file)))fail('SOURCE_CHANGED');
+      onPhase('PRUNE_TRANSACTION_BEGIN',db);
       db.exec('DELETE FROM sealed_runs');const seal=db.prepare('INSERT INTO sealed_runs VALUES(?,?)');for(const s of plan.seals)seal.run(s.run,s.cutoff);
       for(const s of plan.seals){for(const table of ['profile_versions','events','records'])db.prepare(`DELETE FROM ${table} WHERE run_id=? AND record_id>?`).run(s.run,s.cutoff);if(!s.cutoff)db.prepare('DELETE FROM sessions WHERE run_id=?').run(s.run);}
-      db.prepare('UPDATE maintenance_metadata SET generation=?,manifest_digest=?').run(plan.generation,hash);onPhase('PRUNE_TRANSACTION',db);
+      db.prepare('UPDATE maintenance_metadata SET generation=?,manifest_digest=?').run(plan.generation,hash);
+      // Bind only this transaction's observed journal. Never read/close a raw
+      // descriptor for the database while its SQLite transaction holds locks.
+      const journalFile=file+'-journal',identity=s=>({dev:s.dev,ino:s.ino,birthtimeMs:s.birthtimeMs});
+      journal.transaction={kind:'LS_STAGE4_JOURNAL_CHECKPOINT',pid:process.pid,operationDigest:hash,
+        database:identity(checkPath(file)),journal:identity(checkPath(journalFile)),journalHash:fileDigest(journalFile)};
+      T.writeJson(operation(lab),journal);onPhase('PRUNE_TRANSACTION',db);
       validateV2(db,lab,plan.universe,{generation:plan.generation,digest:hash,state:'ACTIVE',manifest});
       if(viewDigest(db,plan.universe,plan.roots)!==plan.views||retainedRows(db,plan.seals)!==plan.retainedRows)fail('RETAINED_VIEW_CHANGED');
       db.exec('COMMIT');
@@ -237,3 +244,6 @@ export function resumeRestoreFixture(receipt,{onPhase=()=>{}}={}) {
   const lab=T.descriptor(receipt),lease=acquireLease(lab,{recoverDead:true});
   try{const j=T.readJson(operation(lab));if(j.kind!=='LS_STAGE4_OPERATION'||j.rootId!==lab.anchor.rootId||j.phase!=='RESTORING')fail('NO_RESTORATION_TO_RESUME');return restoreStep(lab,j,onPhase);}finally{lease.close();}
 }
+
+// Internal disposable-lab recovery helpers, never packaged by the companion.
+export const pruningTools=Object.freeze({operation,uuid,files,state,copyExclusive,makeParents,backupManifest,verifyRestorable});
