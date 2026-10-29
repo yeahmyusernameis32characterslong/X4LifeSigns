@@ -80,6 +80,8 @@ changes; no maintenance algorithm, schema, retention or recovery changes.
   Helper row `bgColor`. No global colour is modified; native table selection,
   button hover/highlight and disabled styles retain their defaults. Final
   brightness, wrapping and focus legibility need owner observation in X4.
+  Shading is confined to the data table (including its empty-state row).
+  Explanatory text above and below it has no custom background shading.
 - Usage remains visible alongside protection and restore-point information.
   `In use` means matching selected local saves, not a currently loaded game.
   Unknown/attention states remain visible when protected.

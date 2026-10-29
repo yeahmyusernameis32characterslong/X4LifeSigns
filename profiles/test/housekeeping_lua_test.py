@@ -158,6 +158,7 @@ assert(data.rows[2].rowdata==true and data.properties.highlightMode==nil)
 assert(data.rows[2][5].properties.bgColor==nil and data.rows[2][5].properties.highlightColor==nil)
 assert(data.rows[2][5].properties.active==false and data.rows[2][6].properties.active==false)
 assert(data.rows[3][5].properties.active==true and data.rows[3][6].properties.active==true)
+for _,row in ipairs(renderTables[5].rows) do assert(row.properties.bgColor==nil) end
 for _,tab in ipairs({renderTables[3],renderTables[5]}) do for _,row in ipairs(tab.rows) do for _,c in ipairs(row) do if c.textProperties then assert(c.textProperties.fontsize==10) end end end end
 P.rows=oldRows;P.state=oldState;P.stale=oldStale;P.testMode=false
 ''')

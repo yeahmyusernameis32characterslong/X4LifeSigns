@@ -198,8 +198,8 @@ function P.render()
         row[col]:createButton({active=active~=false,height=19}):setText(text,{font="Zekton outlined",fontsize=10,halign="center"})
         row[col].handlers.onClick=callback
     end
-    local function line(t,text,properties)
-        local r=t:addRow(false,{fixed=true,bgColor=rowDark});r[1]:setColSpan(4):createText(text,properties or info);return r
+    local function line(t,text,properties,background)
+        local r=t:addRow(false,{fixed=true,bgColor=background});r[1]:setColSpan(4):createText(text,properties or info);return r
     end
     local header=frame:addTable(2,{tabOrder=1,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,skipTabChange=true})
     header:setColWidth(1,menu.table.arrowColumnWidth,false)
@@ -241,7 +241,7 @@ function P.render()
             button(r,6,"Restore...",function() P.review(id,true) end,restore)
         end
     end
-    if #P.rows==0 then line(t,P.state=="SCANNING" and "Waiting for scan results..." or "No results to display.") end
+    if #P.rows==0 then line(t,P.state=="SCANNING" and "Waiting for scan results..." or "No results to display.",nil,rowDark) end
     local pager=frame:addTable(3,{tabOrder=4,x=x,y=0,width=math.min(width,Helper.scaleX(340))})
     pager:setColWidth(1,Helper.scaleX(100),false);pager:setColWidth(3,Helper.scaleX(100),false)
     r=pager:addRow(true,{fixed=true})
