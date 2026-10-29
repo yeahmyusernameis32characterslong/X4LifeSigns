@@ -12,7 +12,10 @@ export class ReplayV2 {
     catch(e){this.lease.close();throw e;}
   }
   guard() {
-    this.lease.guard();assertReady(this.lab);
+    this.lease.guard();
+    // assertReady reads file headers on separate descriptors. On POSIX, closing
+    // those during an SQLite transaction can release this process's locks.
+    if(!this.ingesting)assertReady(this.lab);
     if(!sameFile(this.info,checkPath(this.file)))fail('DATABASE_REPLACED');checkSidecars(this.file);
   }
   close() {if(this.db?.isOpen)this.db.close();this.lease.close();}
@@ -25,7 +28,9 @@ export class ReplayV2 {
   }
   append(rows) {
     this.guard();if(this.disposition())fail('SEALED_RUN');if(!Array.isArray(rows)||!rows.length)fail('EMPTY_BATCH');
-    return ProfileStore.prototype.ingest.call(this,rows);
+    let result;this.ingesting=true;
+    try{result=ProfileStore.prototype.ingest.call(this,rows);}finally{this.ingesting=false;}
+    this.guard();return result;
   }
   replay(rows) {
     this.guard();const seal=this.disposition();if(!seal)fail('NOT_A_SEALED_RUN');

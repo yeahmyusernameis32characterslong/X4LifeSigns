@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { spawnSync } from 'node:child_process';
+import { spawnSync,spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { ProfileStore } from '../store.mjs';
 import { createLab,openLab,copyFixture,sealFixture,recoverLab,fileDigest,acquireLease,openRegisteredV2 } from '../experimental/maintenance-v2.mjs';
 import { ReplayV2 } from '../experimental/replay-v2.mjs';
@@ -152,10 +153,14 @@ test('real process termination leaves a stale lease and requires explicit recove
  assert.equal(reopened.status,0,reopened.stderr);assert.deepEqual(JSON.parse(reopened.stdout),{state:'SEALED',retainedCutoff:2});
 });
 
-test('an active SQLite reader prevents migration and leaves an explicitly recoverable reservation',t=>{
- const {lab,file}=fixture(t),before=fileDigest(file),reader=new DatabaseSync(file,{readOnly:true});
- try {reader.exec('BEGIN');reader.prepare('SELECT count(*) n FROM records').get();assert.throws(()=>sealFixture(lab,U,[root(B,2)]));assert.throws(()=>openLab(lab.receipt));}
- finally{reader.exec('ROLLBACK');reader.close();}
+test('an independent SQLite reader prevents migration and leaves a recoverable reservation',{timeout:30000},async t=>{
+ const {lab,file}=fixture(t),before=fileDigest(file);
+ // A separate process holds the lock so a descriptor closed by the code under
+ // test cannot accidentally release the fixture's POSIX process-owned locks.
+ const code="import {DatabaseSync} from 'node:sqlite';const db=new DatabaseSync(process.argv[1],{readOnly:true});db.exec('BEGIN');db.prepare('SELECT count(*) n FROM records').get();process.stdout.write('LOCKED\\n');process.stdin.once('data',()=>{db.exec('ROLLBACK');db.close();});";
+ const reader=spawn(process.execPath,['--input-type=module','-e',code,file],{windowsHide:true,stdio:['pipe','pipe','pipe']}),exited=once(reader,'exit');
+ try{const [data]=await once(reader.stdout,'data');assert.match(data.toString(),/LOCKED/);assert.throws(()=>sealFixture(lab,U,[root(B,2)]));assert.throws(()=>openLab(lab.receipt));}
+ finally{reader.stdin.end('STOP');await exited;}
  recoverLab(lab.receipt);assert.equal(fileDigest(file),before);
 });
 
@@ -218,4 +223,21 @@ test('hard exit during SQL leaves journal evidence blocked rather than invoking 
  const child=spawnSync(process.execPath,['--input-type=module','-e',code,JSON.stringify(lab.receipt),U,B],{encoding:'utf8',windowsHide:true,timeout:30000});
  assert.equal(child.status,82,child.stderr);assert.ok(fs.existsSync(file+'-journal'));
  const before=fileDigest(file),journal=fileDigest(file+'-journal');assert.throws(()=>recoverLab(lab.receipt));assert.equal(fileDigest(file),before);assert.equal(fileDigest(file+'-journal'),journal);
+});
+
+test('migration retains its SQLite write lock after metadata validation',t=>{
+ const {lab,file}=fixture(t);let checked=false;
+ sealFixture(lab,U,[root(B,2)],{onPhase(phase){if(phase!=='DATABASE_TRANSACTION')return;checked=true;
+  const code="import {DatabaseSync} from 'node:sqlite';const db=new DatabaseSync(process.argv[1],{timeout:0});try{db.exec('BEGIN IMMEDIATE');process.exitCode=4;}catch{process.exitCode=0;}finally{db.close();}";
+  const child=spawnSync(process.execPath,['--input-type=module','-e',code,file],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(child.status,0,child.stderr);
+ }});assert.equal(checked,true);
+});
+
+test('child ingestion does not release its SQLite write lock during ancestor validation',t=>{
+ const {lab,file}=fixture(t);sealFixture(lab,U,[root(B,2)]);const s=new ReplayV2(lab,U,E),original=s.ancestry;let checked=false;
+ s.ancestry=function(...args){const chain=original.apply(this,args);checked=true;
+  const code="import {DatabaseSync} from 'node:sqlite';const db=new DatabaseSync(process.argv[1],{timeout:0});try{db.exec('BEGIN IMMEDIATE');process.exitCode=4;}catch{process.exitCode=0;}finally{db.close();}";
+  const child=spawnSync(process.execPath,['--input-type=module','-e',code,file],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(child.status,0,child.stderr);return chain;
+ };
+ try{assert.equal(s.append([start(E,B,'2'),ev(E,2)]).state,'READY');assert.equal(checked,true);}finally{s.close();}
 });

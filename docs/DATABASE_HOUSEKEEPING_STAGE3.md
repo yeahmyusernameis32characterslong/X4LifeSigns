@@ -143,11 +143,10 @@ state remain unproved; the lab cannot solve those by inspecting absence.
 
 ## Verification
 
-On Windows / Node v24.21.0: 112 profile checks (34 new Stage3 checks), 112 bridge
-checks and 89 recorder checks passed, with no failures or skips: 313 total.
-The exact catalogue-still-RETIRED/missing-path counterexample was strengthened
-and separately rerun successfully after the full profile suite; runtime code was
-unchanged by that test refinement. Tests compare complete raw tables and exact
+On Windows / Node v24.21.0: 114 profile checks (36 new Stage3 checks), 112 bridge
+checks and 89 recorder checks passed, with no failures or skips: 315 total.
+The final profile suite includes the strengthened catalogue-still-RETIRED
+missing-path counterexample and independent-process locking checks. Tests compare complete raw tables and exact
 profiles/events/NPC-history views for retained branches, verify source hashes,
 exercise new children and tombstones, and inject bootstrap/operation failures.
 A real child process is terminated after DB commit and recovered explicitly;
@@ -158,3 +157,14 @@ No game/native/MD/XML/production module changes; no new X4 schema validation or
 native build required. The experimental modules are absent from the companion
 manifest. Existing deployed runtime files remain identical to source. Stage4
 and deployment/owner-data maintenance are not authorised by these results.
+
+### POSIX descriptor/lock review
+
+The final review moved raw hashing before the SQLite migration transaction and
+kept raw header/registration reads outside child ingestion transactions. Under
+the held prototype lease, ingestion checks registration before and after the
+transaction; inside it, only lease/path guards and the same SQLite connection
+are used. The reader-lock fixture uses a separate process, and two contender
+processes verify locks during migration and child ancestry validation. See
+[SQLite's POSIX close/lock warning](https://sqlite.org/howtocorrupt.html#posix_close_bug).
+These checks passed on Windows; no independent Linux run is claimed here.

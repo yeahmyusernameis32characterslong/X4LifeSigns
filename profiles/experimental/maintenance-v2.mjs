@@ -8,6 +8,7 @@ import { checkPath, checkSidecars, sameFile } from '../../bridge/src/session-pat
 import { APP, statements, universeId, runId, ordinal, validateProfileDatabase } from '../profile-schema.mjs';
 import { inspectProfileDatabase } from '../profile-inventory.mjs';
 import { retentionPreview } from '../retention-plan.mjs';
+import { sameSnapshot } from '../inventory-path.mjs';
 
 const fail = code => { throw Error(code); };
 export const digest = text => createHash('sha256').update(text).digest('hex');
@@ -177,9 +178,12 @@ export function sealFixture(lab,id,roots,{retire=false,onPhase=()=>{}}={}) {
     const text=JSON.stringify(manifest),hash=digest(text);
     cat.exec('BEGIN IMMEDIATE');try{cat.prepare("INSERT INTO operations VALUES(?,?,?,?,'PREPARED')").run(generation,id,text,hash);cat.prepare("UPDATE root_state SET generation=?,phase='PREPARED'").run(generation);cat.exec('COMMIT');}catch(e){cat.exec('ROLLBACK');throw e;}
     onPhase('RESERVED');writeJson(lab.marker,markerValue(lab,generation,'PREPARED'));onPhase('MARKER_PREPARED');
+    const beforeTransaction=checkPath(file);if(fileDigest(file)!==entry.digest)fail('SOURCE_COPY_CHANGED');
     db=openSql(file,false);db.exec('BEGIN EXCLUSIVE');
     try {
-      validateProfileDatabase(db,id);if(fileDigest(file)!==entry.digest)fail('SOURCE_COPY_CHANGED');
+      validateProfileDatabase(db,id);
+      // Never open/close a raw descriptor while SQLite holds POSIX locks.
+      if(!sameSnapshot(beforeTransaction,checkPath(file)))fail('SOURCE_COPY_CHANGED');
       for(const sql of v2Sql)db.exec(sql);onPhase('DATABASE_TRANSACTION');
       db.prepare('INSERT INTO maintenance_metadata VALUES(1,?,?,?,?,?)').run(lab.anchor.rootId,lab.anchor.catalogueId,generation,hash,retire?1:0);
       const insert=db.prepare('INSERT INTO sealed_runs VALUES(?,?)');for(const r of manifest.seals)insert.run(r.run,r.cutoff);
