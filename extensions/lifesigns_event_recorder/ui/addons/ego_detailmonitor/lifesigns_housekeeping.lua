@@ -110,6 +110,13 @@ function P.review(id,restore)
     P.selected=tonumber(id);P.view="CONFIRM";P.confirmVerb=restore and "RESTORE" or "APPLY";P.rows={};P.page=0
     P.request(restore and "RESTOREREVIEW" or "REVIEW",P.selected)
 end
+-- Interpret exact independent status labels, never a loose "backup" substring.
+-- These only gate presentation; fresh backend protection/input checks still apply.
+function P.rowActions(data)
+    local flags={};for label in (data[5] or ""):gmatch("[^;]+") do flags[(label:gsub("^%s+",""):gsub("%s+$",""))]=true end
+    local available=P.testMode and P.state=="READY" and not P.stale and not P.mutating and uint(data[1]) and data[1]~="0" and not flags["Protected"] and not flags["Needs attention"] and (flags["In use"] or flags["Possibly unused"])
+    return (available and flags["In use"] and not flags["No cleanup needed"])==true, (available and flags["Restore point recorded"])==true
+end
 function P.back()
     if P.mutating then return end
     if P.view=="RESULT" then P.refresh();return end
@@ -178,7 +185,7 @@ function P.render()
     local frame=menu.createOptionsFrame(true)
     -- Match the verified OptionsMenu/Extensions text and title conventions.
     local normal={font="Zekton outlined",fontsize=10,x=5,y=2,minRowHeight=19,wordwrap=true}
-    local info={font="Zekton outlined",fontsize=9,x=5,y=2,minRowHeight=16,wordwrap=true}
+    local info={font="Zekton outlined",fontsize=10,x=5,y=2,minRowHeight=19,wordwrap=true}
     local heading={font="Zekton bold outlined",fontsize=10,x=5,y=2,minRowHeight=22,titleColor=Color["row_title"]}
     local title={font="Zekton bold outlined",fontsize=13,x=5,y=6,minRowHeight=34,titleColor=Color["row_title"]}
     local back=P.back
@@ -216,17 +223,17 @@ function P.render()
     local t=frame:addTable(actions and 6 or 4,{tabOrder=3,x=x,y=dataY,width=width})
     local widths=actions and {16,12,17,25,15} or P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
     for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
-    local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Save location / source"}
-    if actions then headers[5]="Clean test copy";headers[6]="Restore backup" end
+    local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Location / context"}
+    if actions then headers[5]="Clean test copy";headers[6]="Restore history" end
     r=t:addRow(false,{fixed=true});for i=1,(actions and 6 or 4) do r[i]:createText(headers[i],heading) end
     for _,data in ipairs(P.rows) do
         r=t:addRow(P.view=="LIST",{})
         if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],normal) end
         for i=2,4 do r[i]:createText(data[i+1],normal) end
         if actions then
-            local id=data[1];local available=P.state=="READY" and not P.stale and id~="0"
-            button(r,5,"Clean...",function() P.review(id,false) end,available and data[5]:sub(1,6)=="In use")
-            button(r,6,"Restore...",function() P.review(id,true) end,available and data[5]:find("backup",1,true)~=nil and data[5]:sub(1,9)~="Protected")
+            local id=data[1];local clean,restore=P.rowActions(data)
+            button(r,5,"Clean...",function() P.review(id,false) end,clean)
+            button(r,6,"Restore...",function() P.review(id,true) end,restore)
         end
     end
     if #P.rows==0 then line(t,P.state=="SCANNING" and "Waiting for scan results..." or "No results to display.") end
@@ -249,7 +256,11 @@ function P.render()
         button(r,1,P.confirmVerb=="APPLY" and "Confirm cleanup" or "Confirm restoration",function() P.request(P.confirmVerb,P.selected,true,0) end,P.state=="READY" and not P.stale)
         button(r,3,"Cancel",P.back,not P.mutating)
     end
-    line(notes,copy.ancestry);line(notes,"Record and projection counts overlap; do not add them together. File size is not reclaimable space.")
+    line(notes,copy.ancestry)
+    if P.testMode then
+        line(notes,"A restore point is a database-history copy made before maintenance, not an X4 save.")
+        line(notes,"Recorded restore points are verified when you select Restore. File size is not reclaimable space.")
+    else line(notes,"History totals count records once. File size is not reclaimable space.") end
     local footerHeight=pager:getVisibleHeight()+notes:getVisibleHeight()+3*gap
     t.properties.maxVisibleHeight=math.max(1,menu.table.height-(dataY-menu.table.y)-footerHeight)
     pager.properties.y=dataY+t:getVisibleHeight()+gap

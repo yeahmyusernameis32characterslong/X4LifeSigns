@@ -34,7 +34,9 @@ export function previewReply(gen, request, state, rows = [], page = 0) {
   if (slice.some(row => row.length !== 5)) throw Error('Invalid preview row');
   // Ten compact list rows fit the unchanged native buffer even at every cap.
   // Details/locations retain three rows and their original 96-byte cells.
-  const caps = list ? [9,32,32,32,32] : [96,96,96,96,96];
+  // Independent usage/protection/restore labels must survive clipping together.
+  // Ten rows at all these caps still fit the unchanged 4096-byte native buffer.
+  const caps = list ? [9,32,32,32,80] : [96,96,96,96,96];
   const text = `LSDB1|HOUSEKEEPING|${gen}|${request.client}|${request.seq}|${state}|${page}|${pages}|${slice.length}|${slice.flatMap(row => row.map((value,i) => cell(value,caps[i]))).join('|')}${slice.length ? '|' : ''}END\n`;
   if (Buffer.byteLength(text) >= 4096) throw Error('Oversized preview frame');
   return text;
