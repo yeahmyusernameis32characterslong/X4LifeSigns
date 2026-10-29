@@ -188,13 +188,18 @@ function P.render()
     local info={font="Zekton outlined",fontsize=10,x=5,y=2,minRowHeight=19,wordwrap=true}
     local heading={font="Zekton bold outlined",fontsize=10,x=5,y=2,minRowHeight=22,titleColor=Color["row_title"]}
     local title={font="Zekton bold outlined",fontsize=13,x=5,y=6,minRowHeight=34,titleColor=Color["row_title"]}
+    -- Helper table:addRow bgColor propagates to cellBGColor. Keep native
+    -- highlightMode and button colors untouched; alpha uses the 0-100 scale.
+    local rowDark={r=8,g=12,b=18,a=92}
+    local rowAlternate={r=18,g=24,b=32,a=92}
+    local rowHeading={r=8,g=12,b=18,a=98}
     local back=P.back
     local function button(row,col,text,callback,active)
         row[col]:createButton({active=active~=false,height=19}):setText(text,{font="Zekton outlined",fontsize=10,halign="center"})
         row[col].handlers.onClick=callback
     end
     local function line(t,text,properties)
-        local r=t:addRow(false,{fixed=true});r[1]:setColSpan(4):createText(text,properties or info);return r
+        local r=t:addRow(false,{fixed=true,bgColor=rowDark});r[1]:setColSpan(4):createText(text,properties or info);return r
     end
     local header=frame:addTable(2,{tabOrder=1,x=menu.table.x,y=menu.table.y,width=menu.table.widthExtraWide,skipTabChange=true})
     header:setColWidth(1,menu.table.arrowColumnWidth,false)
@@ -225,9 +230,9 @@ function P.render()
     for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Location / context"}
     if actions then headers[5]="Clean test copy";headers[6]="Restore history" end
-    r=t:addRow(false,{fixed=true});for i=1,(actions and 6 or 4) do r[i]:createText(headers[i],heading) end
-    for _,data in ipairs(P.rows) do
-        r=t:addRow(P.view=="LIST",{})
+    r=t:addRow(false,{fixed=true,bgColor=rowHeading});for i=1,(actions and 6 or 4) do r[i]:createText(headers[i],heading) end
+    for index,data in ipairs(P.rows) do
+        r=t:addRow(P.view=="LIST",{bgColor=index%2==1 and rowDark or rowAlternate})
         if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],normal) end
         for i=2,4 do r[i]:createText(data[i+1],normal) end
         if actions then

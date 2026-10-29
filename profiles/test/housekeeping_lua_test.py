@@ -152,6 +152,10 @@ for _,state in ipairs({"SCANNING","STALE","ERROR","UNAVAILABLE","CANCELLED"}) do
 P.state="READY";P.mutating=true;actions("In use; Restore point recorded",false,false);P.mutating=false
 P.rows={{"1","Universe 1","1","1 MB","In use; Restore point recorded; Protected"},{"2","Universe 2","1","1 MB","In use; Restore point recorded"}}
 P.render();local data=renderTables[3]
+assert(data.rows[1].properties.bgColor.a==98 and data.rows[2].properties.bgColor.a==92 and data.rows[3].properties.bgColor.a==92)
+assert(data.rows[2].properties.bgColor.r~=data.rows[3].properties.bgColor.r)
+assert(data.rows[2].rowdata==true and data.properties.highlightMode==nil)
+assert(data.rows[2][5].properties.bgColor==nil and data.rows[2][5].properties.highlightColor==nil)
 assert(data.rows[2][5].properties.active==false and data.rows[2][6].properties.active==false)
 assert(data.rows[3][5].properties.active==true and data.rows[3][6].properties.active==true)
 for _,tab in ipairs({renderTables[3],renderTables[5]}) do for _,row in ipairs(tab.rows) do for _,c in ipairs(row) do if c.textProperties then assert(c.textProperties.fontsize==10) end end end end
