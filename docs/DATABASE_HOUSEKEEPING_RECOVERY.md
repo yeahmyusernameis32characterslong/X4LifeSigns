@@ -1,6 +1,7 @@
 # Disposable interrupted-prune recovery follow-up
 
-Status: owner approved after Agent review `f07b5f7`; implementation in progress.
+Status: implemented and verified on disposable labs; Agent review pending.
+Owner approval followed Agent review `f07b5f7`.
 PR #25 baseline `20cb699`. No real databases, deployment, gameplay or merge.
 
 ## Execution brief
@@ -76,3 +77,37 @@ views match after recovery. Real exits at all declared recovery boundaries and
 repeated exits during resume pass. Unknown/missing/changed journals, identities,
 registration, catalogue, marker, backup, active files, evidence and staging refuse;
 live lease/checkpoint owners cannot be stolen. Full regression gate pending.
+
+## Final verification and remaining boundaries
+
+Windows / Node.js v24.21.0: full profiles **172 passed**, bridge **112 passed**,
+recorder **89 passed**; **373 total**, zero failures/skips. Includes **23 new
+recovery tests**. The earlier 22-check result identifies the first committed unit.
+The final test verifies that idempotent resume refuses newer child history rather
+than rolling it back. Existing independent SQLite lock tests pass with the new
+journal checkpoint read in place. No Linux result claimed for this follow-up.
+
+Installed `c29bb3f` is unchanged: 31 companion and three UI hashes still match
+source. All recovery/pruning modules remain outside production imports/packaging.
+No actual owner database/save/log access, deployment, game launch or merge. No
+new installed-schema/native checks: MD/Lua/XML/native and runtime packaging did
+not change. Cumulative diff, documentation links and privacy checks pass.
+
+This closes the **recorded checkpoint** crash case demonstrated by Stage 4,
+including dirty pages spilled to the database. It does not infer that an arbitrary
+journal belongs to an interrupted operation. Crashes before checkpoint capture,
+changed journals after it, missing/changed registration, unknown sidecars and
+corrupt/missing evidence remain refusal cases with evidence preserved. A reused
+creator PID can conservatively refuse recovery. Receipts are local lab records,
+not an independently durable registry or protection against hostile local edits.
+
+The lease excludes cooperating lab writers and requires the creating process
+dead; unmanaged idle handles and production load/writer exclusion remain unproven.
+The original damaged pair stays available in forensic copies, with the original
+journal also retained. Evidence, partial attempts and staging are not purged, so
+recovery can increase total space use. Full-pair restoration includes all lab
+universes; production restore scope is still a separate design question.
+
+No power-loss/cross-file atomicity guarantee, production integration, automatic
+Apply, quarantine, compaction or purge is introduced. Agent reviews the actual
+code and these limits before any next stage is proposed.

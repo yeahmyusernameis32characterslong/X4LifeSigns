@@ -276,3 +276,12 @@ All inputs remain factory-created synthetic temporary labs. No production
 imports, packaging, menu Apply or owner-data access is added. Failure injection,
 real SQLite FULL and real child-process termination are distinct evidence;
 hot journals refuse unchanged and power-loss recovery is not established.
+
+## Disposable interrupted-prune recovery
+
+Run `node --test profiles/test/recovery-v2.test.mjs` or the full profiles suite.
+The [recovery follow-up](docs/DATABASE_HOUSEKEEPING_RECOVERY.md) tests explicit
+verified-backup restoration of a recorded damaged database/journal checkpoint,
+preservation of the pair and real process exits during recovery/repeated resume.
+Unknown journals still refuse. No original damaged DB is opened with SQLite,
+and no actual owner data or production path is accepted.

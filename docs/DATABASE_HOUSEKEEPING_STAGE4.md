@@ -1,7 +1,9 @@
 ﻿# Stage 4: disposable backup, pruning and restoration
 
-Status: implemented and verified on synthetic disposable labs; Agent review
-pending. PR #25 baseline `ae57b0a`;
+Status: implemented and verified on synthetic disposable labs; Agent accepted
+the bounded contract in review `f07b5f7`, with recovery incomplete at `20cb699`.
+The [separate recovery follow-up](DATABASE_HOUSEKEEPING_RECOVERY.md) addresses the
+recorded inside-transaction checkpoint. PR #25 baseline `ae57b0a`;
 Agent accepted the bounded Stage 3 contract in review `fc2277f`.
 
 ## Execution brief
@@ -89,8 +91,10 @@ first incremental implementation unit, not the final gate.
 
 The last case intentionally refuses: a hard exit inside the transaction can
 leave a hot journal. Ordinary opens, Stage 3 recovery and Stage 4 restore remain
-blocked, with database/journal/backup evidence preserved. A reviewed hot-journal
-recovery path is **not implemented**. Cancellation and real SQLITE_FULL exceptions
+blocked, with database/journal/backup evidence preserved. At `20cb699` no explicit
+damaged-pair recovery API existed; the separately authorised follow-up linked
+above adds a checkpoint-bound API without weakening these normal checks.
+Cancellation and real SQLITE_FULL exceptions
 roll back and can use the paired restoration API; do not equate those with
 transaction-process-crash or power-loss recovery.
 
