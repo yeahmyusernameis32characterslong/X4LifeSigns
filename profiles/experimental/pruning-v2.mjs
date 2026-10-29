@@ -140,7 +140,7 @@ function planUnderLease(lab,id,roots) {
     const keep=new Map(preview.retained.map(x=>[x.run,x.through])),old=db.prepare('SELECT run_id run,cutoff FROM sealed_runs').all(),ceil=new Map(old.map(x=>[x.run,x.cutoff]));
     for(const [run,n] of keep)if(ceil.has(run)&&n>ceil.get(run))fail('SEALED_CUTOFF_WIDENING');
     const seals=[...new Set([...old.map(s=>s.run),...snap.runs.map(s=>s.run)])].sort().map(run=>({run,cutoff:keep.get(run)||0}));
-    return {kind:'LS_STAGE4_PLAN',rootId:lab.anchor.rootId,catalogueId:lab.anchor.catalogueId,universe:id,generation:cat.prepare('SELECT generation FROM root_state').get().generation+1,roots,seals,views:viewDigest(db,id,roots),retainedRows:retainedRows(db,seals),stateDigest:stateDigest(lab),candidates:preview.candidates};
+    return {kind:'LS_STAGE4_PLAN',rootId:lab.anchor.rootId,catalogueId:lab.anchor.catalogueId,universe:id,generation:cat.prepare('SELECT generation FROM root_state').get().generation+1,roots,seals,views:viewDigest(db,id,roots),retainedRows:retainedRows(db,seals),sourceDigest:fileDigest(path.join(lab.profiles,id+'.db')),stateDigest:stateDigest(lab),candidates:preview.candidates};
   } finally{db.close();cat.close();}
 }
 export function planPruneFixture(input,id,roots) {
@@ -153,7 +153,7 @@ export function pruneFixture(input,plan,{onPhase=()=>{}}={}) {
     const backup=backupUnderLease(lab,onPhase);if(stateDigest(lab)!==plan.stateDigest)fail('STALE_PLAN');
     const journal={kind:'LS_STAGE4_OPERATION',rootId:lab.anchor.rootId,phase:'PRUNING',backup,plan};T.writeJson(operation(lab),journal);onPhase('PRUNE_PREPARED');
     cat=T.catalogue(lab,false);const entry=entryFor(lab,plan.universe,cat),file=path.join(lab.profiles,plan.universe+'.db');
-    const manifest={...entry.manifest,kind:'PRUNE',generation:plan.generation,roots:plan.roots,rootsDigest:digest(JSON.stringify(plan.roots)),sourceDigest:fileDigest(file),seals:plan.seals,backup,views:plan.views,retainedRows:plan.retainedRows,retire:false},text=JSON.stringify(manifest),hash=digest(text);
+    const manifest={...entry.manifest,kind:'PRUNE',generation:plan.generation,roots:plan.roots,rootsDigest:digest(JSON.stringify(plan.roots)),sourceDigest:plan.sourceDigest,seals:plan.seals,backup,views:plan.views,retainedRows:plan.retainedRows,retire:false},text=JSON.stringify(manifest),hash=digest(text);
     cat.exec('BEGIN IMMEDIATE');try{cat.prepare("INSERT INTO operations VALUES(?,?,?,?,'PREPARED')").run(plan.generation,plan.universe,text,hash);cat.prepare("UPDATE root_state SET generation=?,phase='PREPARED'").run(plan.generation);cat.exec('COMMIT');}catch(e){if(cat.isTransaction)cat.exec('ROLLBACK');throw e;}
     onPhase('RESERVED');T.writeJson(lab.marker,T.markerValue(lab,plan.generation,'PREPARED'));onPhase('MARKER_PREPARED');
     const before=checkPath(file);if(fileDigest(file)!==manifest.sourceDigest)fail('SOURCE_CHANGED');db=T.openSql(file,false);db.exec('BEGIN EXCLUSIVE');

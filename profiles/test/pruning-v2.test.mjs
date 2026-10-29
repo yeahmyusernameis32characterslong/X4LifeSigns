@@ -67,6 +67,13 @@ test('changed plans, roots and child writes are stale and cannot begin pruning',
   const after=pair(lab);assert.throws(()=>pruneFixture(lab,plan),/STALE_PLAN/);assert.deepEqual(pair(lab),after);
 });
 
+test('source changes after backup/reservation are refused before deleting any row',t=>{
+  const {lab,file}=fixture(t),before=tables(file);
+  assert.throws(()=>pruneFixture(lab,planPruneFixture(lab,U,roots),{onPhase(p){if(p!=='PRUNE_PREPARED')return;const db=new DatabaseSync(file);try{db.prepare("UPDATE records SET game_time='999' WHERE run_id=? AND record_id=3").run(B);}finally{db.close();}}}),/SOURCE_CHANGED/);
+  const after=tables(file);assert.equal(after.records.length,before.records.length);assert.equal(after.sessions.length,before.sessions.length);assert.deepEqual(after.sealed_runs,before.sealed_runs);
+  const j=JSON.parse(fs.readFileSync(path.join(lab.workspace,'stage4-operation.json')));restoreFixture(lab.receipt,j.backup);assert.deepEqual(tables(file),before);
+});
+
 test('no roots, retired/beyond-seal roots, incomplete profiles and arbitrary roots are refused',t=>{
   const {lab,baseline}=fixture(t),before=pair(lab);
   for(const rs of [[],[root(D,2)],[root(B,3)],[root(A,4)],[root(A,baseline-1)],[{...root(B,2),universe:U+'bad'}]])assert.throws(()=>planPruneFixture(lab,U,rs));
@@ -140,6 +147,31 @@ test('interrupted pruning cannot overwrite a foreign same-path universe database
 test('unexplained hot journals and WAL sidecars are preserved and block backup/pruning/restoration',t=>{
   const {lab,file}=fixture(t),b=backupFixture(lab),before=fileDigest(file);
   for(const suffix of ['-journal','-wal','-shm']){const side=file+suffix;fs.writeFileSync(side,'unexplained');for(const fn of [()=>backupFixture(lab),()=>planPruneFixture(lab,U,roots),()=>restoreFixture(lab.receipt,b)])assert.throws(fn);assert.equal(fs.readFileSync(side,'utf8'),'unexplained');assert.equal(fileDigest(file),before);fs.unlinkSync(side);}
+});
+
+test('paired backups cover multiple universes; pruning mutates only the selected database',t=>{
+  const lab=createLab();t.after(()=>{assert.equal(path.dirname(lab.workspace),path.resolve(os.tmpdir()));assert.match(path.basename(lab.workspace),/^lifesigns-stage3-/);fs.rmSync(lab.workspace,{recursive:true});});
+  const other='lsu1-2026-10-29_12-00-00-5-6-7-8';
+  for(const id of [U,other]){const s=new ProfileStore(lab.sourceRoot,id,A);try{s.ingest([{...start(A),fields:{...start(A).fields,lifesigns_universe_id:id}},row(A,2,'SNAPSHOT_BEGIN'),row(A,3,'SNAPSHOT_END',{profiles:'0'}),ev(A,4)]);}finally{s.close();}copyFixture(lab,id);}
+  sealFixture(lab,U,[root(A,3)]);sealFixture(lab,other,[{universe:other,run:A,record:3}]);
+  const before=pair(lab),otherFile=path.join(lab.profiles,other+'.db'),otherHash=fileDigest(otherFile),result=pruneFixture(lab,planPruneFixture(lab,U,[root(A,3)]));
+  assert.equal(fileDigest(otherFile),otherHash);const manifest=JSON.parse(fs.readFileSync(path.join(backupDir(lab,result.backup),'manifest.json')));assert.equal(manifest.members.filter(m=>m.name.startsWith('managed/local-data/profiles/')).length,2);
+  restoreFixture(lab.receipt,result.backup);assert.deepEqual(pair(lab),before);
+});
+
+test('pruning preserves its SQLite write lock through retained-view validation',t=>{
+  const {lab,file}=fixture(t);let checked=false;
+  pruneFixture(lab,planPruneFixture(lab,U,roots),{onPhase(p){if(p!=='PRUNE_TRANSACTION')return;checked=true;
+    const child=spawnSync(process.execPath,['--input-type=module','-e',"import {DatabaseSync} from 'node:sqlite';const db=new DatabaseSync(process.argv[1],{timeout:0});try{db.exec('BEGIN IMMEDIATE');process.exitCode=4;}catch{process.exitCode=0;}finally{db.close();}",file],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(child.status,0,child.stderr);
+  }});assert.equal(checked,true);
+});
+
+test('hard exit inside pruning preserves hot journal evidence and refuses implicit repair or restoration',t=>{
+  const {lab,file,source}=fixture(t),sourceHash=fileDigest(source),module=new URL('../experimental/pruning-v2.mjs',import.meta.url).href;
+  const code=`import {openLab} from ${JSON.stringify(new URL('../experimental/maintenance-v2.mjs',import.meta.url).href)};import {planPruneFixture,pruneFixture} from ${JSON.stringify(module)};const [r,u,roots]=process.argv.slice(1),lab=openLab(JSON.parse(r));pruneFixture(lab,planPruneFixture(lab,u,JSON.parse(roots)),{onPhase(p){if(p==='PRUNE_TRANSACTION')process.exit(84);}});`;
+  const child=spawnSync(process.execPath,['--input-type=module','-e',code,JSON.stringify(lab.receipt),U,JSON.stringify(roots)],{encoding:'utf8',windowsHide:true,timeout:30000});assert.equal(child.status,84,child.stderr);
+  const journal=file+'-journal';assert.equal(fs.existsSync(journal),true);const dbHash=fileDigest(file),journalHash=fileDigest(journal),j=JSON.parse(fs.readFileSync(path.join(lab.workspace,'stage4-operation.json')));
+  assert.throws(()=>openLab(lab.receipt));assert.throws(()=>restoreFixture(lab.receipt,j.backup));assert.equal(fileDigest(file),dbHash);assert.equal(fileDigest(journal),journalHash);assert.equal(fileDigest(source),sourceHash);
 });
 
 test('separate-process SQLite reader blocks backup before any pruning',{timeout:30000},async t=>{
