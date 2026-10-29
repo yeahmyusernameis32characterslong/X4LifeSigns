@@ -1,6 +1,7 @@
 ﻿# Stage 4: disposable backup, pruning and restoration
 
-Status: owner approved, implementation in progress. PR #25 baseline `ae57b0a`;
+Status: implemented and verified on synthetic disposable labs; Agent review
+pending. PR #25 baseline `ae57b0a`;
 Agent accepted the bounded Stage 3 contract in review `fc2277f`.
 
 ## Execution brief
@@ -76,3 +77,52 @@ exception, real child-process exit after commit/during restoration, real
 SQLITE_FULL on the pruning connection using a page cap, simulated backup/staging
 ENOSPC/cancellation, corrupt backups, stale plans and independent reader locks.
 This is not real disk exhaustion, power-loss testing or production acceptance.
+
+## Final verification and open gates
+
+Windows / Node.js v24.21.0: full profiles suite **149 passed**, including **35
+Stage 4 checks**; bridge **112 passed**; recorder **89 passed**. Total **350
+passed**, zero failures/skips. Later checks add multiple-universe backup coverage,
+post-reservation source-change refusal, transaction-lock contention and an actual
+process exit inside pruning. The earlier 31-check result above identifies the
+first incremental implementation unit, not the final gate.
+
+The last case intentionally refuses: a hard exit inside the transaction can
+leave a hot journal. Ordinary opens, Stage 3 recovery and Stage 4 restore remain
+blocked, with database/journal/backup evidence preserved. A reviewed hot-journal
+recovery path is **not implemented**. Cancellation and real SQLITE_FULL exceptions
+roll back and can use the paired restoration API; do not equate those with
+transaction-process-crash or power-loss recovery.
+
+Backups and rollback/staging sets remain in the lab until fixture disposal;
+pruning does not promise a reduction in total disk usage. No backup purge,
+compaction, orphan-universe quarantine, production adoption, menu Apply, online
+backup integration or native protocol change. Paired restoration rolls the whole
+registered lab back together, including its other universes and catalogue; it
+preserves the replaced set separately, rather than merging newer history.
+
+Actual owner databases/saves/logs were not opened. Installed receipt `c29bb3f`
+remains unchanged: 31 companion/three UI hashes match source. No new installed-X4
+schema/native validation was run because MD/Lua/XML/native/runtime packaging did
+not change. The added modules remain outside production imports and manifest.
+Independent Linux execution of Stage 4 is for Agent review, not claimed here.
+
+### Technical references and evidence boundary
+
+- [SQLite backup documentation](https://www.sqlite.org/backup.html) describes
+  shared-lock copying and online backup. This lab uses closed-file copying under
+  its cooperating lease plus probes/hash checks; it does not hold a continuous
+  SQLite lock through copying or establish safety against unmanaged writers.
+- [SQLite transactions](https://www.sqlite.org/lang_transaction.html) inform the
+  one-database transaction/rollback design. Cross-file catalogue/restore phases
+  are explicit and blocked during interruption, not atomically committed as a set.
+- [SQLite descriptor/locking hazards](https://www.sqlite.org/howtocorrupt.html#posix_close_bug)
+  inform the rule against raw file-descriptor reads/closes while a write
+  transaction holds locks; an independent contender process verifies contention.
+- [Node v24.21.0 SQLite API](https://github.com/nodejs/node/blob/v24.21.0/doc/api/sqlite.md)
+  is the tested runtime reference. No other runtime/platform guarantee inferred.
+
+Production registration durability, closed/manual/old-writer exclusion and
+coordinated service/native replay integration remain unsolved prerequisites for
+eventual owner-data cleanup. These tests do not authorise such cleanup, deployment,
+gameplay, merging or any next stage. Agent reviews this bounded disposable stage.

@@ -265,4 +265,14 @@ sealed replay, child ancestry, catalogue/refusal and explicit recovery tests.
 Real disposable child processes exit during migration to test crash evidence;
 X4 and actual owner databases are not started or migrated. The modules are not
 packaged/imported by the production companion. Fixture fault tests deliberately
-remove or move temporary rows/files; there is no cleanup/pruning API.
+remove or move temporary rows/files; Stage 3 alone has no pruning API.
+
+## Offline housekeeping Stage 4 laboratory
+
+Run `node --test profiles/test/pruning-v2.test.mjs`, or the full profiles suite
+above. [Stage 4](docs/DATABASE_HOUSEKEEPING_STAGE4.md) adds disposable paired
+backup/restore, actual transactional pruning and repeated-maintenance tests.
+All inputs remain factory-created synthetic temporary labs. No production
+imports, packaging, menu Apply or owner-data access is added. Failure injection,
+real SQLite FULL and real child-process termination are distinct evidence;
+hot journals refuse unchanged and power-loss recovery is not established.

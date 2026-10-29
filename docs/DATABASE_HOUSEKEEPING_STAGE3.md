@@ -1,7 +1,9 @@
 # Stage 3: offline replay and maintenance contract
 
 Status: implemented and verified offline on synthetic temporary copies; Agent
-review pending. Baseline `b935d56`; PR #25 remains draft. No production wiring.
+accepted the bounded contract in review `fc2277f`. Baseline `b935d56`; PR #25
+remains draft. [Stage 4](DATABASE_HOUSEKEEPING_STAGE4.md) extends the laboratory
+with separately authorised disposable backup/pruning/restoration. No production wiring.
 Stage 2 acceptance does not establish a destructive maintenance barrier.
 
 ## Execution brief
