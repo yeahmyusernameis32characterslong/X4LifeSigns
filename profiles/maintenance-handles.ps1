@@ -1,4 +1,5 @@
 # Internal companion IPC only. Paths are JSON data, never executable expressions.
+param([switch]$ProbeAvailability)
 $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition @'
 using System;
@@ -6,10 +7,19 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 public static class LifeSignsMaintenanceHandles {
+ [StructLayout(LayoutKind.Sequential)] public struct AttributeTag {public uint Attributes;public uint Tag;}
  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
  public static extern SafeFileHandle CreateFileW(string path,uint access,uint share,IntPtr security,uint creation,uint flags,IntPtr template);
  [DllImport("kernel32.dll",SetLastError=true)]
  public static extern bool SetFileInformationByHandle(SafeFileHandle file,int information,IntPtr data,uint length);
+ [DllImport("kernel32.dll",SetLastError=true)] public static extern bool GetFileInformationByHandleEx(SafeFileHandle file,int information,out AttributeTag data,uint size);
+ [DllImport("CldApi.dll")] public static extern uint CfGetPlaceholderStateFromAttributeTag(uint attributes,uint tag);
+ public static long[] Probe(string path) {
+  using(var h=CreateFileW(path,0,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero)) {
+   if(h.IsInvalid)return null;AttributeTag info;if(!GetFileInformationByHandleEx(h,9,out info,8))return null;
+   return new long[]{info.Attributes,info.Tag,CfGetPlaceholderStateFromAttributeTag(info.Attributes,info.Tag)};
+  }
+ }
  public static bool Install(SafeFileHandle source,string target) {
   byte[] name=Encoding.Unicode.GetBytes(target);int ptrOffset=IntPtr.Size==8?8:4;int lenOffset=ptrOffset+IntPtr.Size;int nameOffset=lenOffset+4;
   IntPtr buffer=Marshal.AllocHGlobal(nameOffset+name.Length+2);
@@ -18,6 +28,12 @@ public static class LifeSignsMaintenanceHandles {
  }
 }
 '@
+if($ProbeAvailability){
+ $paths=ConvertFrom-Json -InputObject $env:LIFESIGNS_INVENTORY_ATTRIBUTE_PATHS
+ $results=@(foreach($p in $paths){try{,([LifeSignsMaintenanceHandles]::Probe([string]$p))}catch{,$null}})
+ ConvertTo-Json -InputObject $results -Depth 4 -Compress
+ exit 0
+}
 $handles=New-Object 'System.Collections.Generic.List[Microsoft.Win32.SafeHandles.SafeFileHandle]'
 $replaceable=@{}
 try {
@@ -37,7 +53,7 @@ try {
    $access=[uint32]2147483648;$share=1
    if($request.replaceable){$share=5}
    if($request.rename){$access=[uint32]2147549184}
-   $h=[LifeSignsMaintenanceHandles]::CreateFileW([string]$p,$access,$share,[IntPtr]::Zero,3,0x80,[IntPtr]::Zero)
+   $h=[LifeSignsMaintenanceHandles]::CreateFileW([string]$p,$access,$share,[IntPtr]::Zero,3,0x100080,[IntPtr]::Zero)
    if($h.IsInvalid){$code=[Runtime.InteropServices.Marshal]::GetLastWin32Error();$h.Dispose();throw ('HANDLE_REFUSED_'+$code)}
    $handles.Add($h)
    if($request.replaceable){$replaceable[[string]$p]=$h}
