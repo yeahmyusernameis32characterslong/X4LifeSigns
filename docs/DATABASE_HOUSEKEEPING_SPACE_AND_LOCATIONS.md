@@ -127,9 +127,19 @@ selected restore-point deletion and orphan confirmation. Native X4 keyboard and
 rendering observations still belong to the owner test after deployment.
 
 Long universe IDs are spaced for wrapping only in display text; stored IDs and
-transport values are unchanged. The separately observed restricted online API
-warning on returning to the vanilla main menu remains a focused unresolved
-finding. No unsupported privileged-call workaround is claimed by this increment.
+transport values are unchanged. Blocked actions display friendly instructions
+rather than raw worker error codes. In particular, remaining cleanup candidates
+explain that unused history must be cleaned before reclaiming disk space.
+
+Back from the universe list cancels the preview and restores the native options
+update callback. That callback consumes its own delayed-refresh flag on a later
+engine update; Life Signs no longer synchronously rebuilds the main menu from
+its Back handler. The installed X4 9.00 Helper reads `menu.onUpdate` dynamically
+(helper.lua:1406–1411); gameoptions.lua:13133–13138 consumes `delayedRefresh`.
+This avoids the observed extension call path into a restricted online API
+without replacing that API or modifying verified game files. Lua tests verify
+the deferred return and reopening; absence of the engine warning still needs
+the owner's native X4 check.
 
 The realistic disposable proof compacted a 993,861,632-byte cleaned database by
 49,541,120 bytes, preserving all history and replay seals. Its new backup used
@@ -139,3 +149,28 @@ the original history and seals. A 132,431,872-byte orphan copy and its restore
 points were removed, leaving a 216-byte retirement marker; peers, immutable source
 inputs and every live database stayed unchanged. This proof uses copies, not an
 owner observation of the new native X4 controls.
+
+## Remaining owner acceptance checks
+
+Remain at the initial X4 menu, without loading a save. Open **Life Signs >
+Database Management** and wait for a complete scan of your configured folders.
+Select the surviving universe; keep its current save-location scope unchanged.
+
+1. Choose **Reclaim disk space...**, review the selected database, estimated
+   free pages and retained safety backup, then choose **Confirm compaction**.
+   Wait for **Compaction completed**. Note the database reduction, new backup
+   size and net file reduction separately: keeping the backup may increase
+   combined storage. If blocked, do not force the operation; retain the message.
+2. Return to the list, select that universe and open **Restore points...**.
+   After successful compaction, identify a restore point you no longer need by
+   its date and status. Choose its **Delete...**, check the selected date/size
+   and loss-of-restoration warning, then **Confirm delete restore point**.
+   Keep at least one other verified restore point. Wait for **Restore point
+   deleted**, then reopen the list to check that only the chosen point is gone.
+   This action is permanent for that backup; current history and saves remain.
+3. Use **Back** to return to the main menu, reopen Life Signs, and repeat with
+   keyboard Back/Escape. Exit X4 and report both action results for journal,
+   exact retained-history/seal, backup and warning verification.
+
+Automated disposable-copy passes do not complete these owner acceptance gates.
+Do not repeat previously accepted orphan-universe deletion for this check.

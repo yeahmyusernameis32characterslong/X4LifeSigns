@@ -91,7 +91,10 @@ end
 function P.close(back)
     if P.active and P.gen then P.request("CANCEL") end
     P.active=false;P.pending=nil;P.progress=nil;P.rows={};P.stale=true;P.awaitInitial=false
-    if back and P.menu then P.menu.displayOptions("main") end
+    if P.menu and P.menu.onUpdate==P.menuUpdate then P.menu.onUpdate=P.nativeUpdate end
+    -- Helper reads menu.onUpdate on each engine update. Let the restored native
+    -- callback consume its own refresh flag after this extension stack unwinds.
+    if back and P.menu then P.menu.delayedRefresh=getElapsedTime()-1 end
 end
 function P.worldObserved()
     __LIFESIGNS_HOUSEKEEPING_WORLD_SEEN=true
@@ -105,6 +108,7 @@ function P.initial(menu)
 end
 function P.open(menu)
     if not P.initial(menu) or menu.animationDelay or menu.contextMenuMode then return end
+    menu.onUpdate=P.menuUpdate
     P.menu=menu;P.active=true;P.view="LIST";P.selected=nil;P.rows={};P.listRows=nil;P.page=0;P.pages=1
     P.gen=nil;P.heartbeat=nil;P.progress=nil;P.live=false;P.opened=getElapsedTime();P.state="UNAVAILABLE";P.stale=true;P.awaitInitial=true;P.dirty=true
     P.update()
@@ -330,6 +334,7 @@ function P.install(menu)
     if type(menu.displayOptions)~="function" or type(menu.displayOption)~="function" or type(menu.createOptionsFrame)~="function" then return end
     menu.lifeSignsHousekeepingHook=true
     local display,option,update,close=menu.displayOptions,menu.displayOption,menu.onUpdate,menu.onCloseElement
+    P.nativeUpdate=update
     local main=false;local inserted=false
     menu.displayOptions=function(name,...)
         if P.active then P.close(false) end
@@ -349,6 +354,7 @@ function P.install(menu)
         if not inserted and menu.currentOption=="main" and menu.table and not menu.contextMenuMode and not menu.animationDelay then menu.displayOptions("main") end
         if update then return update(...) end
     end
+    P.menuUpdate=menu.onUpdate
     menu.onCloseElement=function(...)
         if P.active then P.back();return end
         if close then return close(...) end

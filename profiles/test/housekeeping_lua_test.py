@@ -105,7 +105,10 @@ function menu.displayOptions(name,...)
  menu.displayOption(t,{id='new'})
  return 'preserved',nil,42
 end
-function menu.onUpdate() vanillaUpdates=vanillaUpdates+1 end
+function menu.onUpdate()
+ vanillaUpdates=vanillaUpdates+1
+ if menu.delayedRefresh and menu.delayedRefresh<clock then menu.delayedRefresh=nil;menu.displayOptions('main') end
+end
 function menu.onCloseElement() vanillaCloses=vanillaCloses+1 end
 function menu.onRowChanged() return 'vanilla-row' end
 function menu.onSelectElement() return 'vanilla-select' end
@@ -193,7 +196,19 @@ P.rows=oldRows;P.state=oldState;P.stale=oldStale;P.testMode=false
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|1|INITIAL|END\n')
     vm.run('clock=3.4;P.update();assert(P.state=="STALE" and P.pending==nil and not P.live)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|2|INITIAL|END\n')
-    vm.run('clock=4.5;P.update();assert(P.live);clock=11;P.update();assert(P.state=="UNAVAILABLE" and P.stale);P.worldObserved();assert(not P.active and not P.initial(menu));menu.onUpdate();assert(vanillaUpdates>0);menu.onCloseElement();assert(vanillaCloses==1)')
+    vm.run('clock=4.5;P.update();assert(P.live);clock=11;P.update();assert(P.state=="UNAVAILABLE" and P.stale)')
+    vm.run(r'''
+-- Neither mouse Back nor keyboard close may synchronously rebuild the main menu.
+for _,keyboard in ipairs({false,true}) do
+ P.view="LIST";seen={};local before=#messages;local cancel=P.gen and 1 or 0
+ if keyboard then menu.onCloseElement("back") else P.back() end
+ assert(not P.active and P.pending==nil and #seen==0 and #messages==before+cancel)
+ assert(menu.onUpdate==P.nativeUpdate and menu.delayedRefresh<clock)
+ menu.onUpdate();assert(menu.delayedRefresh==nil and #seen==4 and seen[2].id=="lifesigns_housekeeping")
+ P.open(menu);assert(P.active and menu.onUpdate==P.menuUpdate)
+end
+P.worldObserved();assert(not P.active and not P.initial(menu));menu.onUpdate();assert(vanillaUpdates>0);menu.onCloseElement();assert(vanillaCloses==1)
+''')
     for stage, total in [('FOLDERS', ''), ('XML_HEADERS', '4'), ('SAVE_LOCKS', '4'), ('SAVE_HASHES', '4'), ('SAVE_HASH_RECHECK', '4')]:
         seq = int(vm.run('return tostring(P.seq)', True))
         payload = frame(client, seq, state='SCANNING', rows=[['PROGRESS', stage, '2', total, '']])
