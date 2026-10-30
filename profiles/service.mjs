@@ -41,6 +41,7 @@ export class ProfileConsumer {
       let status;
       try { status = this.stores.get(run).ingest(rows); }
       catch (e) { const store = this.stores.get(run); this.reply({ universe: store.id, run, state: 'ERROR', record: 0 }); throw e; }
+      if(status.state==='SEALED_REPLAY'){this.pendingReplies.delete(run);continue;}
       // A committed transaction and delivery of its acknowledgement are separate.
       // Publication failure must not turn valid committed data into a log error.
       this.reply(status); statuses.push(status);
@@ -115,12 +116,13 @@ export class LogTail {
 }
 export function startService({ logDirectory, replyDirectory, root = ROOT, interval = 250, notBefore = null,
   debugLog = null,
+  createPreview = options => new PreviewService(options),
   onRunError = (e, name) => console.error(`Rejected profile log ${name}: ${e.message}`),
   onError = e => { console.error(e.message); process.exitCode = 1; } }) {
   if (notBefore !== null && (!Number.isFinite(notBefore) || notBefore < 0)) throw Error('Invalid launch time');
   const consumer = new ProfileConsumer({ root, replyDirectory }), tails = new Map(), failed = new Set();
   const fence = debugLog ? new LoadFence({root, replyDirectory, processStarted: notBefore ?? 0}) : null;
-  const preview = debugLog ? new PreviewService({root,replyDirectory}) : null;
+  const preview = debugLog ? createPreview({root,replyDirectory}) : null;
   let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false, stopPromise;
   function names() {
     return fs.readdirSync(logDirectory).filter(n => /^profiles-session-\d+-\d+-loaded-[0-9_-]+\.log$/.test(n))
@@ -207,7 +209,11 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
           // profiles before catching up to the current control-file boundary.
           if(controlTail.offset<fs.statSync(debugLog).size) return true;
         }
+        if(preview?.hasReaders()&&(pending||publishPending))return true;
         if(pending) {
+          // A load request can arrive before any profile log exists. Drain the
+          // maintenance worker before acknowledging that boundary as well.
+          if(preview?.hasReaders())return true;
           progressed=profiles(pending.limits);
           const drained=[...pending.limits].every(([name,size])=>failed.has(name) || (tails.get(path.join(logDirectory,name))?.offset ?? 0)>=size);
           if(!drained) return true;

@@ -3,12 +3,14 @@ import path from 'node:path';
 import { housekeeping } from './housekeeping-cli.mjs';
 import { previewModel } from './preview-model.mjs';
 import {scanMenuTest,reviewMenuTest,executeMenuTest} from './maintenance-test.mjs';
-process.once('message', async ({root,settings,testMode,task}) => {
+import {scanProduction,reviewProduction,executeProduction} from './maintenance-production.mjs';
+process.once('message', async ({root,settings,testMode,productionMode,task}) => {
   try {
-    if(testMode&&task){
+    if((testMode||productionMode)&&task){
+      const review=productionMode?reviewProduction:reviewMenuTest,execute=productionMode?executeProduction:executeMenuTest;
       const result=task.verb==='REVIEW'||task.verb==='RESTOREREVIEW'?
-        await reviewMenuTest(root,task.universe,task.verb==='REVIEW'?'CLEAN':'RESTORE'):
-        await executeMenuTest(root,task.confirmation,{onProgress:text=>process.send({actionProgress:text})});
+        await review(root,task.universe,task.verb==='REVIEW'?'CLEAN':'RESTORE'):
+        await execute(root,task.confirmation,{onProgress:text=>process.send({actionProgress:text})});
       process.send({action:result},()=>process.disconnect());return;
     }
     let lastStage, lastAt=0;
@@ -18,7 +20,7 @@ process.once('message', async ({root,settings,testMode,task}) => {
         lastStage=progress.stage;lastAt=now;process.send({progress});
       }
     };
-    const result=testMode?await scanMenuTest(root,{onProgress,ignoreProtection:true}):await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:[],onProgress});
+    const result=productionMode?await scanProduction(root,{onProgress}):testMode?await scanMenuTest(root,{onProgress,ignoreProtection:true}):await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:[],onProgress});
     const model=previewModel(result,{...settings,protectedUniverses:[]});
     if (Buffer.byteLength(JSON.stringify(model)) > 4 * 1024 * 1024) throw Error('Preview too large');
     process.send({model},()=>process.disconnect());

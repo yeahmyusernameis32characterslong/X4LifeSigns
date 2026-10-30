@@ -198,6 +198,16 @@ test('protection replies use detail budgets, never a compact universe-list page'
  assert.deepEqual(fields.slice(5,9),['READY','1','3','3']);assert.equal(Buffer.from(fields[11],'hex').length,96);assert.ok(Buffer.byteLength(frame)<4096);
 });
 
+test('empty-log load fence waits for tracked maintenance before commit and FENCED publication',async t=>{
+ const {root,replies}=fixture(t),logs=path.join(root,'logs'),debugLog=path.join(root,'debuglog.txt');fs.mkdirSync(logs);fs.writeFileSync(debugLog,'');let busy=true,release;
+ const drained=new Promise(resolve=>release=resolve),preview={poll(){},handle(){return false;},suspend(){},hasReaders(){return busy;},waitForExit(){return drained;},stop(){}};
+ const service=startService({root,replyDirectory:replies,logDirectory:logs,debugLog,notBefore:0,interval:100000,createPreview:()=>preview});
+ t.after(()=>{busy=false;release();return service.stop({drain:false});});
+ const token=fs.readFileSync(path.join(replies,'session-0-1-loaded-2000-01-01_00-00-00.reply'),'utf8').split('|')[4],file=path.join(replies,'session-0-2-loaded-2000-01-01_00-00-00.reply');
+ fs.appendFileSync(debugLog,`LSLOAD1|PREPARE|${token}|END\n`);service.poll();assert.equal(fs.existsSync(file),false);
+ busy=false;release();service.poll();assert.match(fs.readFileSync(file,'utf8'),new RegExp('FENCED\\|'+token));
+});
+
 test('usage, protection, zero candidates and recorded restore point survive list transport independently',()=>{
  const result={mode:'ISOLATED_MENU_TEST',inventory:{complete:true,roots:[],saves:[{name:'save.xml.gz',source:'location-1/save.xml.gz',root:{universe:U}}],unknowns:[]},databases:[{universe:U,status:'PREVIEW_ONLY',bytes:12,hasBackup:true,retained:[{through:7}],candidates:{records:0,profiles:5,events:7,sessions:2},blocks:[]}],unknowns:[]};
  const base=previewModel(result,settings),pinned=applyProtection(base,{...settings,protectedUniverses:[U]});

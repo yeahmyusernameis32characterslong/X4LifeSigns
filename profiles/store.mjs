@@ -5,6 +5,7 @@ import path from 'node:path';
 import { universeId, runId, ordinal, APP, statements, validateProfileDatabase as validate } from './profile-schema.mjs';
 export { universeId, runId, ordinal } from './profile-schema.mjs';
 import { checkPath, checkSidecars, sameFile } from '../bridge/src/session-path.js';
+import {registered,productionRoot,writerLease,validateProduction,updateCatalog} from './production-contract.mjs';
 
 function refuseWal(file) {
   const fd = fs.openSync(file, 'r'); const header = Buffer.alloc(20);
@@ -22,9 +23,17 @@ function directory(root) {
 export class ProfileStore {
   constructor(root, id, run) {
     if(fs.existsSync(path.join(root,'maintenance-owned.json')))throw Error('Maintenance test roots cannot receive gameplay ingestion');
+    this.root=path.resolve(root);this.writerLease=writerLease(this.root);
+    try {
     this.id = universeId(id); this.run = runId(run);
     const dir = directory(path.resolve(root));
     this.final = path.join(dir, id + '.db');
+    if(registered(this.root)){
+      const c=productionRoot(this.root);this.entry=c.catalog.universes[id];this.rootId=c.registration.id;
+      if(this.entry?.phase!=='READY'&&this.entry)throw Error('RECOVERY_REQUIRED');
+      if(this.entry&&!fs.existsSync(this.final))throw Error('Registered database missing; restoration required');
+      if(!this.entry&&fs.existsSync(this.final))throw Error('Unregistered existing database');
+    }
     this.file = fs.existsSync(this.final) ? this.final : path.join(dir, `${id}.${run}.building.db`);
     this.newBaseline = this.file !== this.final;
     checkSidecars(this.file);
@@ -33,7 +42,7 @@ export class ProfileStore {
     if (!this.info) { const fd = fs.openSync(this.file, 'wx'); try { this.info = fs.fstatSync(fd); created = true; } finally { fs.closeSync(fd); } }
     if (!created) {
       refuseWal(this.file); const ro = new DatabaseSync(this.file, { readOnly: true });
-      try { const m = validate(ro, id); if (!this.newBaseline && !m.ready) throw Error('Published profile database is incomplete'); } finally { ro.close(); }
+      try { const m = this.validate(ro); if (!this.newBaseline && !m.ready) throw Error('Published profile database is incomplete'); } finally { ro.close(); }
     }
     this.guard(); this.db = new DatabaseSync(this.file);
     if (created) {
@@ -44,17 +53,32 @@ export class ProfileStore {
         this.db.exec(`PRAGMA application_id=${APP}; PRAGMA user_version=1; COMMIT`);
       } catch (e) { this.db.exec('ROLLBACK'); this.db.close(); throw e; }
     }
-    validate(this.db, id); this.guard(); this.activeProfile = null;
+    this.configureWriter();this.validate(this.db); this.guard(); this.activeProfile = null;
+    } catch(e){if(this.db?.isOpen)this.db.close();this.writerLease?.close();throw e;}
   }
-  guard() { if (!sameFile(this.info, checkPath(this.file))) throw Error('Profile database replaced'); checkSidecars(this.file); }
-  close() { if (this.db?.isOpen) this.db.close(); }
+  validate(db){return this.rootId?validateProduction(db,this.id,this.rootId,this.entry):validate(db,this.id);}
+  configureWriter(){if(this.entry?.version===2)this.db.function('ls_housekeeping_generation',()=>this.entry.generation);}
+  guard() {
+    this.writerLease?.guard();
+    if(this.rootId){const e=productionRoot(this.root).catalog.universes[this.id];if(this.entry&&(!e||e.phase!=='READY'||e.generation!==this.entry.generation))throw Error('Production registration changed');}
+    if (!sameFile(this.info, checkPath(this.file))) throw Error('Profile database replaced'); checkSidecars(this.file);
+  }
+  close() { if (this.db?.isOpen) this.db.close();this.writerLease?.close(); }
   status() {
+    if(this.entry?.version===2){const seal=this.db.prepare('SELECT cutoff FROM housekeeping_seals WHERE run_id=?').get(this.run);if(seal)return {universe:this.id,run:this.run,state:'SEALED_REPLAY',record:seal.cutoff};}
     const ready = this.db.prepare('SELECT ready FROM universe_metadata').get().ready;
     const record = this.db.prepare('SELECT coalesce(max(record_id),0) AS n FROM records WHERE run_id=?').get(this.run).n;
     return { universe: this.id, run: this.run, state: ready ? 'READY' : this.db.prepare("SELECT 1 FROM records WHERE run_id=? AND kind='SNAPSHOT_BEGIN'").get(this.run) ? 'BUILDING' : 'NEED_BASELINE', record };
   }
   ingest(rows) {
     this.guard(); const db = this.db;
+    if(this.entry?.version===2){
+      const seal=db.prepare('SELECT cutoff FROM housekeeping_seals WHERE run_id=?').get(this.run);
+      if(seal){
+        for(const row of rows){if(row.run!==this.run)throw Error('Run mismatch');const n=ordinal(row.fields.record);if(!n)throw Error('Invalid replay ordinal');if(n<=seal.cutoff&&db.prepare('SELECT payload FROM records WHERE run_id=? AND record_id=?').get(this.run,n)?.payload!==JSON.stringify(row))throw Error('Conflicting retained replay');}
+        return {universe:this.id,run:this.run,state:'SEALED_REPLAY',record:seal.cutoff};
+      }
+    }
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const row of rows) {
@@ -120,8 +144,9 @@ export class ProfileStore {
     } catch (e) { db.exec('ROLLBACK'); this.activeProfile = null; throw e; }
     const result = this.status(); // Readback occurs only after COMMIT.
     if (result.state === 'READY' && this.newBaseline) {
-      this.close(); this.guard(); checkSidecars(this.final); fs.copyFileSync(this.file, this.final, fs.constants.COPYFILE_EXCL);
+      this.db.close(); this.guard(); checkSidecars(this.final); fs.copyFileSync(this.file, this.final, fs.constants.COPYFILE_EXCL);
       const ro = new DatabaseSync(this.final, { readOnly: true }); try { validate(ro, this.id); } finally { ro.close(); }
+      if(this.rootId){const c=productionRoot(this.root);if(c.catalog.universes[this.id])throw Error('Universe already registered');this.entry={phase:'READY',version:1,generation:0,lastBackup:null};updateCatalog(c,{...c.catalog,universes:{...c.catalog.universes,[this.id]:this.entry}});}
       this.file = this.final; this.info = checkPath(this.file); this.newBaseline = false; this.db = new DatabaseSync(this.file); this.guard();
     }
     return result;

@@ -44,7 +44,7 @@ function P.parse(text, expected)
         local labels={SAVES="Checking saves",SAVE_RECHECK="Rechecking save inputs",DATABASES="Checking databases",DATABASE_RECHECK="Rechecking databases"}
         local row=rows[1];local label=labels[row[2]];local completed=uint(row[3]);local total=uint(row[4])
         if count==1 and row[1]=="ACTION" and row[2]=="Progress" then
-            progress=row[3].." (test copies only)"
+            progress=row[3]..(P.productionMode and " (selected universe history)" or " (test copies only)")
         elseif count~=1 or row[1]~="PROGRESS" or not label or not completed or row[5]~="" then return nil
         elseif row[2]=="SAVES" then
             if row[4]~="" then return nil end
@@ -106,7 +106,7 @@ function P.locations()
     P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
 end
 function P.review(id,restore)
-    if not P.testMode or P.state~="READY" or P.stale then return end
+    if not (P.testMode or P.productionMode) or P.state~="READY" or P.stale then return end
     P.selected=tonumber(id);P.view="CONFIRM";P.confirmVerb=restore and "RESTORE" or "APPLY";P.rows={};P.page=0
     P.request(restore and "RESTOREREVIEW" or "REVIEW",P.selected)
 end
@@ -114,7 +114,7 @@ end
 -- These only gate presentation; fresh backend protection/input checks still apply.
 function P.rowActions(data)
     local flags={};for label in (data[5] or ""):gmatch("[^;]+") do flags[(label:gsub("^%s+",""):gsub("%s+$",""))]=true end
-    local available=P.testMode and P.state=="READY" and not P.stale and not P.mutating and uint(data[1]) and data[1]~="0" and not flags["Protected"] and not flags["Needs attention"] and (flags["In use"] or flags["Possibly unused"])
+    local available=(P.testMode or P.productionMode) and P.state=="READY" and not P.stale and not P.mutating and uint(data[1]) and data[1]~="0" and not flags["Protected"] and not flags["Needs attention"] and (flags["In use"] or flags["Possibly unused"] or flags["Recovery required"])
     return (available and flags["In use"] and not flags["No cleanup needed"])==true, (available and flags["Restore point recorded"])==true
 end
 function P.back()
@@ -133,8 +133,9 @@ function P.update()
     local h=read(helloFile)
     local gen,tick,phase
     if h then gen,tick,phase=h:match("^LSDB1|HOUSEKEEPING|HELLO|([0-9a-f]+)|(%d+)|([A-Z]+)|END\r?\n$") end
-    if token(gen) and uint(tick) and (phase=="INITIAL" or phase=="TEST") then
+    if token(gen) and uint(tick) and (phase=="INITIAL" or phase=="TEST" or phase=="PRODUCTION") then
         P.testMode=phase=="TEST"
+        P.productionMode=phase=="PRODUCTION"
         if gen~=P.gen then
             local restarting=P.gen~=nil
             P.gen=gen;P.heartbeat=tick;P.heartbeatAt=now;P.live=false;P.pending=nil;P.progress=nil
@@ -165,7 +166,7 @@ function P.update()
         for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then
             if row[3]=="Protected" then P.protected=true elseif row[3]=="Not protected" then P.protected=false else P.protected=nil end
         end end
-    elseif reply.state~="SCANNING" then P.pending=nil;P.mutating=false;P.stale=true;if action or (P.testMode and reply.state=="ERROR") then P.view="RESULT";P.rows=reply.rows end end
+    elseif reply.state~="SCANNING" then P.pending=nil;P.mutating=false;P.stale=true;if action or ((P.testMode or P.productionMode) and reply.state=="ERROR") then P.view="RESULT";P.rows=reply.rows end end
 end
 
 local copy={
@@ -209,10 +210,10 @@ function P.render()
     local function headerLine(text,properties)
         local row=header:addRow(false,{fixed=true});row[2]:createText(text,properties or info)
     end
-    headerLine(P.testMode and "ISOLATED MAINTENANCE TEST - disposable copies only" or copy.intro,normal)
-    headerLine(P.testMode and "Clean and restore individual test universes. Original saves and live history are not cleanup targets." or copy.description)
-    headerLine(P.testMode and "Explicit confirmation and a verified backup are required. No compaction or permanent purge." or copy.notice)
-    headerLine(P.testMode and "Inventory uses copied local native saves only. Gameplay routing is unchanged." or copy.scope)
+    headerLine(P.productionMode and "Manage actual Life Signs universe history" or P.testMode and "ISOLATED MAINTENANCE TEST - disposable copies only" or copy.intro,normal)
+    headerLine(P.productionMode and "Preview first. Only your explicitly confirmed universe can be cleaned or restored." or P.testMode and "Clean and restore individual test universes. Original saves and live history are not cleanup targets." or copy.description)
+    headerLine((P.testMode or P.productionMode) and "Explicit confirmation and a verified backup are required. No compaction or permanent purge." or copy.notice)
+    headerLine(P.productionMode and copy.scope or P.testMode and "Inventory uses copied local native saves only. Gameplay routing is unchanged." or copy.scope)
     if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or (P.testMode and P.state=="ERROR" and "Test operation blocked. Close X4 and report the result below. Preserve test copies and backups.") or messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
     local gap=Helper.scaleY(12)
@@ -224,12 +225,12 @@ function P.render()
     button(r,1,"Refresh",P.refresh,P.live and not P.mutating);button(r,2,"Save locations",P.locations,P.live and not P.mutating)
     button(r,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING" and not P.mutating);button(r,4,"Back",back,not P.mutating)
     local dataY=controlY+controls:getVisibleHeight()+gap
-    local actions=P.testMode and P.view=="LIST"
+    local actions=(P.testMode or P.productionMode) and P.view=="LIST"
     local t=frame:addTable(actions and 6 or 4,{tabOrder=3,x=x,y=dataY,width=width})
     local widths=actions and {16,12,17,25,15} or P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
     for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Location / context"}
-    if actions then headers[5]="Clean test copy";headers[6]="Restore history" end
+    if actions then headers[5]=P.productionMode and "Clean history" or "Clean test copy";headers[6]="Restore history" end
     r=t:addRow(false,{fixed=true,bgColor=rowHeading});for i=1,(actions and 6 or 4) do r[i]:createText(headers[i],heading) end
     for index,data in ipairs(P.rows) do
         r=t:addRow(P.view=="LIST",{bgColor=index%2==1 and rowDark or rowAlternate})
@@ -262,7 +263,7 @@ function P.render()
         button(r,3,"Cancel",P.back,not P.mutating)
     end
     line(notes,copy.ancestry)
-    if P.testMode then
+    if P.testMode or P.productionMode then
         line(notes,"A restore point is a database-history copy made before maintenance, not an X4 save.")
         line(notes,"Recorded restore points are verified when you select Restore. File size is not reclaimable space.")
     else line(notes,"History totals count records once. File size is not reclaimable space.") end

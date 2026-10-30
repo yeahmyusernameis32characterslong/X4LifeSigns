@@ -20,12 +20,12 @@ export function previewModel(result, settings) {
     // Usage, protection and recorded restore points are independent facts.
     // A recorded point is fully verified by the existing Restore review, not by
     // this inventory's lastBackup pointer. Do not label it verified/available.
-    const usage = d.status !== 'PREVIEW_ONLY' || uncertain ? 'Needs attention' : saves.length ? 'In use' : 'Possibly unused';
-    const status = [usage, pinned && 'Protected', result.mode === 'ISOLATED_MENU_TEST' && d.status === 'PREVIEW_ONLY' && !uncertain && d.candidates?.records === 0 && 'No cleanup needed', d.hasBackup && 'Restore point recorded'].filter(Boolean).join('; ');
+    const usage = d.recovery ? 'Recovery required' : d.status !== 'PREVIEW_ONLY' || uncertain ? 'Needs attention' : saves.length ? 'In use' : 'Possibly unused';
+    const status = [usage, pinned && 'Protected', ['ISOLATED_MENU_TEST','PRODUCTION_MENU'].includes(result.mode) && d.status === 'PREVIEW_ONLY' && !uncertain && d.candidates?.records === 0 && 'No cleanup needed', d.hasBackup && 'Restore point recorded'].filter(Boolean).join('; ');
     list.push([id, label, uncertain ? `${saves.length} known; Unknown` : String(saves.length), displaySize(d.bytes), status]);
     ids.push(d.universe || null);
     const rows = [['INFO','Universe',label,status,''],['INFO','Protection',!d.universe ? 'Unknown' : pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',displaySize(d.bytes),'Current file size','']];
-    if (result.mode === 'ISOLATED_MENU_TEST') rows.push(['INFO','Restore point',d.hasBackup ? 'Recorded' : 'None recorded',d.hasBackup ? 'Checked when Restore is selected' : 'Created before maintenance','']);
+    if (['ISOLATED_MENU_TEST','PRODUCTION_MENU'].includes(result.mode)) rows.push(['INFO','Restore point',d.hasBackup ? 'Recorded' : 'None recorded',d.hasBackup ? 'Checked when Restore is selected' : 'Created before maintenance','']);
     for (const s of saves) rows.push(['SAVE','File modified (UTC)',s.name,s.modifiedUtc || 'Unknown',s.source]);
     if (!saves.length) rows.push(['SAVE','Local saves',uncertain ? 'Unknown' : 'No matching saves','','Selected local folders only']);
     const retained = (d.retained || []).reduce((n,r) => n + r.through,0);
