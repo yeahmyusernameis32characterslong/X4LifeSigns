@@ -80,6 +80,9 @@ function Adapter.installLoadFence()
     end
     local original=LoadGame
     load.wrapper=function(...)
+        if LifeSignsHousekeeping and LifeSignsHousekeeping.mutating then
+            loadDiagnostic("MAINTENANCE_BLOCKED");return
+        end
         if LifeSignsHousekeeping then pcall(LifeSignsHousekeeping.worldObserved) end
         if load.state ~= "IDLE" then loadDiagnostic("DUPLICATE_BLOCKED");return end
         local token=control(Adapter.readReply(challengeRun),challengeRun,"CHALLENGE")
