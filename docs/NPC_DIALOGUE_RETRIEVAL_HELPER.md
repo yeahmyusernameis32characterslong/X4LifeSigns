@@ -196,3 +196,49 @@ records. Return a sanitised completion/progress report to Agent after a
 meaningful evaluated increment or a genuine blocker, not after every normal
 query. Genuinely risky changes outside this scope still require owner authority.
 Leave the PR unmerged for review.
+
+## Initial optional implementation
+
+`dialogue/snapshot.mjs` creates and validates offline read-only snapshot bindings;
+`dialogue/retrieval.mjs` provides a host-scoped `DialogueReader`; and
+`dialogue/model-session.mjs` runs the existing Ollama `/api/chat` tool-message
+convention through an injected approved transport. These files are not packaged
+with the gameplay companion. No original database is opened through the writable
+ProfileStore constructor. Its saved-ancestry/read methods are reused on a strictly
+read-only connection, with schema-v1/v2 generation validation.
+
+The host supplies snapshot hash/universe/production entry and exact NPC seed,
+run, record and personal/command access. Model tools are `profile` (self or current
+evidenced posting), `search_history` (bounded chronological pages) and `read_events`
+(previously authorised event refs). Model arguments cannot change that grant,
+choose a file, execute SQL or run a shell. Cursors and conversation continuations
+belong to the exact snapshot/checkpoint/person/policy scope. Changed snapshot
+metadata refuses cached results. Any memory index is disposable and per reader.
+
+Initial command access is deliberately conservative: own NPC observations and
+subject-asset logs supported by the person's last-observed captain/pilot/manager
+assignment at that record. Presence, roster context, an ambiguous relationship,
+an old command role after an unclear transfer or a role-removal event do not
+grant new command knowledge. Related foreign-asset outcomes and subordinate
+reports are not supported in this first policy. These exclusions are reported
+in coverage; an empty search never establishes that nothing happened. Snapshot
+profile fields and later person observations remain separately labelled.
+
+`mode: 'baseline'` uses the existing ancestry-wide event read and array search;
+the default indexed mode limits candidates using the existing subject index,
+then applies the same temporal authorisation and a private in-memory query
+index. It is a controlled broad-read baseline, not a reconstruction of historical
+Aria interview timings. Snapshot hashing, scope preparation and index-build costs
+are measured as well as tool/model calls. No speed/accuracy acceptance is implied
+by this implementation section; actual model evaluation is reported separately.
+
+Run the synthetic regressions with Node24.21:
+
+```powershell
+node --test dialogue/test/*.test.mjs
+```
+
+The fixture data is explicitly synthetic. Tests cover branches, exact identifiers,
+roles, scope denials, cursors, schema-v2 metadata/seals, source preservation and
+model-selected tool dispatch. A widget/game/schema test is unnecessary: no X4
+XML, Lua, installed service or gameplay integration changes in this workstream.

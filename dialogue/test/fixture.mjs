@@ -1,0 +1,45 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {ProfileStore} from '../../profiles/store.mjs';
+import {fileHash} from '../../profiles/production-contract.mjs';
+
+export const U='lsu1-2026-10-30_12-00-00-11-12-13-14';
+export const A='session-11-12-loaded-2026-10-30_12-00-00';
+export const B='session-13-14-loaded-2026-10-30_12-01-00';
+export const CAPTAIN='18446744073709551001',MANAGER='18446744073709551002',FOREIGN='18446744073709551003';
+export function makeFixture(root){
+  fs.mkdirSync(root,{recursive:true});let n=0;const rows=[],labels={};
+  const add=(kind,fields={},label)=>{const r={run:A,session:'UNAVAILABLE',seq:'1',age:String(++n),kind,fields:{record:String(n),...fields}};rows.push(r);if(label)labels[label]=n;return r;};
+  add('RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:U,parent_run:'NONE',parent_record:'0'});add('SNAPSHOT_BEGIN');
+  let profiles=0;
+  const profile=(kind,fields)=>{const p=String(++profiles);add('PROFILE_BEGIN',{kind,profile:p});for(const[field,value]of Object.entries(fields))add('VALUE',{profile:p,field,value,state:'PRESENT',type:'string'});add('PROFILE_END',{profile:p,partial:'0'},kind+fields.seed);};
+  profile('SHIP',{seed:'501',idcode:'SYN-101',reference:'[0x501]',name:'Lark',sector_name:'Test Reach',commander_idcode:'SYN-202'});
+  profile('SHIP',{seed:'502',idcode:'SYN-202',reference:'[0x502]',name:'Kite',sector_name:'Test Reach'});
+  profile('STATION',{seed:'503',idcode:'SYN-303',reference:'[0x503]',name:'Orchard',sector_name:'Test Reach'});
+  profile('NPC',{seed:CAPTAIN,name:'Iris Vale',race:'Argon',assigned_ship_idcode:'SYN-101',role_object_reference:'[0x501]',container_reference:'[0x501]',assignment_basis:'ACTOR_ROLE_OBJECT',controlpost_name:'Captain'});
+  profile('NPC',{seed:MANAGER,name:'Rowan Quill',role_object_reference:'[0x503]',assignment_basis:'ACTOR_ROLE_OBJECT',controlpost_name:'Manager'});
+  profile('NPC',{seed:FOREIGN,name:'Hidden Stranger',assigned_ship_idcode:'SYN-202',assignment_basis:'CONTEXT_HOST_ROSTER_ASSOCIATION',role_name:'Marine'});
+  add('SNAPSHOT_END',{profiles:String(profiles)},'baseline');
+  const event=(type,subject_kind,subject_seed,subject_idcode,fields,label)=>add('ENTITY_EVENT',{event_type:type,subject_kind,subject_seed,subject_idcode,...fields},label);
+  event('ATTACKED','SHIP','501','SYN-101',{subject_name:'Lark',other_seed:'701',other_idcode:'SYN-701',other_name:'Needle',other_faction:'Xenon'},'incoming');
+  event('ATTACKING','SHIP','501','SYN-101',{subject_name:'Lark',other_seed:'701',other_idcode:'SYN-701',other_name:'Needle'},'outgoing');
+  event('ORDER_STATE_CHANGED','SHIP','501','SYN-101',{order_name:'Attack',order_state:'ready'},'order');
+  event('KILLED_OBJECT','SHIP','501','SYN-101',{subject_name:'Lark',other_seed:'701',other_idcode:'SYN-701',other_name:'Needle'},'kill');
+  event('RELATED_OBJECT_DESTROYED','SHIP','701','SYN-701',{other_seed:'501',other_idcode:'SYN-101'},'paired');
+  event('ATTACKED','STATION','503','SYN-303',{subject_name:'Orchard',other_name:'Needle'},'station');
+  const fork=n;
+  event('ATTACKED','SHIP','502','SYN-202',{subject_name:'Kite',detail:'FOREIGN_SECRET'},'foreign');
+  event('ASSIGNMENT_OBSERVED','NPC',CAPTAIN,'',{assigned_seed:'502',assigned_idcode:'SYN-202',assignment_basis:'ACTOR_ROLE_OBJECT'},'transferUnknown');
+  event('ATTACKED','SHIP','502','SYN-202',{detail:'UNKNOWN_ROLE_SECRET'},'unknownRole');
+  event('CONTROL_ROLE_ASSIGNED','NPC',CAPTAIN,'',{assigned_seed:'502',assigned_idcode:'SYN-202',assignment_basis:'ACTOR_ROLE_OBJECT',control_post:'Captain'},'newCaptain');
+  event('DOCKED','SHIP','502','SYN-202',{subject_name:'Kite',other_idcode:'SYN-303',other_name:'Orchard'},'dock');
+  event('ATTACKED','SHIP','501','SYN-101',{detail:'FORMER_SHIP_SECRET'},'former');
+  event('CONTROL_ROLE_REMOVED','NPC',CAPTAIN,'',{assigned_seed:'502',assigned_idcode:'SYN-202',control_post:'Captain'},'removed');
+  event('ATTACKED','SHIP','502','SYN-202',{detail:'REMOVED_ROLE_SECRET'},'removedSecret');
+  event('CREW_ROLE_OBSERVED','NPC',CAPTAIN,'',{assigned_seed:'502',assigned_idcode:'SYN-202',actual_role:'Marine'},'marine');
+  event('ATTACKED','SHIP','502','SYN-202',{detail:'MARINE_SECRET'},'marineSecret');
+  let s=new ProfileStore(root,U,A);s.ingest(rows);s.close();
+  const branch=[{run:B,session:'UNAVAILABLE',seq:'1',age:'1',kind:'RUN_BEGIN',fields:{record:'1',database_protocol:'LSDB1',lifesigns_universe_id:U,parent_run:A,parent_record:String(fork)}},{run:B,session:'UNAVAILABLE',seq:'1',age:'2',kind:'ENTITY_EVENT',fields:{record:'2',event_type:'DOCKED',subject_kind:'SHIP',subject_seed:'501',subject_idcode:'SYN-101',subject_name:'Lark',other_name:'Orchard',other_idcode:'SYN-303'}}];
+  s=new ProfileStore(root,U,B);s.ingest(branch);s.close();const file=path.join(root,'local-data/profiles',U+'.db');
+  return {binding:{version:1,file,sha256:fileHash(file),universe:U,rootId:null,entry:{phase:'READY',version:1,generation:0,lastBackup:null}},labels,record:n,fork};
+}
