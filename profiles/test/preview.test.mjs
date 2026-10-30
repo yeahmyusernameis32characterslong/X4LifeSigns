@@ -61,7 +61,7 @@ test('model wording distinguishes in-use, uncertain, unmatched and whole-univers
  let m=previewModel(result,settings);assert.equal(m.list[0][4],'In use');assert.equal(m.details[0].find(r=>r[0]==='SAVE')[3],'Unknown');
  result.inventory.saves=[];m=previewModel(result,settings);assert.equal(m.list[0][4],'Possibly unused');
  result.inventory.unknowns=[{code:'UNREADABLE_SAVE'}];m=previewModel(result,settings);assert.equal(m.list[0][4],'Needs attention');assert.match(m.list[0][2],/Unknown/);
- m=previewModel(result,{...settings,protectedUniverses:[U]});assert.equal(m.list[0][4],'Protected');
+ m=previewModel(result,{...settings,protectedUniverses:[U]});assert.equal(m.list[0][4],'Needs attention; Protected');
  result.databases.push({file:'foreign.db',universe:null,status:'BLOCKED',blocks:['INVALID_UNIVERSE'],retained:[]});m=previewModel(result,settings);
  const unknown=m.list.findIndex(r=>r[1]==='Unknown database');assert.ok(unknown>=0);assert.equal(m.ids[unknown],null);assert.equal(m.details[unknown][1][2],'Unknown');
 });
@@ -105,9 +105,9 @@ test('real cancellable scan process reuses Stage 1 on disposable inputs and pres
  const deadline=Date.now()+70000;let reply='';
  while(Date.now()<deadline){service.poll();reply=fs.readFileSync(path.join(replies,PREVIEW_REPLY+'.reply'),'utf8');if(!service.scanning&&reply.includes('|READY|'))break;await new Promise(r=>setTimeout(r,30));}
  assert.equal(service.scanning,false);assert.match(reply,/\|READY\|/);
- const i=service.model.ids.indexOf(U);assert.ok(i>=0);assert.equal(service.model.list[i][4],'Protected');
+ const i=service.model.ids.indexOf(U);assert.ok(i>=0);assert.equal(service.model.list[i][4],'Possibly unused; Protected');
  service.handle(request(service.gen,2,'PROTECT',i+1,0));assert.equal(service.model.list[i][4],'Possibly unused');
- assert.equal(service.model.details[i].find(r=>r[0]==='TAIL'&&r[2]==='records')[3],'3');assert.equal(launches,1);assert.equal(hash(file),before);
+ assert.equal(service.model.details[i].find(r=>r[0]==='TAIL'&&r[2]==='History records')[3],'3');assert.equal(launches,1);assert.equal(hash(file),before);
 });
 test('cancellation terminates a real scan process without replacing its cancelled reply', {timeout:20000},async t=>{
  const {root,replies}=fixture(t),s=new PreviewService({root,replyDirectory:replies});t.after(()=>s.stop());s.handle(request(s.gen,1));const child=s.child;const exited=once(child,'close');s.handle(request(s.gen,2,'CANCEL'));assert.equal(s.hasReaders(),true);await exited;assert.equal(s.hasReaders(),false);
@@ -173,7 +173,7 @@ test('protection overlay restores exact counts and uncertainty without mutating 
  for(const uncertain of [false,true]) {
   if(uncertain){result.inventory.unknowns=[{code:'UNREADABLE_SAVE'}];result.databases[0].status='BLOCKED';result.databases[0].candidates=null;}
   const base=previewModel(result,settings),snapshot=JSON.stringify(base),pinned=applyProtection(base,{...settings,protectedUniverses:[U]});
-  assert.equal(pinned.list[0][4],'Protected');assert.equal(pinned.details[0].find(r=>r[1]==='Protection')[2],'Protected');
+  assert.equal(pinned.list[0][4],(uncertain?'Needs attention':'In use')+'; Protected');assert.equal(pinned.details[0].find(r=>r[1]==='Protection')[2],'Protected');
   assert.ok(pinned.details[0].filter(r=>r[0]==='TAIL').every(r=>r[3]==='0'));
   assert.deepEqual(applyProtection(base,settings),base);assert.equal(JSON.stringify(base),snapshot);
   if(uncertain)assert.ok(applyProtection(base,settings).details[0].filter(r=>r[0]==='TAIL').every(r=>r[3]==='Unknown'));
@@ -183,7 +183,7 @@ test('protection overlay restores exact counts and uncertainty without mutating 
 test('protect/unprotect and Back list use one completed scan and retain the requested detail page',t=>{
  const f=fake(t),s=f.service;s.handle(request(s.gen,1));const base={...model,details:[[...model.details[0],['INFO','Protection','Not protected','Whole universe',''],['TAIL','Potentially removable history','records','3',''],['SAVE','File modified (UTC)','save.xml','Unknown','location-1/save.xml']]]};
  f.children[0].emit('message',{model:base});
- s.handle(request(s.gen,2,'PROTECT',1,1,1));assert.match(f.text(),/\|READY\|1\|2\|1\|/);assert.equal(s.model.list[0][4],'Protected');
+ s.handle(request(s.gen,2,'PROTECT',1,1,1));assert.match(f.text(),/\|READY\|1\|2\|1\|/);assert.equal(s.model.list[0][4],'In use; Protected');
  s.handle(request(s.gen,3,'CANCEL'));s.handle(request(s.gen,4,'LIST'));assert.match(f.text(),/READY/);assert.equal(f.children.length,1);
  s.handle(request(s.gen,5,'PROTECT',1,0,99));assert.match(f.text(),/ERROR/);assert.deepEqual(readSettings(f.root).value.protectedUniverses,[U]);
  s.handle(request(s.gen,6,'PROTECT',1,0,0));assert.match(f.text(),/READY/);assert.equal(s.model.details[0][2][3],'3');assert.deepEqual(readSettings(f.root).value.protectedUniverses,[]);
@@ -196,6 +196,23 @@ test('protection replies use detail budgets, never a compact universe-list page'
  const rows=Array.from({length:7},()=>['TAIL','Potentially removable history','x'.repeat(100),'1','']);
  const frame=previewReply(G,{client:C,seq:1,verb:'PROTECT'},'READY',rows,1),fields=frame.trim().split('|');
  assert.deepEqual(fields.slice(5,9),['READY','1','3','3']);assert.equal(Buffer.from(fields[11],'hex').length,96);assert.ok(Buffer.byteLength(frame)<4096);
+});
+
+test('usage, protection, zero candidates and recorded restore point survive list transport independently',()=>{
+ const result={mode:'ISOLATED_MENU_TEST',inventory:{complete:true,roots:[],saves:[{name:'save.xml.gz',source:'location-1/save.xml.gz',root:{universe:U}}],unknowns:[]},databases:[{universe:U,status:'PREVIEW_ONLY',bytes:12,hasBackup:true,retained:[{through:7}],candidates:{records:0,profiles:5,events:7,sessions:2},blocks:[]}],unknowns:[]};
+ const base=previewModel(result,settings),pinned=applyProtection(base,{...settings,protectedUniverses:[U]});
+ assert.equal(pinned.list[0][4],'In use; No cleanup needed; Restore point recorded; Protected');
+ const wire=previewReply(G,{client:C,seq:1,verb:'LIST'},'READY',Array.from({length:10},()=>pinned.list[0]));
+ assert.equal(Buffer.from(wire.trim().split('|')[13],'hex').toString(),pinned.list[0][4]);assert.ok(Buffer.byteLength(wire)<4096);
+ assert.equal(pinned.details[0].find(r=>r[1]==='Restore point')[2],'Recorded');
+ assert.equal(base.details[0].filter(r=>r[0]==='TAIL').length,1);
+ assert.deepEqual(base.details[0].find(r=>r[0]==='TAIL').slice(2),['History records','0','']);
+ assert.equal(base.details[0].find(r=>r[0]==='SAVE')[4],'location-1/save.xml.gz');
+ assert.ok(base.details[0].every(r=>!r.join(' ').includes('Categories overlap')));
+ assert.deepEqual(applyProtection(base,settings),base);
+ result.databases[0].hasBackup=false;assert.ok(!previewModel(result,settings).list[0][4].includes('Restore point'));
+ result.databases[0].hasBackup=true;result.inventory.complete=false;const blocked=applyProtection(previewModel(result,settings),{...settings,protectedUniverses:[U]});
+ assert.equal(blocked.list[0][4],'Needs attention; Restore point recorded; Protected');
 });
 
 test('mutating worker drains after CANCEL/load/stop and exit cannot race its final IPC message',async t=>{

@@ -20,10 +20,6 @@ process.once('message', async ({root,settings,testMode,task}) => {
     };
     const result=testMode?await scanMenuTest(root,{onProgress,ignoreProtection:true}):await housekeeping({saves:settings.saveLocations,profiles:path.join(root,'local-data','profiles'),pins:[],onProgress});
     const model=previewModel(result,{...settings,protectedUniverses:[]});
-    if(testMode)for(const [i,id] of model.ids.entries()){
-      const d=result.databases.find(d=>d.universe===id);if(d?.status==='PREVIEW_ONLY'&&d.candidates?.records===0)model.list[i][4]='Nothing to clean';
-      if(d?.hasBackup)model.list[i][4]+='; backup';
-    }
     if (Buffer.byteLength(JSON.stringify(model)) > 4 * 1024 * 1024) throw Error('Preview too large');
     process.send({model},()=>process.disconnect());
   } catch(e) {process.send({error:/^[A-Z0-9_]+$/.test(e.message)?e.message:'TEST_OR_SCAN_FAILED'},()=>process.disconnect());}

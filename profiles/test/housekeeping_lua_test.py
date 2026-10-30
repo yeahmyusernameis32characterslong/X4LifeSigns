@@ -74,13 +74,13 @@ local function cell(row)
  function c:setIcon() return self end
  function c:createText(text,properties) labels[#labels+1]=text;self.textProperties=properties;row.height=math.max(row.height,properties and properties.minRowHeight or 16);return self end
  function c:createButton(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);buttons[#buttons+1]=self;return self end
- function c:setText(text) self.text=text;return self end
+ function c:setText(text,properties) self.text=text;self.textProperties=properties;return self end
  function c:createCheckBox(value,properties) self.check=value;self.properties=properties;row.height=math.max(row.height,19);return self end
  return c
 end
 local function makeTable(properties)
  local t={properties=properties or {},rows={},widths={}}
- function t:addRow() local row={height=0};for i=1,6 do row[i]=cell(row) end;self.rows[#self.rows+1]=row;return row end
+ function t:addRow(data,properties) local row={height=0,rowdata=data,properties=properties or {}};for i=1,6 do row[i]=cell(row) end;self.rows[#self.rows+1]=row;return row end
  function t:setColWidthPercent(col,width) self.widths[col]=width;return self end
  function t:setColWidth(col,width) self.widths[col]=width;return self end
  function t:getVisibleHeight() local height=0;for _,row in ipairs(self.rows) do height=height+row.height end;return math.min(height,self.properties.maxVisibleHeight or height) end
@@ -132,6 +132,36 @@ try:
     reply(REPLY, good)
     vm.run('clock=1.4;P.update();assert(P.state=="READY" and not P.stale and P.progress==nil and P.rows[1][2]=="Universe 1");P.render();assert(table.concat(labels," "):find(P.copy.notice,1,true));P.refresh();assert(P.stale and #P.rows==1);P.render();assert(table.concat(labels," "):find("Previous results - stale",1,true))')
     vm.run('assert(wideFrame==true and tableProperties.width==1107 and columnWidths[1]==18 and columnWidths[2]==18 and columnWidths[3]==24);assert(#renderTables==5);local controls,data,pager,notes=renderTables[2],renderTables[3],renderTables[4],renderTables[5];assert(controls.properties.width<data.properties.width and pager.properties.width<data.properties.width);assert(data.properties.y>controls.properties.y+controls:getVisibleHeight());assert(pager.properties.y>=data.properties.y+data:getVisibleHeight());assert(notes.properties.y>pager.properties.y+pager:getVisibleHeight());assert(notes.properties.y+notes:getVisibleHeight()<=menu.table.height);assert(renderTables[1].rows[1][2].textProperties.fontsize==13 and renderTables[1].rows[1][2].textProperties.titleColor==Color.row_title);assert(data.rows[1][1].textProperties.minRowHeight==22);assert(controls.properties.nextTable==data.index and pager.properties.prevTable==data.index)')
+    vm.run(r'''
+local oldRows,oldState,oldStale=P.rows,P.state,P.stale
+P.testMode=true;P.state="READY";P.stale=false
+local function actions(status,clean,restore,id)
+ local a,b=P.rowActions({id or "1","Universe 1","1","1 MB",status});assert(a==clean and b==restore,status)
+end
+actions("In use; Restore point recorded",true,true)
+actions("In use; Restore point recorded; Protected",false,false)
+actions("Needs attention; Restore point recorded; Protected",false,false)
+actions("In use; No cleanup needed; Restore point recorded",false,true)
+actions("In use",true,false);actions("Possibly unused",false,false)
+actions("Possibly unused; Restore point recorded",false,true)
+actions("In use; backup",true,false);actions("Unknown; Restore point recorded",false,false)
+actions("In use; Restore point recorded",false,false,"0")
+actions("In use; Restore point recorded",false,false,"invalid")
+P.stale=true;actions("In use; Restore point recorded",false,false);P.stale=false
+for _,state in ipairs({"SCANNING","STALE","ERROR","UNAVAILABLE","CANCELLED"}) do P.state=state;actions("In use; Restore point recorded",false,false) end
+P.state="READY";P.mutating=true;actions("In use; Restore point recorded",false,false);P.mutating=false
+P.rows={{"1","Universe 1","1","1 MB","In use; Restore point recorded; Protected"},{"2","Universe 2","1","1 MB","In use; Restore point recorded"}}
+P.render();local data=renderTables[3]
+assert(data.rows[1].properties.bgColor.a==98 and data.rows[2].properties.bgColor.a==92 and data.rows[3].properties.bgColor.a==92)
+assert(data.rows[2].properties.bgColor.r~=data.rows[3].properties.bgColor.r)
+assert(data.rows[2].rowdata==true and data.properties.highlightMode==nil)
+assert(data.rows[2][5].properties.bgColor==nil and data.rows[2][5].properties.highlightColor==nil)
+assert(data.rows[2][5].properties.active==false and data.rows[2][6].properties.active==false)
+assert(data.rows[3][5].properties.active==true and data.rows[3][6].properties.active==true)
+for _,row in ipairs(renderTables[5].rows) do assert(row.properties.bgColor==nil) end
+for _,tab in ipairs({renderTables[3],renderTables[5]}) do for _,row in ipairs(tab.rows) do for _,c in ipairs(row) do if c.textProperties then assert(c.textProperties.fontsize==10) end end end end
+P.rows=oldRows;P.state=oldState;P.stale=oldStale;P.testMode=false
+''')
     ten = frame(client, int(vm.run('return tostring(P.seq)', True)), rows=[[str(i), f'Universe {i}', '1', '1.25 GB', 'In use'] for i in range(1, 11)])
     vm.run('assert(#P.parse(' + literal(ten) + ',P.pending).rows==10);local e={gen=P.gen,seq=P.seq,page=0,verb="DETAIL"};assert(P.parse(' + literal(ten) + ',e)==nil)')
     refresh_seq = int(vm.run('return tostring(P.seq)', True))
@@ -240,7 +270,7 @@ s.ingest([row(1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:u,p
         native_vm.run('assert(P.protected==true and P.selected==1);P.back()')
         await_ready('LIST')
         assert json.loads(settings_file.read_text())['protectedUniverses'] == [universe]
-        native_vm.run('assert(P.rows[1][5]=="Protected");P.close(false)')
+        native_vm.run('assert(P.rows[1][5]=="In use; Protected");P.close(false)')
         assert all(hashlib.sha256(p.read_bytes()).hexdigest() == digest for p, digest in hashes.items())
         print('PASS: real Node service -> native reader -> Lua preview; local gzip root/details/protection persisted; save and SQLite bytes unchanged')
         service.stdin.write(b'STOP\n');service.stdin.flush();service.stdin.close();service.wait(timeout=15)
@@ -272,7 +302,7 @@ await createMenuTest(root,{saveFiles:[save],profileFiles:[db]});
         await_ready('RESULT')
         native_vm.run('assert(P.rows[2][2]=="Cleanup completed");P.back()')
         await_ready('LIST')
-        native_vm.run('assert(P.rows[1][5]:find("backup",1,true));P.review("1",true)')
+        native_vm.run('assert(P.rows[1][5]:find("Restore point recorded",1,true));P.review("1",true)')
         await_ready('CONFIRM')
         native_vm.run('P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Confirm restoration" and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked)')
         await_ready('RESULT')

@@ -17,15 +17,22 @@ export function previewModel(result, settings) {
     const id = String(i + 1), label = d.universe ? 'Universe ' + id : 'Unknown database', saves = inventory.saves.filter(s => s.root?.universe === d.universe);
     const pinned = settings.protectedUniverses.includes(d.universe);
     const uncertain = !d.universe || !inventory.complete || inventory.unknowns.some(u => !u.universe || u.universe === d.universe);
-    const status = pinned ? 'Protected' : d.status !== 'PREVIEW_ONLY' || uncertain ? 'Needs attention' : saves.length ? 'In use' : 'Possibly unused';
+    // Usage, protection and recorded restore points are independent facts.
+    // A recorded point is fully verified by the existing Restore review, not by
+    // this inventory's lastBackup pointer. Do not label it verified/available.
+    const usage = d.status !== 'PREVIEW_ONLY' || uncertain ? 'Needs attention' : saves.length ? 'In use' : 'Possibly unused';
+    const status = [usage, pinned && 'Protected', result.mode === 'ISOLATED_MENU_TEST' && d.status === 'PREVIEW_ONLY' && !uncertain && d.candidates?.records === 0 && 'No cleanup needed', d.hasBackup && 'Restore point recorded'].filter(Boolean).join('; ');
     list.push([id, label, uncertain ? `${saves.length} known; Unknown` : String(saves.length), displaySize(d.bytes), status]);
     ids.push(d.universe || null);
     const rows = [['INFO','Universe',label,status,''],['INFO','Protection',!d.universe ? 'Unknown' : pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',displaySize(d.bytes),'Current file size','']];
+    if (result.mode === 'ISOLATED_MENU_TEST') rows.push(['INFO','Restore point',d.hasBackup ? 'Recorded' : 'None recorded',d.hasBackup ? 'Checked when Restore is selected' : 'Created before maintenance','']);
     for (const s of saves) rows.push(['SAVE','File modified (UTC)',s.name,s.modifiedUtc || 'Unknown',s.source]);
     if (!saves.length) rows.push(['SAVE','Local saves',uncertain ? 'Unknown' : 'No matching saves','','Selected local folders only']);
     const retained = (d.retained || []).reduce((n,r) => n + r.through,0);
-    rows.push(['KEEP','History needed by your saves','Raw record prefix count', d.status === 'BLOCKED' || pinned ? 'Unknown' : number(retained),'Ancestor history included']);
-    for (const key of ['records','profiles','events','sessions']) rows.push(['TAIL','Potentially removable history',key, d.candidates ? number(d.candidates[key]) : 'Unknown','Categories overlap; do not sum']);
+    rows.push(['KEEP','History needed by your saves','History records', d.status === 'BLOCKED' || pinned ? 'Unknown' : number(retained),'']);
+    // Raw history records are the one player-facing count. Projections and
+    // sessions overlap those records; never sum or present them as extra history.
+    rows.push(['TAIL','Potentially removable history','History records', d.candidates ? number(d.candidates.records) : 'Unknown','']);
     for (const b of [...(d.blocks || []),...inventory.unknowns.filter(u=>!u.universe || u.universe===d.universe).map(u=>u.code),...result.unknowns.filter(u=>!u.universe || u.universe===d.universe).map(u=>u.code)]) rows.push(['PROBLEM','Problems requiring attention',problem(b),'','']);
     details.push(rows);
   }
@@ -44,9 +51,10 @@ export function applyProtection(base, settings) {
     details: base.details.map(rows => rows.map(row => [...row])) };
   for (const [i,id] of base.ids.entries()) {
     if (!id || !settings.protectedUniverses.includes(id)) continue;
-    model.list[i][4] = 'Protected';
+    const protectedStatus = base.list[i][4].split('; ').includes('Protected') ? base.list[i][4] : base.list[i][4] + '; Protected';
+    model.list[i][4] = protectedStatus;
     for (const row of model.details[i]) {
-      if (row[0] === 'INFO' && row[1] === 'Universe') row[3] = 'Protected';
+      if (row[0] === 'INFO' && row[1] === 'Universe') row[3] = protectedStatus;
       if (row[0] === 'INFO' && row[1] === 'Protection') row[2] = 'Protected';
       if (row[0] === 'KEEP') row[3] = 'Unknown';
       if (row[0] === 'TAIL') row[3] = '0';
