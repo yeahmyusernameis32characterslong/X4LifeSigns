@@ -10,7 +10,7 @@ import {inspectProfileDatabase} from './profile-inventory.mjs';
 import {retentionPreview} from './retention-plan.mjs';
 import {readMenuSettings} from './preview-settings.mjs';
 import {maintenanceHandles} from './maintenance-handles.mjs';
-import {productionRoot,rootLease,openDatabase,validateProduction,updateCatalog,fileHash,readJson,writeJson,digest,fail,retainedDigest,contentDigest,migrateProduction} from './production-contract.mjs';
+import {productionRoot,rootLease,openDatabase,validateProduction,updateCatalog,fileHash,readJson,writeJson,digest,fail,retainedDigest,contentDigest,migrateProduction,replayDigest} from './production-contract.mjs';
 import {universeId} from './profile-schema.mjs';
 function syncCreatedFile(file){const fd=fs.openSync(file,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
 
@@ -49,7 +49,7 @@ export async function makeBackup(c,id,e,file,onProgress){
   syncCreatedFile(target);if(fileHash(file)!==beforeHash)fail('BACKUP_SOURCE_CHANGED');
   writeJson(path.join(dir,'receipt.json'),{id:backupId,rootId:c.registration.id,universe:id,entry:e,sourceHash:beforeHash,hash:fileHash(target),contentDigest:rows});receipt(c,id,backupId);return backupId;
 }
-export function listRestorePoints(c,id){
+export function listRestorePoints(c,id,{hashes=false}={}){
   paths(c,id);const parent=path.join(c.directory,'backups');if(!fs.existsSync(parent))return [];
   const points=[];
   for(const name of fs.readdirSync(parent).sort()){
@@ -58,7 +58,7 @@ export function listRestorePoints(c,id){
     const r=readJson(info);if(r.rootId!==c.registration.id||r.id!==name)fail('INVALID_BACKUP_RECEIPT');
     if(r.universe!==id)continue;const file=path.join(dir,'history.db');
     if(!fs.existsSync(file))fail('BACKUP_MISSING');checkSidecars(file);
-    points.push({id:name,file,receipt:info,bytes:checkPath(file).size+checkPath(info).size,modified:fs.statSync(info).mtime.toISOString()});
+    points.push({id:name,file,receipt:info,bytes:checkPath(file).size+checkPath(info).size,modified:fs.statSync(info).mtime.toISOString(),...(hashes?{hash:fileHash(file),receiptHash:fileHash(info)}:{})});
   }
   return points;
 }
@@ -93,8 +93,8 @@ export async function reviewProduction(root,id,kind,{nativeSaveDirectory=null,ba
       if(kind==='CLEAN'&&(result.status!=='PREVIEW_ONLY'||!result.roots.length||!result.candidates?.records))fail('NO_SAFE_HISTORY_TO_PRUNE');
       if(kind==='COMPACT'&&(e.version!==2||result.status!=='PREVIEW_ONLY'||!result.roots.length||result.candidates?.records!==0))fail('CLEAN_SAVED_HISTORY_BEFORE_COMPACTION');
       if(kind==='RESTORE'&&(!(backupId||e.lastBackup)||fileHash(p.file)!==e.committedHash))fail('NEW_HISTORY_OR_NO_RESTORE_POINT');
-      const r=kind==='RESTORE'?receipt(c,id,backupId||e.lastBackup):null,db=openDatabase(p.file);let retainedHash;try{retainedHash=retainedDigest(db,result.retained);}finally{db.close();}
-      plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),scopeDigest:s.scopeDigest,inputs:s.inputs,retained:result.retained,retainedHash,candidates:result.candidates,backup:backupId||e.lastBackup,restoreDigest:r?.contentDigest};
+      const r=kind==='RESTORE'?receipt(c,id,backupId||e.lastBackup):null,db=openDatabase(p.file);let retainedHash,replayHash;try{retainedHash=retainedDigest(db,result.retained);if(kind==='COMPACT')replayHash=replayDigest(db);}finally{db.close();}
+      plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),scopeDigest:s.scopeDigest,inputs:s.inputs,retained:result.retained,retainedHash,replayHash,candidates:result.candidates,backup:backupId||e.lastBackup,restoreDigest:r?.contentDigest};
     }
     plan={...plan,rootId:c.registration.id,nativeSaveDirectory,settingsDigest:settings.digest,created:Date.now()};const token=digest(plan);writeJson(p.plan,{token,plan});
     const rows=[['CONFIRM','Universe history',id,'',''],['CONFIRM',plan.kind==='CLEAN'?'Keep / remove history records':plan.kind==='RECOVER'?'Recover interrupted operation':'Restore selected universe',plan.kind==='CLEAN'?`${plan.retained.reduce((n,r)=>n+r.through,0)} / ${plan.candidates.records}`:'Verified pre-maintenance history','Selected universe only',''],['CONFIRM','Scope',plan.kind==='CLEAN'?'Back up, then clean this database':'Preserve current state, restore backup','Other universes and saves unchanged','Backups retained; no compaction']];
@@ -140,7 +140,7 @@ export async function executeProduction(root,confirmation,{onProgress=()=>{},onP
       onPhase('STAGING_TRANSACTION',db);db.exec('COMMIT');if(plan.kind==='COMPACT'){onProgress('Reclaiming database space');db.exec('VACUUM');onPhase('COMPACTED',db);}
     }catch(error){if(db.isTransaction)db.exec('ROLLBACK');throw error;}finally{db.close();db=null;}
     syncCreatedFile(stage);const next={phase:'READY',version:2,generation:nextGeneration,operation,lastBackup:['CLEAN','COMPACT'].includes(plan.kind)?beforeBackup:plan.backup,committedHash:fileHash(stage)};
-    const verify=openDatabase(stage);try{validateProduction(verify,id,c.registration.id,next);if(plan.kind==='CLEAN'&&retainedDigest(verify,plan.retained)!==plan.retainedHash)fail('STAGE_RETAINED_MISMATCH');if(plan.kind!=='CLEAN'&&contentDigest(verify)!==(plan.kind==='COMPACT'?r.contentDigest:plan.restoreDigest))fail('STAGE_RESTORE_MISMATCH');}finally{verify.close();}
+    const verify=openDatabase(stage);try{validateProduction(verify,id,c.registration.id,next);if(plan.kind==='CLEAN'&&retainedDigest(verify,plan.retained)!==plan.retainedHash)fail('STAGE_RETAINED_MISMATCH');if(plan.kind==='COMPACT'&&replayDigest(verify)!==plan.replayHash)fail('STAGE_REPLAY_SEALS_CHANGED');if(plan.kind!=='CLEAN'&&contentDigest(verify)!==(plan.kind==='COMPACT'?r.contentDigest:plan.restoreDigest))fail('STAGE_RESTORE_MISMATCH');}finally{verify.close();}
     onPhase('STAGE_VERIFIED');if(plan.inputs)unchangedScope(settings,plan.inputs);
     checkSidecars(p.file);if(readMenuSettings(c.directory,nativeSaveDirectory).digest!==plan.settingsDigest||fileHash(p.file)!==plan.dbHash)fail('INPUTS_CHANGED_BEFORE_INSTALL');
     // Both inode handles deny writes; FILE_SHARE_DELETE allows atomic replacement.
@@ -149,6 +149,7 @@ export async function executeProduction(root,confirmation,{onProgress=()=>{},onP
     guard.assert();await guard.install(stage,p.file);onPhase('INSTALLED');
     if(fileHash(p.file)!==next.committedHash)fail('INSTALLED_HASH_CHANGED');
     setEntry(c,id,next);onPhase('REGISTERED');onProgress('Verified');
-    return {backupId:beforeBackup,rows:[['RESULT','Universe history',id,'Verified',''],['RESULT',plan.kind==='COMPACT'?'Compaction completed':plan.kind==='CLEAN'?'Cleanup completed':plan.kind==='RECOVER'?'Recovery completed':'Restoration completed',plan.kind==='COMPACT'?`${Math.max(0,beforeBytes-checkPath(p.file).size)} database bytes freed`:plan.kind==='CLEAN'?`${plan.candidates.records} history records removed`:'Verified previous history restored','Selected universe only',''],['RESULT','Restore point retained',plan.kind==='COMPACT'?`${checkPath(receipt(c,id,beforeBackup).file).size} backup bytes retained`:'Database history backup','Saves and other universes unchanged','Refresh for current counts']]};
+    const databaseByteReduction=beforeBytes-checkPath(p.file).size,backupDirectory=path.join(c.directory,'backups',beforeBackup),backupBytes=checkPath(path.join(backupDirectory,'history.db')).size+checkPath(path.join(backupDirectory,'receipt.json')).size;
+    return {backupId:beforeBackup,databaseByteReduction,backupBytes,netFileByteReduction:databaseByteReduction-backupBytes,rows:[['RESULT','Universe history',id,'Verified',''],['RESULT',plan.kind==='COMPACT'?'Compaction completed':plan.kind==='CLEAN'?'Cleanup completed':plan.kind==='RECOVER'?'Recovery completed':'Restoration completed',plan.kind==='COMPACT'?`${databaseByteReduction} database byte reduction`:plan.kind==='CLEAN'?`${plan.candidates.records} history records removed`:'Verified previous history restored','Selected universe only',''],['RESULT','Restore point retained',plan.kind==='COMPACT'?`${backupBytes} new backup bytes retained`:'Database history backup',plan.kind==='COMPACT'?`${databaseByteReduction-backupBytes} net file-byte reduction`:'Saves and other universes unchanged','Refresh for current counts']]};
   }finally{db?.close();await guard?.close();lock.close();}
 }

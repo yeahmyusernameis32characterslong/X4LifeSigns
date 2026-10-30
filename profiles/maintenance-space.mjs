@@ -30,11 +30,11 @@ export async function reviewSpace(root,id,kind,{nativeSaveDirectory=null,backupI
       if(kind==='DELETEUNIVERSE'){
         const s=await scope(c,settings),result=retentionPreview(snapshot(c,id),s.inventory.roots,{complete:s.inventory.complete,unknowns:s.inventory.unknowns});
         if(result.status!=='PREVIEW_ONLY'||result.roots.length||result.candidates?.kind!=='ORPHAN_UNIVERSE')fail('NOT_A_VERIFIED_ORPHAN');
-        const points=restorePoints(c,id);for(const point of points)receipt(c,id,point.id);
+        const points=restorePoints(c,id,{hashes:true});for(const point of points)receipt(c,id,point.id);
         plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),scopeDigest:s.scopeDigest,inputs:s.inputs,points};
-        rows=[['CONFIRM','Delete orphan universe',id,'No matching saves were found in your configured save locations.','Database and ALL its maintenance restore points'],['CONFIRM','Permanent deletion',"Permanently delete this universe's Life Signs history?",'Saves stored elsewhere may still need it.','This does not delete X4 save files.'],['CONFIRM','Selected file space',String(checkPath(p.file).size)+' database bytes',String(points.reduce((n,p)=>n+p.bytes,0))+' restore-point bytes','Minimal retirement metadata is retained']];
+        rows=[['CONFIRM','Delete orphan universe',id,'No matching saves were found in your configured save locations.','Database and ALL its restore points, including the fresh safety copy'],['CONFIRM','Permanent deletion',"Permanently delete this universe's Life Signs history?",'Saves stored elsewhere may still need it.','This does not delete X4 save files.'],['CONFIRM','Selected file space',String(checkPath(p.file).size)+' database bytes',String(points.reduce((n,p)=>n+p.bytes,0))+' restore-point bytes','Minimal retirement metadata is retained']];
       }else if(kind==='BACKUPDELETE'){
-        const point=restorePoints(c,id).find(p=>p.id===backupId);if(!point)fail('UNKNOWN_RESTORE_POINT');receipt(c,id,point.id);
+        const point=restorePoints(c,id,{hashes:true}).find(p=>p.id===backupId);if(!point)fail('UNKNOWN_RESTORE_POINT');receipt(c,id,point.id);
         plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),point};
         rows=[['CONFIRM','Delete restore point',backupId,String(point.bytes)+' file bytes','Selected restore point only'],['CONFIRM','Restoration option lost','This backup can no longer restore its earlier history.','Current database and saves are unchanged.',e.lastBackup===backupId?'The current Restore option will be removed.':'Other restore points are retained.']];
       }else fail('INVALID_SPACE_ACTION');
@@ -65,18 +65,20 @@ export async function executeSpace(root,confirmation,{nativeSaveDirectory=null,o
       if(Object.values(c.catalog.universes).some(e=>!['READY','RETIRED'].includes(e.phase)))fail('RECOVERY_REQUIRED');
       if(plan.kind==='DELETEUNIVERSE')unchangedScope(settings,plan.inputs);
       guard=await handles([p.file,...(plan.inputs||[]).map(i=>i.file)]);
-      let points=plan.kind==='DELETEUNIVERSE'?restorePoints(c,id):[restorePoints(c,id).find(p=>p.id===plan.point.id)];
+      let points=plan.kind==='DELETEUNIVERSE'?restorePoints(c,id,{hashes:true}):[restorePoints(c,id,{hashes:true}).find(p=>p.id===plan.point.id)];
       if(points.some(p=>!p)||digest(points)!==digest(plan.kind==='DELETEUNIVERSE'?plan.points:[plan.point]))fail('RESTORE_POINTS_CHANGED');
-      for(const point of points)receipt(c,id,point.id);
+      for(const point of points)receipt(c,id,point.id);const originalPoints=points;
       if(plan.kind==='DELETEUNIVERSE'){
         // Verify a fresh backup before the first unlink. Permanent confirmation
         // explicitly includes its removal, after the database has been removed.
         const space=fs.statfsSync(c.directory);if(space.bavail*space.bsize<checkPath(p.file).size+32*1024**2)fail('INSUFFICIENT_BACKUP_SPACE');
-        const backupId=await makeBackup(c,id,e,p.file,onProgress);points=restorePoints(c,id);if(!points.some(p=>p.id===backupId))fail('DELETE_BACKUP_NOT_VERIFIED');
+        const backupId=await makeBackup(c,id,e,p.file,onProgress);points=restorePoints(c,id,{hashes:true});if(points.length!==originalPoints.length+1||!points.some(p=>p.id===backupId)||points.some(p=>p.id!==backupId&&!originalPoints.some(o=>o.id===p.id)))fail('DELETE_BACKUP_SET_CHANGED');
       }
       const targets=[...(plan.kind==='DELETEUNIVERSE'?[p.file]:[]),...points.flatMap(p=>[p.file,p.receipt])];
       await guard.add(targets.filter(t=>t!==p.file),true);
-      for(const point of points)receipt(c,id,point.id);guard.assert();if(fileHash(p.file)!==plan.dbHash)fail('TARGET_CHANGED');if(plan.inputs)unchangedScope(settings,plan.inputs);
+      for(const point of points)receipt(c,id,point.id);
+      for(const point of originalPoints)if(fileHash(point.file)!==point.hash||fileHash(point.receipt)!==point.receiptHash)fail('RESTORE_POINT_CHANGED_AFTER_REVIEW');
+      guard.assert();if(fileHash(p.file)!==plan.dbHash)fail('TARGET_CHANGED');if(plan.inputs)unchangedScope(settings,plan.inputs);
       job={rootId:c.registration.id,universe:id,kind:plan.kind,operation:randomUUID(),before:e,retired:plan.kind==='DELETEUNIVERSE',backups:points.map(p=>p.id),targets:targets.map(file=>({file,hash:fileHash(file),bytes:checkPath(file).size})),freeBefore};
       job.digest=digest(job.targets);deletionTargets(c,job);writeJson(journal(c,job.operation),job);onPhase('DELETE_JOURNALED');
       setEntry(c,id,{...e,phase:'DELETE_PENDING',operation:job.operation,retired:job.retired,deleteDigest:digest(job)});onPhase('DELETE_PREPARED');

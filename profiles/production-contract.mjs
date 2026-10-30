@@ -79,6 +79,7 @@ export function migrateProduction(db,rootId,generation,operation){
   else db.prepare('UPDATE housekeeping_meta SET generation=?,operation=? WHERE singleton=1').run(generation,operation);
 }
 export function contentDigest(db){const h=createHash('sha256');for(const t of tables.slice(0,5)){h.update(t+'\n');for(const r of db.prepare(`SELECT * FROM ${t} ORDER BY 1,2`).iterate())h.update(JSON.stringify(r)+'\n');}return h.digest('hex');}
+export function replayDigest(db){const h=createHash('sha256');for(const r of db.prepare('SELECT * FROM housekeeping_seals ORDER BY run_id').iterate())h.update(JSON.stringify(r)+'\n');return h.digest('hex');}
 export function retainedDigest(db,retained){const h=createHash('sha256');for(const r of retained){h.update(JSON.stringify(r));h.update(JSON.stringify(db.prepare('SELECT * FROM sessions WHERE run_id=?').get(r.run)));for(const t of ['records','profile_versions','events']){h.update(t);for(const v of db.prepare(`SELECT * FROM ${t} WHERE run_id=? AND record_id<=? ORDER BY record_id`).iterate(r.run,r.through))h.update(JSON.stringify(v)+'\n');}}return h.digest('hex');}
 export function registerProduction(root,anchor){
   root=path.resolve(root);checkPath(root,{directory:true});checkPath(path.dirname(anchor),{directory:true});checkPath(anchor,{missing:true});if(registered(root)||fs.existsSync(anchor))fail('ALREADY_REGISTERED');
