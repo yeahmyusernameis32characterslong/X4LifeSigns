@@ -67,3 +67,26 @@ production behaviour change.
 Publish PROJECTS_HOUSEKEEPING_CODEX_REPORT.md, update shared STATUS/EVIDENCE after
 rereading remote state, verify remote readback and return to AGENT. Report actual
 cleaning results, not an arbitrary target number of files.
+
+
+## Local audit checkpoint - 30 October 2026
+
+The initial read-only inventory counted 59,256 regular files, 14,850 directories
+and 41 junctions beneath the owner's selected projects root, totalling
+46,975,855,030 logical file bytes. Links were not followed. The local audit-output
+folder was excluded from these counts to avoid counting the inventory itself.
+This is an observation, not a target count or a claim of recoverable disk space.
+
+Most file count is in development research/test storage; most bytes are in
+retained save, database, deployment and test-evidence copies. Those categories
+must not be swept away because their associated feature PR has merged.
+
+PRs 21-24 were independently confirmed merged; PR25 remains open. Their local
+checkouts still require per-checkout checks of ignored files, references and
+consumers before removal. The detached integration checkout also has two local
+merge commits absent from remote refs, so its history must acquire a retained
+reference before it can be retired. Active PR25 checkouts, local editor changes,
+installed service paths and restoration assets remain protected.
+
+This checkpoint records inventory and Git/API verification only. Completed
+cleanup and preservation results will be recorded separately after execution.
