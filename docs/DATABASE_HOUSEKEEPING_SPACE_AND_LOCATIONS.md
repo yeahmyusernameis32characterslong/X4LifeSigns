@@ -106,6 +106,11 @@ confirmation. An immutable hash-bound journal and permanent retirement state
 prevent target guessing and replay resurrection. Unknown changes refuse.
 Nothing permanently deletes merely by launching, scanning or changing folders.
 
+Displayed save/restore-point timestamps use UTC, formatted as
+`DD-MMM-YYYY HH:MM:SS.sss` (or without milliseconds when absent from the source).
+The space permits wrapping between date and time. Stored ISO timestamps,
+receipts and confirmation comparisons are unchanged.
+
 Sizes use MB/GB. Free database pages are an estimate, not a disk guarantee;
 SQLite can also compact partly filled pages. Removal results distinguish selected
 file bytes from observed volume-free-space change, which other activity can affect.

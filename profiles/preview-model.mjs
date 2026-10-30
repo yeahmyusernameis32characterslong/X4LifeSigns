@@ -1,5 +1,16 @@
 const number = x => Number.isSafeInteger(x) && x >= 0 ? String(x) : 'Unknown';
 const problem = x => x==='SAVE_SCOPE_TOO_BROAD'?'Folder entry safety limit reached':x==='LINKED_SAVE_SUBFOLDER'?'Linked folder or file found; scan cannot follow links':String(x).toLowerCase().replaceAll('_', ' ');
+// UTC presentation only. Receipts, comparison inputs and confirmation plans
+// retain their original ISO timestamps and precision.
+export function displayTimestamp(value) {
+  const m = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z$/.exec(value);
+  if (!m) return 'Unknown';
+  const canonical = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}.${m[7] ?? '000'}Z`;
+  const time = Date.parse(canonical);
+  if (!Number.isFinite(time) || new Date(time).toISOString() !== canonical) return 'Unknown';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${m[3]}-${months[Number(m[2])-1]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}${m[7] === undefined ? '' : '.'+m[7]}`;
+}
 // Worker codes remain diagnostic data; never display arbitrary exception text or paths.
 export function actionProblem(code) {
   const messages = {
@@ -42,7 +53,7 @@ export function previewModel(result, settings) {
     const rows = [['INFO','Universe',label,status,''],['INFO','Protection',!d.universe ? 'Unknown' : pinned ? 'Protected' : 'Not protected','Whole universe',''],['INFO','Database size',displaySize(d.bytes),'Current file size','']];
     if (['ISOLATED_MENU_TEST','PRODUCTION_MENU'].includes(result.mode)) rows.push(['INFO','Restore point',d.hasBackup ? 'Recorded' : 'None recorded',d.hasBackup ? 'Checked when Restore is selected' : 'Created before maintenance','']);
     if(result.mode==='PRODUCTION_MENU'){rows.push(['INFO','Restore-point space',displaySize(d.backupBytes),'Separate backup files','']);rows.push(['INFO','Compaction estimate',displaySize(d.compactEstimate),'Free database pages','Actual space is measured after compaction']);}
-    for (const s of saves) rows.push(['SAVE','File modified (UTC)',s.name,s.modifiedUtc || 'Unknown',s.source]);
+    for (const s of saves) rows.push(['SAVE','File modified (UTC)',s.name,displayTimestamp(s.modifiedUtc),s.source]);
     if (!saves.length) rows.push(['SAVE','Local saves',uncertain ? 'Unknown' : 'No matching saves','','Selected local folders only']);
     const retained = (d.retained || []).reduce((n,r) => n + r.through,0);
     rows.push(['KEEP','History needed by your saves','History records', d.status === 'BLOCKED' || pinned ? 'Unknown' : number(retained),'']);

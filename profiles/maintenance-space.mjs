@@ -7,12 +7,12 @@ import {readMenuSettings} from './preview-settings.mjs';
 import {productionRoot,rootLease,fileHash,readJson,writeJson,digest,fail} from './production-contract.mjs';
 import {paths,scope,snapshot,receipt,setEntry,makeBackup,unchangedScope,listRestorePoints} from './maintenance-production.mjs';
 import {retentionPreview} from './retention-plan.mjs';
-import {displaySize} from './preview-model.mjs';
+import {displaySize,displayTimestamp} from './preview-model.mjs';
 import {maintenanceHandles} from './maintenance-handles.mjs';
 
 export const restorePoints=listRestorePoints;
 const uuid=x=>typeof x==='string'&&/^[a-f0-9-]{36}$/.test(x);
-export function backupRows(root,id){const c=productionRoot(root);return restorePoints(c,id).map(p=>[p.id,'Restore point',p.modified,displaySize(p.bytes),c.catalog.universes[id].lastBackup===p.id?'Current restore point':'Earlier restore point']);}
+export function backupRows(root,id){const c=productionRoot(root);return restorePoints(c,id).map(p=>[p.id,'Restore point',displayTimestamp(p.modified),displaySize(p.bytes),c.catalog.universes[id].lastBackup===p.id?'Current restore point':'Earlier restore point']);}
 function planFile(c,id){return path.join(c.directory,'space-plan-'+digest(id)+'.json');}
 function journal(c,operation){if(!uuid(operation))fail('INVALID_DELETE_OPERATION');return path.join(c.directory,'delete-'+operation+'.json');}
 function readJob(c,e){const job=readJson(journal(c,e.operation));if(digest(job)!==e.deleteDigest||job.rootId!==c.registration.id||job.operation!==e.operation||job.universe===undefined||job.digest!==digest(job.targets)||!['BACKUPDELETE','DELETEUNIVERSE'].includes(job.kind))fail('DELETE_JOURNAL_CHANGED');return job;}
@@ -37,7 +37,7 @@ export async function reviewSpace(root,id,kind,{nativeSaveDirectory=null,backupI
       }else if(kind==='BACKUPDELETE'){
         const point=restorePoints(c,id,{hashes:true}).find(p=>p.id===backupId);if(!point)fail('UNKNOWN_RESTORE_POINT');receipt(c,id,point.id);
         plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),point};
-        rows=[['CONFIRM','Delete restore point',point.modified,displaySize(point.bytes),backupId],['CONFIRM','Restoration option lost','This backup can no longer restore its earlier history.','Current database and saves are unchanged.',e.lastBackup===backupId?'The current Restore option will be removed.':'Other restore points are retained.']];
+        rows=[['CONFIRM','Delete restore point (UTC)',displayTimestamp(point.modified),displaySize(point.bytes),backupId],['CONFIRM','Restoration option lost','This backup can no longer restore its earlier history.','Current database and saves are unchanged.',e.lastBackup===backupId?'The current Restore option will be removed.':'Other restore points are retained.']];
       }else fail('INVALID_SPACE_ACTION');
     }
     plan={...plan,rootId:c.registration.id,nativeSaveDirectory,settingsDigest:settings.digest,created:Date.now()};const token=digest(plan);writeJson(planFile(c,id),{token,plan});return {token,plan,rows};

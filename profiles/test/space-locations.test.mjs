@@ -1,7 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {gzipSync} from 'node:zlib';
 import {ProfileStore} from '../store.mjs';import {ProfileConsumer} from '../service.mjs';import {escapeValue} from '../../recorder/log-format.mjs';
 import {registerProduction,productionRoot,fileHash,contentDigest,readJson,writeJson,digest,openDatabase} from '../production-contract.mjs';
-import {reviewProduction,executeProduction,scanProduction,filesInScope} from '../maintenance-production.mjs';import {reviewSpace,executeSpace,restorePoints} from '../maintenance-space.mjs';
+import {reviewProduction,executeProduction,scanProduction,filesInScope} from '../maintenance-production.mjs';import {reviewSpace,executeSpace,restorePoints,backupRows} from '../maintenance-space.mjs';
+import {displayTimestamp} from '../preview-model.mjs';
 import {readMenuSettings,changeLocation,setProtection,SETTINGS_NAME} from '../preview-settings.mjs';
 import {PreviewService} from '../preview-service.mjs';import {parsePreviewRequest} from '../preview-protocol.mjs';import {EventEmitter} from 'node:events';
 import {fork} from 'node:child_process';import {once} from 'node:events';
@@ -63,7 +64,11 @@ test('compaction refuses unclean history; interruption in staging preserves acti
 });
 test('selected restore-point deletion retains current history and peers and clears only the selected current pointer',async t=>{
  const f=await fixture(t);await clean(f);const p=await reviewProduction(f.root,U,'COMPACT',options(f));await executeProduction(f.root,p,options(f));const c=productionRoot(f.root),points=restorePoints(c,U),old=points.find(p=>p.id!==c.catalog.universes[U].lastBackup),active=fileHash(f.file),peer=fileHash(f.peer);
- await executeSpace(f.root,await reviewSpace(f.root,U,'BACKUPDELETE',{...options(f),backupId:old.id}),options(f));assert(!fs.existsSync(old.file));assert.equal(restorePoints(productionRoot(f.root),U).length,1);assert.equal(fileHash(f.file),active);assert.equal(fileHash(f.peer),peer);
+ const receiptBefore=fileHash(old.receipt),listed=backupRows(f.root,U).find(row=>row[0]===old.id);
+ assert.equal(listed[2],displayTimestamp(old.modified));assert.equal(fileHash(old.receipt),receiptBefore);
+ const deletion=await reviewSpace(f.root,U,'BACKUPDELETE',{...options(f),backupId:old.id});
+ assert.equal(deletion.plan.point.modified,old.modified);assert.equal(deletion.rows[0][2],displayTimestamp(old.modified));assert.equal(fileHash(old.receipt),receiptBefore);
+ await executeSpace(f.root,deletion,options(f));assert(!fs.existsSync(old.file));assert.equal(restorePoints(productionRoot(f.root),U).length,1);assert.equal(fileHash(f.file),active);assert.equal(fileHash(f.peer),peer);
  const current=productionRoot(f.root).catalog.universes[U].lastBackup;await executeSpace(f.root,await reviewSpace(f.root,U,'BACKUPDELETE',{...options(f),backupId:current}),options(f));assert.equal(productionRoot(f.root).catalog.universes[U].lastBackup,null);assert.equal(fileHash(f.file),active);
 });
 test('interrupted backup unlink requires explicit known-target resumption and preserves history',async t=>{

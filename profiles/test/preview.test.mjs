@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
 import { PreviewService } from '../preview-service.mjs';
 import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply,scanProgressRows } from '../preview-protocol.mjs';
-import { previewModel,displaySize,applyProtection,actionProblem } from '../preview-model.mjs';
+import { previewModel,displaySize,displayTimestamp,applyProtection,actionProblem } from '../preview-model.mjs';
 import { readSettings,setProtection,validateSettings,SETTINGS_NAME } from '../preview-settings.mjs';
 import { ProfileStore } from '../store.mjs';
 import { startService } from '../service.mjs';
@@ -28,6 +28,16 @@ function fake(t) {
  t.after(()=>service.stop());return {...f,service,children,clock:x=>clock=x,text:()=>fs.readFileSync(path.join(f.replies,PREVIEW_REPLY+'.reply'),'utf8')};
 }
 const model={list:[['1','Universe 1','1','12 bytes','In use']],details:[[['KEEP','History needed by your saves','records','7','']]],ids:[U],locations:[],issues:[]};
+test('UTC timestamps display English months and available precision without changing source observations',()=>{
+ const source={modifiedUtc:'2026-10-30T21:23:16.108Z'};
+ assert.equal(displayTimestamp(source.modifiedUtc),'30-Oct-2026 21:23:16.108');
+ assert.equal(source.modifiedUtc,'2026-10-30T21:23:16.108Z');
+ assert.equal(displayTimestamp('2024-02-29T00:00:00.000Z'),'29-Feb-2024 00:00:00.000');
+ assert.equal(displayTimestamp('2026-01-02T03:04:05Z'),'02-Jan-2026 03:04:05');
+ for(const v of [undefined,null,'Unknown','2026-02-30T03:04:05.000Z','2026-10-30T21:23:16.108+01:00'])assert.equal(displayTimestamp(v),'Unknown');
+ const result={inventory:{complete:true,roots:[],saves:[{name:'save.xml',source:'location-1/save.xml',root:{universe:U},...source}],unknowns:[]},databases:[{universe:U,status:'PREVIEW_ONLY',retained:[],candidates:{records:0}}],unknowns:[]};
+ assert.equal(previewModel(result,settings).details[0].find(r=>r[0]==='SAVE')[3],'30-Oct-2026 21:23:16.108');
+});
 test('fixed preview request grammar rejects paths, SQL, destructive verbs and malformed fields',()=>{
  assert.equal(parsePreviewRequest(request(G,1)).verb,'REFRESH');assert.equal(parsePreviewRequest(request(G,2,'PROTECT',1,1)).enabled,true);
  for(const v of [request(G,1,'DELETE'),request(G,0),request(G,1,'DETAIL'),request(G,1,'LIST',1),request(G,1,'REFRESH',0,1),request(G,1)+' junk',request(G,1).replace('REFRESH','../path'),request(G,1).replace('|0|0|0|','|SELECT|0|0|')])assert.equal(parsePreviewRequest(v),null,v);

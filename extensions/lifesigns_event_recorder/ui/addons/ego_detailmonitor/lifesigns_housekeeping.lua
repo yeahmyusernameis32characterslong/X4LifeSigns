@@ -258,7 +258,7 @@ function P.render()
     for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Location / context"}
     if actions then headers[5]=P.productionMode and "Clean history" or "Clean test copy";headers[6]="Restore history" end
-    if backupActions then headers={"Restore point","Created","File size","Status","Restore","Delete"} end
+    if backupActions then headers={"Restore point","Created (UTC)","File size","Status","Restore","Delete"} end
     if locationActions then headers[5]="Remove" end
     r=t:addRow(false,{fixed=true,bgColor=rowHeading});for i=1,columns do r[i]:createText(headers[i],heading) end
     for index,data in ipairs(P.rows) do
