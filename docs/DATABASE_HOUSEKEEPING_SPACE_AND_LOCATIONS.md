@@ -71,6 +71,7 @@ Select a universe to reach its space controls:
   estimate, then **Confirm compaction**. Remaining rows, identities and replay seals
   are checked after staged compaction. The result separates database-byte reduction,
   newly retained backup size and net file-byte reduction, which can be negative.
+  A negative reduction means combined storage grew because a backup was kept.
   Existing restore points are not automatically deleted.
 - **Restore points...** lists individual backup dates, sizes and current/earlier
   status. A selected **Restore...** retains the existing no-silent-rewind guard.
@@ -115,3 +116,12 @@ Long universe IDs are spaced for wrapping only in display text; stored IDs and
 transport values are unchanged. The separately observed restricted online API
 warning on returning to the vanilla main menu remains a focused unresolved
 finding. No unsupported privileged-call workaround is claimed by this increment.
+
+The realistic disposable proof compacted a 993,861,632-byte cleaned database by
+49,541,120 bytes, preserving all history and replay seals. Its new backup used
+993,862,282 bytes, so net file-byte reduction was -944,321,162 until that separately
+selected backup was deleted. An explicitly selected earlier backup then restored
+the original history and seals. A 132,431,872-byte orphan copy and its restore
+points were removed, leaving a 216-byte retirement marker; peers, immutable source
+inputs and every live database stayed unchanged. This proof uses copies, not an
+owner observation of the new native X4 controls.
