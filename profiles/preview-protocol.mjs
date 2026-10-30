@@ -6,13 +6,15 @@ export const LIST_PAGE_SIZE = 10;
 export const generation = x => typeof x === 'string' && /^[0-9a-f]{32}$/.test(x);
 const integer = x => /^(0|[1-9]\d{0,8})$/.test(x);
 export function parsePreviewRequest(line) {
-  const m = /(?:^|\s)LSHK1\|([0-9a-f]{32})\|([0-9a-f]{32})\|([1-9]\d{0,8})\|(REFRESH|LIST|DETAIL|LOCATIONS|PROTECT|CANCEL|REVIEW|RESTOREREVIEW|APPLY|RESTORE)\|(0|[1-9]\d{0,8})\|(0|1)\|(0|[1-9]\d{0,8})\|END\s*$/.exec(line);
+  const extra=/(?:^|\s)LSHK2\|([0-9a-f]{32})\|([0-9a-f]{32})\|([1-9]\d{0,8})\|(ADDLOCATION|BACKUPREVIEW|BACKUPRESTOREREVIEW)\|(0|[1-9]\d{0,8})\|([a-f0-9]{2,2048})\|END\s*$/.exec(line);
+  if(extra){const[,gen,client,seq,verb,item,hex]=extra;if(line.length>2300||hex.length%2||(verb==='ADDLOCATION'?item!=='0':item==='0'))return null;const payload=Buffer.from(hex,'hex').toString('utf8');if(Buffer.from(payload).toString('hex')!==hex||/[\x00-\x1f\x7f]/.test(payload))return null;return {gen,client,seq:Number(seq),verb,item:Number(item),payload,enabled:false,page:0};}
+  const m = /(?:^|\s)LSHK1\|([0-9a-f]{32})\|([0-9a-f]{32})\|([1-9]\d{0,8})\|(REFRESH|LIST|DETAIL|LOCATIONS|PROTECT|CANCEL|REVIEW|RESTOREREVIEW|APPLY|RESTORE|REMOVELOCATION|BACKUPS|COMPACTREVIEW|COMPACT|DELETEREVIEW|DELETEUNIVERSE|BACKUPDELETE)\|(0|[1-9]\d{0,8})\|(0|1)\|(0|[1-9]\d{0,8})\|END\s*$/.exec(line);
   if (!m || line.length > 512) return null;
   const [, gen, client, seq, verb, item, enabled, page] = m;
-  const action=['REVIEW','RESTOREREVIEW','APPLY','RESTORE'].includes(verb);
+  const action=['REVIEW','RESTOREREVIEW','APPLY','RESTORE','REMOVELOCATION','BACKUPS','COMPACTREVIEW','COMPACT','DELETEREVIEW','DELETEUNIVERSE','BACKUPDELETE'].includes(verb);
   if ((verb === 'DETAIL' || verb === 'PROTECT' || action) ? item === '0' : item !== '0') return null;
-  if (['APPLY','RESTORE'].includes(verb) ? enabled!=='1' : verb !== 'PROTECT' && enabled !== '0') return null;
-  if(action&&page!=='0')return null;
+  if (['APPLY','RESTORE','COMPACT','DELETEUNIVERSE','BACKUPDELETE'].includes(verb) ? enabled!=='1' : verb !== 'PROTECT' && enabled !== '0') return null;
+  if(action&&verb!=='BACKUPS'&&page!=='0')return null;
   return { gen, client, seq: Number(seq), verb, item: Number(item), enabled: enabled === '1', page: Number(page) };
 }
 export function cell(value, maxBytes = 96) {

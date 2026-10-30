@@ -28,7 +28,7 @@ export function productionRoot(root,{expectedId=null}={}){
   }
   const text=fs.readFileSync(c.catalogFile,'utf8'),anchor=readJson(registration.anchor),catalog=JSON.parse(text);
   if(anchor.owner!==registration.owner||anchor.id!==registration.id||anchor.root!==root||anchor.catalogDigest!==digest(text)||catalog.id!==registration.id||catalog.version!==1||!catalog.universes||Object.keys(catalog.universes).length>1024)fail('PRODUCTION_ANCHOR_MISMATCH');
-  for(const [id,e] of Object.entries(catalog.universes)){universeId(id);if(!['READY','PREPARED'].includes(e.phase)||![1,2].includes(e.version)||!Number.isSafeInteger(e.generation)||e.generation<0)fail('INVALID_PRODUCTION_ENTRY');}
+  for(const [id,e] of Object.entries(catalog.universes)){universeId(id);if(!['READY','PREPARED','DELETE_PENDING','RETIRED'].includes(e.phase)||![1,2].includes(e.version)||!Number.isSafeInteger(e.generation)||e.generation<0)fail('INVALID_PRODUCTION_ENTRY');}
   return {...c,catalog};
 }
 export function updateCatalog(c,catalog){
@@ -48,7 +48,7 @@ const writers=new Map();
 export function writerLease(root){
   if(!registered(root))return null;
   root=path.resolve(root);let w=writers.get(root);
-  if(!w){const c=productionRoot(root);if(Object.values(c.catalog.universes).some(e=>e.phase!=='READY'))fail('RECOVERY_REQUIRED');w={lease:rootLease(c,'WRITER'),refs:0};writers.set(root,w);}
+  if(!w){const c=productionRoot(root);if(Object.values(c.catalog.universes).some(e=>!['READY','RETIRED'].includes(e.phase)))fail('RECOVERY_REQUIRED');w={lease:rootLease(c,'WRITER'),refs:0};writers.set(root,w);}
   w.refs++;let closed=false;return {guard(){w.lease.guard();productionRoot(root);},close(){if(closed)return;closed=true;if(--w.refs===0){w.lease.close();writers.delete(root);}}};
 }
 export function openDatabase(file,readOnly=true){

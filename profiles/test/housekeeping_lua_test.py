@@ -75,6 +75,7 @@ local function cell(row)
  function c:createText(text,properties) labels[#labels+1]=text;self.textProperties=properties;row.height=math.max(row.height,properties and properties.minRowHeight or 16);return self end
  function c:createButton(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);buttons[#buttons+1]=self;return self end
  function c:setText(text,properties) self.text=text;self.textProperties=properties;return self end
+ function c:createEditBox(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);return self end
  function c:createCheckBox(value,properties) self.check=value;self.properties=properties;row.height=math.max(row.height,19);return self end
  return c
 end

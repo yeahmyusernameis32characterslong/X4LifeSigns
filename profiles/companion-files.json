@@ -5,7 +5,7 @@
     "profiles/load-fence.mjs", "profiles/watch-x4.ps1", "profiles/preview-service.mjs",
     "profiles/preview-protocol.mjs", "profiles/preview-model.mjs", "profiles/preview-settings.mjs",
     "profiles/preview-scan-worker.mjs", "profiles/maintenance-test.mjs", "profiles/housekeeping-cli.mjs", "profiles/retention-plan.mjs",
-    "profiles/production-contract.mjs", "profiles/maintenance-production.mjs", "profiles/maintenance-handles.mjs", "profiles/maintenance-handles.ps1",
+    "profiles/production-contract.mjs", "profiles/maintenance-production.mjs", "profiles/maintenance-space.mjs", "profiles/maintenance-handles.mjs", "profiles/maintenance-handles.ps1",
     "profiles/profile-inventory.mjs", "profiles/save-inventory.mjs", "profiles/save-scan-worker.mjs",
     "profiles/inventory-path.mjs", "profiles/package.json", "profiles/package-lock.json",
     "recorder/log-format.mjs", "bridge/src/session-path.js", "bridge/src/session-key.js", "bridge/package.json",

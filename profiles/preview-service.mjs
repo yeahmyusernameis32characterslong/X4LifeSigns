@@ -5,14 +5,14 @@ import { randomUUID } from 'node:crypto';
 import { checkPath } from '../bridge/src/session-path.js';
 import { PREVIEW_HELLO, PREVIEW_REPLY, parsePreviewRequest, previewReply, scanProgressRows } from './preview-protocol.mjs';
 import { applyProtection } from './preview-model.mjs';
-import { readSettings, setProtection } from './preview-settings.mjs';
+import { readSettings, setProtection, readMenuSettings, changeLocation } from './preview-settings.mjs';
 import {TEST_REGISTRATION,testRegistration} from './maintenance-test.mjs';
-import {registered,productionRoot} from './production-contract.mjs';
+import {registered,productionRoot,rootLease} from './production-contract.mjs';
 
 export class PreviewService {
-  constructor({root,replyDirectory,launch = () => fork(new URL('./preview-scan-worker.mjs',import.meta.url),[],{stdio:['ignore','ignore','ignore','ipc'],windowsHide:true,execArgv:['--max-old-space-size=384']}),now=Date.now}) {
+  constructor({root,replyDirectory,nativeSaveDirectory=null,launch = () => fork(new URL('./preview-scan-worker.mjs',import.meta.url),[],{stdio:['ignore','ignore','ignore','ipc'],windowsHide:true,execArgv:['--max-old-space-size=384']}),now=Date.now}) {
     checkPath(root,{directory:true});checkPath(replyDirectory,{directory:true});
-    this.root=root;this.replyDirectory=replyDirectory;this.launch=launch;this.now=now;
+    this.nativeSaveDirectory=nativeSaveDirectory;this.root=root;this.replyDirectory=replyDirectory;this.launch=launch;this.now=now;
     this.productionMode=registered(root);this.testMode=!this.productionMode&&fs.existsSync(path.join(root,'local-data',TEST_REGISTRATION));this.settingsRoot=root;
     if(this.productionMode)try{this.settingsRoot=productionRoot(root).directory;}catch{this.testError=true;}
     if(this.testMode)try{this.settingsRoot=testRegistration(root).root;}catch{this.testError=true;}
@@ -51,7 +51,7 @@ export class PreviewService {
   hasReaders() {return this.readers.size>0;}
   waitForExit() {return Promise.all([...this.readers.values()]);}
   suspend() {if(this.suspended)return;this.suspended=true;this.cancel();this.model=null;this.baseModel=null;this.pending.delete(PREVIEW_REPLY);this.lastHeartbeat=undefined;this.poll();}
-  readSettings(){if(this.productionMode&&(this.testError||productionRoot(this.root).directory!==this.settingsRoot))throw Error('PRODUCTION_CONFIG_CHANGED');if(this.testMode&&(this.testError||testRegistration(this.root).root!==this.settingsRoot))throw Error('TEST_CONFIG_CHANGED');return readSettings(this.settingsRoot);}
+  readSettings(){if(this.productionMode&&(this.testError||productionRoot(this.root).directory!==this.settingsRoot))throw Error('PRODUCTION_CONFIG_CHANGED');if(this.testMode&&(this.testError||testRegistration(this.root).root!==this.settingsRoot))throw Error('TEST_CONFIG_CHANGED');return this.productionMode?readMenuSettings(this.settingsRoot,this.nativeSaveDirectory):readSettings(this.settingsRoot);}
   scan(request,settings) {
     this.cancel();const ticket={request,settings};this.ticket=ticket;this.scanning=true;
     this.progressRows=[];this.reply(request,'SCANNING');
@@ -80,13 +80,13 @@ export class PreviewService {
     });
     const failed=()=>{if(!answered && !this.stopped && this.ticket===ticket){this.scanning=false;this.child=null;this.reply(request,'ERROR');}};
     child.on('error',failed);child.on('close',failed);
-    child.send({root:this.root,settings:settings.value,testMode:this.testMode,productionMode:this.productionMode});
+    child.send({root:this.root,settings:settings.value,testMode:this.testMode,productionMode:this.productionMode,nativeSaveDirectory:this.nativeSaveDirectory});
   }
   action(request,settings) {
     const id=this.model?.ids[request.item-1];if((!this.testMode&&!this.productionMode)||!id||this.scanning)throw Error('ACTION_NOT_AVAILABLE');
-    const execute=['APPLY','RESTORE'].includes(request.verb),kind=request.verb==='APPLY'?'CLEAN':'RESTORE';
+    const kinds={APPLY:'CLEAN',RESTORE:'RESTORE',COMPACT:'COMPACT',DELETEUNIVERSE:'DELETEUNIVERSE',BACKUPDELETE:'BACKUPDELETE'};const execute=Object.hasOwn(kinds,request.verb),kind=kinds[request.verb];
     const confirmation=this.confirmation;
-    if(execute&&(!confirmation||confirmation.client!==request.client||confirmation.id!==id||!(confirmation.value.plan.kind===kind||kind==='RESTORE'&&confirmation.value.plan.kind==='RECOVER')||this.now()-confirmation.created>600000))throw Error('CONFIRMATION_REQUIRED');
+    if(execute&&(!confirmation||confirmation.client!==request.client||confirmation.id!==id||!(confirmation.value.plan.kind===kind||kind==='RESTORE'&&confirmation.value.plan.kind==='RECOVER'||['DELETEUNIVERSE','BACKUPDELETE'].includes(kind)&&confirmation.value.plan.kind==='RESUMEDELETE')||this.now()-confirmation.created>600000))throw Error('CONFIRMATION_REQUIRED');
     this.cancel();const ticket={request,settings};this.ticket=ticket;this.scanning=true;this.mutating=execute;this.reply(request,'SCANNING');
     let child;try{child=this.launch();}catch(e){this.scanning=false;this.mutating=false;throw e;}this.child=child;let answered=false,resolve;const promise=new Promise(r=>resolve=r);this.readers.set(child,promise);
     const release=()=>{if(!this.readers.has(child))return;this.readers.delete(child);if(this.child===child){this.child=null;this.mutating=false;this.scanning=false;if(this.mutationWaiter&&!this.stopped&&!this.suspended)this.reply(this.mutationWaiter,'STALE');this.mutationWaiter=null;}resolve();};
@@ -100,11 +100,18 @@ export class PreviewService {
       if(message?.actionProgress){this.reply(request,'SCANNING',[['ACTION','Progress',message.actionProgress,this.productionMode?'Selected universe history':'Test copies only','']]);return;}
       answered=true;this.scanning=false;this.mutating=false;
       if(message.error||!message.action){this.reply(request,'ERROR',[['ERROR',this.productionMode?'History action blocked':'Test action blocked',message.error||'ACTION_FAILED',this.productionMode?'Refresh to inspect current state':'Close X4 and report to Codex','Preserve backups and evidence']]);return;}
-      if(!execute)this.confirmation={client:request.client,id,created:this.now(),value:message.action};
-      else {this.model=null;this.baseModel=null;this.confirmation=null;}
-      this.reply(request,'READY',message.action.rows);
+      if(!execute&&request.verb!=='BACKUPS')this.confirmation={client:request.client,id,created:this.now(),value:message.action};
+      else if(execute){this.model=null;this.baseModel=null;this.confirmation=null;}
+      this.reply(request,'READY',message.action.rows,request.verb==='BACKUPS'?request.page:0);
     });
-    child.send({root:this.root,settings:settings.value,testMode:this.testMode,productionMode:this.productionMode,task:{verb:request.verb,universe:id,confirmation:execute?confirmation.value:null}});
+    child.send({root:this.root,settings:settings.value,testMode:this.testMode,productionMode:this.productionMode,nativeSaveDirectory:this.nativeSaveDirectory,task:{verb:request.verb,universe:id,backupId:request.payload,confirmation:execute?confirmation.value:null}});
+  }
+  locationRows(settings){
+    const rows=[];for(const [i,p]of settings.value.saveLocations.entries()){
+      let text='';const chunks=[];for(const char of p){if(Buffer.byteLength(text+char)>80){chunks.push(text);text='';}text+=char;}chunks.push(text);
+      for(const [j,chunk]of chunks.entries())rows.push([j?'0':String(i+1),j?'Path continued':i===0&&this.productionMode?'X4 saves (required)':'Archive folder',chunk,'Includes all subfolders',i===0&&this.productionMode?'Cannot remove':'Remove stops scanning only']);
+    }
+    return rows;
   }
   handle(line) {
     const r=parsePreviewRequest(line);if(!r || r.gen!==this.gen || this.stopped)return false;
@@ -118,14 +125,16 @@ export class PreviewService {
       const settings=this.readSettings();
       if(this.mutating){this.mutationWaiter=r;this.reply(r,'SCANNING');return true;}
       if(r.verb==='REFRESH'){this.scan(r,settings);return true;}
-      if(r.verb==='LOCATIONS') {
-        const rows=settings.value.saveLocations.map((p,i)=>[String(i+1),'Local folder '+(i+1),p,'Selected local scope','']);
-        rows.push(this.productionMode?['0','Save scope','Selected local folders only','External copies are not inventoried','Refresh before cleanup']:['0','Configure locations','Edit local-data/housekeeping-preview-v1.json','Restart companion, then Refresh','No folder picker is used']);
-        this.reply(r,'READY',rows,r.page);return true;
+      if(['ADDLOCATION','REMOVELOCATION'].includes(r.verb)){
+        if(!this.productionMode||this.scanning)throw Error('LOCATION_CHANGE_NOT_AVAILABLE');
+        const c=productionRoot(this.root),lock=rootLease(c,'SAVE_LOCATION_SETTINGS');
+        try{if(Object.values(c.catalog.universes).some(e=>!['READY','RETIRED'].includes(e.phase)))throw Error('RECOVERY_REQUIRED');changeLocation(this.settingsRoot,settings.digest,this.nativeSaveDirectory,r.verb==='ADDLOCATION'?{add:r.payload}:{remove:r.item-1});this.confirmation=null;this.model=null;this.baseModel=null;this.settings=null;}finally{lock.close();}
+        this.reply(r,'READY',this.locationRows(this.readSettings()));return true;
       }
+      if(r.verb==='LOCATIONS') {this.reply(r,'READY',this.locationRows(settings),r.page);return true;}
       if(this.scanning){this.reply(r,'SCANNING',this.progressRows);return true;}
       if(!this.model || settings.digest!==this.settings.digest){this.model=null;this.baseModel=null;this.reply(r,'STALE');return true;}
-      if(['REVIEW','RESTOREREVIEW','APPLY','RESTORE'].includes(r.verb)){this.action(r,settings);return true;}
+      if(['REVIEW','RESTOREREVIEW','APPLY','RESTORE','COMPACTREVIEW','COMPACT','DELETEREVIEW','DELETEUNIVERSE','BACKUPREVIEW','BACKUPRESTOREREVIEW','BACKUPDELETE','BACKUPS'].includes(r.verb)){this.action(r,settings);return true;}
       if(r.verb==='PROTECT') {
         const universe=this.model.ids[r.item-1];if(!universe)throw Error('Unknown universe');
         // Validate selection/page before changing even the preference file.

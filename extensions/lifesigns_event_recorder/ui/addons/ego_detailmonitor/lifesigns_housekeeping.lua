@@ -65,11 +65,26 @@ function P.request(verb,item,enabled,page)
     if not P.gen or P.seq>=999999999 then P.state="UNAVAILABLE";P.dirty=true;return end
     P.seq=P.seq+1
     P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,enabled=enabled==true,since=getElapsedTime()};P.lastText=nil;P.progress=nil
-    P.mutating=verb=="APPLY" or verb=="RESTORE"
+    P.mutating=verb=="APPLY" or verb=="RESTORE" or verb=="COMPACT" or verb=="DELETEUNIVERSE" or verb=="BACKUPDELETE"
     if verb~="CANCEL" then P.state="SCANNING";P.stale=true end
     if verb=="PROTECT" then P.progress="Saving protection preference..." end
     DebugError("LSHK1|"..P.gen.."|"..P.client.."|"..P.seq.."|"..verb.."|"..(item or 0).."|"..(enabled and 1 or 0).."|"..(page or 0).."|END")
     P.dirty=true
+end
+function P.extra(verb,item,text)
+    if not P.gen or type(text)~="string" or #text==0 or #text>1024 or text:find("[%z\1-\31\127]") then P.state="ERROR";P.dirty=true;return end
+    P.seq=P.seq+1
+    if P.seq>999999999 then P.state="UNAVAILABLE";return end
+    P.pending={gen=P.gen,seq=P.seq,page=0,verb=verb,since=getElapsedTime()};P.lastText=nil;P.progress=nil;P.state="SCANNING";P.stale=true;P.dirty=true
+    local hex=text:gsub(".",function(c) return string.format("%02x",string.byte(c)) end)
+    DebugError("LSHK2|"..P.gen.."|"..P.client.."|"..P.seq.."|"..verb.."|"..item.."|"..hex.."|END")
+end
+function P.spaceReview(verb,confirm)
+    P.view="CONFIRM";P.confirmVerb=confirm;P.rows={};P.page=0;P.request(verb,P.selected)
+end
+function P.backupReview(id,restore)
+    P.view="CONFIRM";P.confirmVerb=restore and "RESTORE" or "BACKUPDELETE";P.rows={};P.page=0
+    P.extra(restore and "BACKUPRESTOREREVIEW" or "BACKUPREVIEW",P.selected,id)
 end
 function P.close(back)
     if P.active and P.gen then P.request("CANCEL") end
@@ -99,11 +114,11 @@ function P.refresh()
 end
 function P.select(id)
     if P.state~="READY" or P.stale or not uint(id) or id=="0" then return end
-    P.view="DETAIL";P.selected=tonumber(id);P.protected=nil;P.rows={};P.page=0;P.request("DETAIL",P.selected)
+    P.view="DETAIL";P.selected=tonumber(id);P.protected=nil;P.selectedStatus=nil;for _,r in ipairs(P.listRows or {}) do if r[1]==id then P.selectedStatus=r[5] end end;P.rows={};P.page=0;P.request("DETAIL",P.selected)
 end
 function P.locations()
     if P.active and P.gen then P.request("CANCEL") end
-    P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
+    P.locationsChanged=false;P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
 end
 function P.review(id,restore)
     if not (P.testMode or P.productionMode) or P.state~="READY" or P.stale then return end
@@ -119,6 +134,8 @@ function P.rowActions(data)
 end
 function P.back()
     if P.mutating then return end
+    if P.view=="LOCATIONS" and P.locationsChanged then P.refresh();return end
+    if P.view=="BACKUPS" then P.select(tostring(P.selected));return end
     if P.view=="RESULT" then P.refresh();return end
     if P.view~="LIST" then
         P.request("CANCEL");P.view="LIST";P.selected=nil;P.rows={};P.request("LIST")
@@ -150,7 +167,7 @@ function P.update()
     if P.awaitInitial and P.live then P.awaitInitial=false;P.refresh() end
     local pending=P.pending
     if not pending or not P.live then return end
-    local action=({REVIEW=true,RESTOREREVIEW=true,APPLY=true,RESTORE=true})[pending.verb]
+    local action=({REVIEW=true,RESTOREREVIEW=true,APPLY=true,RESTORE=true,COMPACTREVIEW=true,COMPACT=true,DELETEREVIEW=true,DELETEUNIVERSE=true,BACKUPREVIEW=true,BACKUPRESTOREREVIEW=true,BACKUPDELETE=true,BACKUPS=true})[pending.verb]
     if pending.verb~="REFRESH" and not action and now-pending.since>15 then P.state="ERROR";P.pending=nil;P.stale=true;P.dirty=true;return end
     local text=read(replyFile)
     if text==P.lastText then return end
@@ -159,9 +176,10 @@ function P.update()
     if reply.state=="READY" then
         P.mutating=false
         P.pending=nil;P.stale=false;P.page=reply.page;P.pages=reply.pages;P.rows=reply.rows
+        if pending.verb=="ADDLOCATION" or pending.verb=="REMOVELOCATION" then P.locationsChanged=true end
         if pending.verb=="PROTECT" then P.protected=pending.enabled end
         if pending.verb=="REFRESH" then P.view="LIST";P.selected=nil end
-        if pending.verb=="APPLY" or pending.verb=="RESTORE" then P.view="RESULT" end
+        if pending.verb=="APPLY" or pending.verb=="RESTORE" or pending.verb=="COMPACT" or pending.verb=="DELETEUNIVERSE" or pending.verb=="BACKUPDELETE" then P.view="RESULT" end
         if P.view=="LIST" then P.listRows=P.rows end
         for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then
             if row[3]=="Protected" then P.protected=true elseif row[3]=="Not protected" then P.protected=false else P.protected=nil end
@@ -212,7 +230,7 @@ function P.render()
     end
     headerLine(P.productionMode and "Manage actual Life Signs universe history" or P.testMode and "ISOLATED MAINTENANCE TEST - disposable copies only" or copy.intro,normal)
     headerLine(P.productionMode and "Preview first. Only your explicitly confirmed universe can be cleaned or restored." or P.testMode and "Clean and restore individual test universes. Original saves and live history are not cleanup targets." or copy.description)
-    headerLine((P.testMode or P.productionMode) and "Explicit confirmation and a verified backup are required. No compaction or permanent purge." or copy.notice)
+    headerLine(P.productionMode and "Review each selected action before confirming. Saves are never deleted." or P.testMode and "Explicit confirmation and a verified backup are required. Test copies only." or copy.notice)
     headerLine(P.productionMode and copy.scope or P.testMode and "Inventory uses copied local native saves only. Gameplay routing is unchanged." or copy.scope)
     if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or (P.productionMode and P.state=="ERROR" and "History operation blocked. Read the result below, then Refresh to inspect the current state. Preserve backups.") or (P.testMode and P.state=="ERROR" and "Test operation blocked. Close X4 and report the result below. Preserve test copies and backups.") or messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
@@ -226,27 +244,38 @@ function P.render()
     button(r,3,"Cancel",function() P.request("CANCEL") end,P.state=="SCANNING" and not P.mutating);button(r,4,"Back",back,not P.mutating)
     local dataY=controlY+controls:getVisibleHeight()+gap
     local actions=(P.testMode or P.productionMode) and P.view=="LIST"
-    local t=frame:addTable(actions and 6 or 4,{tabOrder=3,x=x,y=dataY,width=width})
-    local widths=actions and {16,12,17,25,15} or P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and {16,58,16} or {20,24,18}
+    local backupActions=P.productionMode and P.view=="BACKUPS"
+    local locationActions=P.productionMode and P.view=="LOCATIONS"
+    local columns=(actions or backupActions) and 6 or locationActions and 5 or 4
+    local t=frame:addTable(columns,{tabOrder=3,x=x,y=dataY,width=width})
+    local widths=(actions or backupActions) and {16,12,17,25,15} or P.view=="LIST" and {18,18,24} or P.view=="LOCATIONS" and (locationActions and {18,43,18,12} or {16,58,16}) or {20,24,18}
     for i,value in ipairs(widths) do t:setColWidthPercent(i,value) end
     local headers=P.view=="LIST" and {"Universe","Local saves","Database size","Status"} or P.view=="LOCATIONS" and {"Folder","Location","Scope","Notes"} or {"Section","Item","Value","Location / context"}
     if actions then headers[5]=P.productionMode and "Clean history" or "Clean test copy";headers[6]="Restore history" end
-    r=t:addRow(false,{fixed=true,bgColor=rowHeading});for i=1,(actions and 6 or 4) do r[i]:createText(headers[i],heading) end
+    if backupActions then headers={"Restore point","Created","File size","Status","Restore","Delete"} end
+    if locationActions then headers[5]="Remove" end
+    r=t:addRow(false,{fixed=true,bgColor=rowHeading});for i=1,columns do r[i]:createText(headers[i],heading) end
     for index,data in ipairs(P.rows) do
         r=t:addRow(P.view=="LIST",{bgColor=index%2==1 and rowDark or rowAlternate})
         if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],normal) end
-        for i=2,4 do r[i]:createText(data[i+1],normal) end
+        for i=2,4 do local value=data[i+1];if P.view=="LOCATIONS" and i==2 and value then value=value:gsub("\\","\\ "):gsub("/","/ ") end;if value and value:sub(1,5)=="lsu1-" then value=value:gsub("-","- ") end;r[i]:createText(value,normal) end
         if actions then
             local id=data[1];local clean,restore=P.rowActions(data)
             button(r,5,"Clean...",function() P.review(id,false) end,clean)
             button(r,6,"Restore...",function() P.review(id,true) end,restore)
         end
+        if backupActions then
+            local id=data[1];local active=P.state=="READY" and not P.stale and P.protected~=true
+            button(r,5,"Restore...",function() P.backupReview(id,true) end,active)
+            button(r,6,"Delete...",function() P.backupReview(id,false) end,active)
+        end
+        if locationActions then local id=tonumber(data[1]);button(r,5,"Remove",function() P.request("REMOVELOCATION",id) end,P.state=="READY" and id and id>1) end
     end
     if #P.rows==0 then line(t,P.state=="SCANNING" and "Waiting for scan results..." or "No results to display.",nil,rowDark) end
     local pager=frame:addTable(3,{tabOrder=4,x=x,y=0,width=math.min(width,Helper.scaleX(340))})
     pager:setColWidth(1,Helper.scaleX(100),false);pager:setColWidth(3,Helper.scaleX(100),false)
     r=pager:addRow(true,{fixed=true})
-    local function page(delta) P.request(P.view=="DETAIL" and "DETAIL" or P.view=="LOCATIONS" and "LOCATIONS" or "LIST",P.view=="DETAIL" and P.selected or 0,false,P.page+delta) end
+    local function page(delta) P.request(P.view=="DETAIL" and "DETAIL" or P.view=="LOCATIONS" and "LOCATIONS" or P.view=="BACKUPS" and "BACKUPS" or "LIST",(P.view=="DETAIL" or P.view=="BACKUPS") and P.selected or 0,false,P.page+delta) end
     button(r,1,"Previous",function() page(-1) end,P.state=="READY" and P.page>0)
     r[2]:createText("Page "..(P.page+1).." / "..P.pages,{font="Zekton outlined",fontsize=10,x=5,y=2,minRowHeight=19,halign="center"})
     button(r,3,"Next",function() page(1) end,P.state=="READY" and P.page+1<P.pages)
@@ -256,11 +285,28 @@ function P.render()
         r=notes:addRow(true,{fixed=true});r[1]:createCheckBox(P.protected==true,{active=P.state=="READY" and P.protected~=nil and not P.stale})
         r[1].handlers.onClick=function() P.request("PROTECT",P.selected,not P.protected,P.page) end
         r[2]:setColSpan(3):createText("Protect this universe",normal);line(notes,copy.protection)
+        if P.productionMode then
+            local state=P.selectedStatus or "";local active=P.state=="READY" and not P.stale and not P.protected
+            r=notes:addRow(true,{fixed=true});r[1]:setColSpan(2);r[3]:setColSpan(2)
+            button(r,1,"Reclaim disk space...",function() P.spaceReview("COMPACTREVIEW","COMPACT") end,active and state:find("In use",1,true) and state:find("No cleanup needed",1,true))
+            button(r,3,"Restore points...",function() P.view="BACKUPS";P.rows={};P.request("BACKUPS",P.selected) end,P.state=="READY" and not P.stale and not state:find("Deletion pending",1,true))
+            r=notes:addRow(true,{fixed=true});r[1]:setColSpan(4)
+            button(r,1,state:find("Deletion pending",1,true) and "Resume deletion..." or "Delete orphan universe...",function() P.spaceReview("DELETEREVIEW","DELETEUNIVERSE") end,active and (state:find("Orphaned",1,true) or state:find("Deletion pending",1,true)))
+        end
     end
     if P.view=="CONFIRM" then
         r=notes:addRow(true,{fixed=true});r[1]:setColSpan(2);r[3]:setColSpan(2)
-        button(r,1,P.confirmVerb=="APPLY" and "Confirm cleanup" or "Confirm restoration",function() P.request(P.confirmVerb,P.selected,true,0) end,P.state=="READY" and not P.stale)
+        button(r,1,({APPLY="Confirm cleanup",RESTORE="Confirm restoration",COMPACT="Confirm compaction",DELETEUNIVERSE="Confirm permanent deletion",BACKUPDELETE="Confirm delete restore point"})[P.confirmVerb] or "Confirm",function() P.request(P.confirmVerb,P.selected,true,0) end,P.state=="READY" and not P.stale)
         button(r,3,"Cancel",P.back,not P.mutating)
+    end
+    if locationActions then
+        line(notes,"Life Signs checks only the folders listed here. Add any folders where you keep archived saves.")
+        line(notes,"All subfolders are included. Removing a location never changes its files.")
+        r=notes:addRow(true,{fixed=true});r[1]:setColSpan(3)
+        r[1]:createEditBox({description="Full local archive-folder path",defaultText="Enter an absolute local folder path",height=19}):setText(P.locationInput or "",{font="Zekton outlined",fontsize=10,halign="left"})
+        r[1].handlers.onEditBoxDeactivated=function(_,text) P.locationInput=text;P.dirty=true end
+        button(r,4,"Add folder",function() P.extra("ADDLOCATION",0,P.locationInput or "") end,P.state=="READY" and not P.stale and P.locationInput and #P.locationInput>0)
+        r=notes:addRow(true,{fixed=true});r[1]:setColSpan(4);button(r,1,"Rescan",P.refresh,P.live and not P.mutating)
     end
     line(notes,copy.ancestry)
     if P.testMode or P.productionMode then
@@ -272,7 +318,7 @@ function P.render()
     pager.properties.y=dataY+t:getVisibleHeight()+gap
     notes.properties.y=pager.properties.y+pager:getVisibleHeight()+gap
     local chain={header,controls,t,pager}
-    if P.view=="DETAIL" or P.view=="CONFIRM" then chain[#chain+1]=notes end
+    if P.view=="DETAIL" or P.view=="CONFIRM" or locationActions then chain[#chain+1]=notes end
     for i=1,#chain-1 do chain[i].properties.nextTable=chain[i+1].index;chain[i+1].properties.prevTable=chain[i].index end
     frame:display();P.dirty=false
 end

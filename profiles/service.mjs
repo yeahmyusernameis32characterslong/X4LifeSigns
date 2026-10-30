@@ -10,6 +10,7 @@ import { checkPath } from '../bridge/src/session-path.js';
 import { LoadFence, parseLoadRequest, CHALLENGE_RUN, FENCE_RUN, ACTIVE_RUN } from './load-fence.mjs';
 import { PreviewService } from './preview-service.mjs';
 import { PREVIEW_HELLO, PREVIEW_REPLY } from './preview-protocol.mjs';
+import {registered,productionRoot} from './production-contract.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export class ReplyPublicationError extends Error {
@@ -20,7 +21,7 @@ export class ProfileConsumer {
     onReplyDelayed = (e) => console.error(`Profile reply publication delayed; retrying: ${e.code}`) }) {
     this.root = path.resolve(root); this.replyDirectory = path.resolve(replyDirectory);
     checkPath(this.replyDirectory, { directory: true }); this.stores = new Map();
-    this.pendingReplies = new Map(); this.renameReply=renameReply; this.onReplyDelayed=onReplyDelayed;
+    this.pendingReplies = new Map(); this.renameReply=renameReply; this.onReplyDelayed=onReplyDelayed;this.retiredRuns=new Set();
   }
   consume(lines) {
     const groups = new Map();
@@ -31,8 +32,13 @@ export class ProfileConsumer {
       if (!Object.hasOwn(row.fields, 'record')) continue;
       if (row.kind === 'RUN_BEGIN') {
         if (row.fields.database_protocol !== 'LSDB1') continue;
+        if(registered(this.root)){
+          const entry=productionRoot(this.root).catalog.universes[row.fields.lifesigns_universe_id];
+          if(entry?.phase==='RETIRED'||entry?.retired){this.retiredRuns.add(row.run);this.pendingReplies.delete(row.run);continue;}
+        }
         if (!this.stores.has(row.run)) this.stores.set(row.run, new ProfileStore(this.root, row.fields.lifesigns_universe_id, row.run));
       }
+      if(this.retiredRuns.has(row.run))continue;
       if (!this.stores.has(row.run)) throw Error('Profile row received before owned startup');
       if (!groups.has(row.run)) groups.set(row.run, []); groups.get(row.run).push(row);
     }
@@ -122,7 +128,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
   if (notBefore !== null && (!Number.isFinite(notBefore) || notBefore < 0)) throw Error('Invalid launch time');
   const consumer = new ProfileConsumer({ root, replyDirectory }), tails = new Map(), failed = new Set();
   const fence = debugLog ? new LoadFence({root, replyDirectory, processStarted: notBefore ?? 0}) : null;
-  const preview = debugLog ? createPreview({root,replyDirectory}) : null;
+  const preview = debugLog ? createPreview({root,replyDirectory,nativeSaveDirectory:path.join(path.dirname(debugLog),'save')}) : null;
   let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false, stopPromise;
   function names() {
     return fs.readdirSync(logDirectory).filter(n => /^profiles-session-\d+-\d+-loaded-[0-9_-]+\.log$/.test(n))
