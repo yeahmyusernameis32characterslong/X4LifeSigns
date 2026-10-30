@@ -63,7 +63,7 @@ def frame(client, seq, state='READY', rows=None, page=0, pages=1, gen=GEN):
 
 
 mock = r'''
-clock=0;messages={};replies={};labels={};buttons={};seen={};vanillaUpdates=0;vanillaCloses=0;displays=0
+clock=0;messages={};replies={};labels={};buttons={};editboxes={};seen={};vanillaUpdates=0;vanillaCloses=0;displays=0
 function getElapsedTime() return clock end
 function DebugError(text) messages[#messages+1]=text end
 LifeSignsDatabaseAdapter={readReply=function(file) return replies[file] end}
@@ -75,7 +75,7 @@ local function cell(row)
  function c:createText(text,properties) labels[#labels+1]=text;self.textProperties=properties;row.height=math.max(row.height,properties and properties.minRowHeight or 16);return self end
  function c:createButton(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);buttons[#buttons+1]=self;return self end
  function c:setText(text,properties) self.text=text;self.textProperties=properties;return self end
- function c:createEditBox(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);return self end
+ function c:createEditBox(properties) editboxes[#editboxes+1]=self;self.properties=properties;row.height=math.max(row.height,properties.height or 19);return self end
  function c:createCheckBox(value,properties) self.check=value;self.properties=properties;row.height=math.max(row.height,19);return self end
  return c
 end
@@ -91,7 +91,7 @@ local t=makeTable()
 local f={addTable=function(_,columns,properties) local result=makeTable(properties);result.index=#renderTables+1;renderTables[#renderTables+1]=result;tableProperties=properties;columnWidths=result.widths;return result end,display=function() displays=displays+1;tableProperties=renderTables[3].properties;columnWidths=renderTables[3].widths end}
 Color={row_title={r=0,g=128,b=255,a=100}}
 Helper={borderSize=3,clearDataForRefresh=function() end,scaleX=function(v) return v end,scaleY=function(v) return v end}
-menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,arrowColumnWidth=20,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};buttons={};labels={};return f end}
+menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,arrowColumnWidth=20,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};buttons={};labels={};editboxes={};return f end}
 function menu.displayOption(_,option) seen[#seen+1]=option;return 'option',nil,42 end
 function menu.displayOptions(name,...)
  menu.currentOption=name
@@ -214,7 +214,7 @@ with tempfile.TemporaryDirectory(prefix='ls-ui-') as temporary:
         print('PASS: real native reader returns bounded ASCII preview frame from Unicode disposable path; no native API expansion')
         storage = root / 'storage'
         storage.mkdir()
-        saves = storage / 'saves'
+        saves = storage / 'save'
         saves.mkdir()
         logs = storage / 'logs'
         logs.mkdir()
@@ -348,6 +348,72 @@ const db=new DatabaseSync(file,{readOnly:true});console.log(contentDigest(db));d
         assert before_history == after_history
         assert hashlib.sha256(save.read_bytes()).hexdigest() == original_hashes[save]
         print('PASS: production Lua confirmation -> native transport -> Windows handle-excluded staging install and selected restore; all prior history rows restored')
+        archive = storage / 'Archives \u65e5\u672c\u8a9e'
+        archive.mkdir()
+        (archive / 'archive.xml.gz').write_bytes(save.read_bytes())
+        native_vm.run('P.open(menu)')
+        await_ready('LIST')
+        native_vm.run('P.locations()')
+        await_ready('LOCATIONS')
+        native_vm.run('P.render();assert(#editboxes==1);editboxes[1].handlers.onEditBoxDeactivated(nil,' + literal(str(archive)) + ',true);P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Add folder" and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked)')
+        await_ready('LOCATIONS')
+        registration = json.loads((storage / 'local-data/housekeeping-production.json').read_text())
+        production_settings = storage / 'local-data' / ('housekeeping-' + registration['id']) / 'local-data/housekeeping-preview-v1.json'
+        assert str(archive) in json.loads(production_settings.read_text(encoding='utf-8'))['saveLocations'], (json.loads(production_settings.read_text(encoding='utf-8')), str(archive), native_vm.run('return messages[#messages]', True), native_vm.run('return P.locationInput', True))
+        native_vm.run('P.back()')
+        await_ready('LIST')
+        native_vm.run('P.locations()')
+        await_ready('LOCATIONS')
+        native_vm.run('P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Remove" and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked)')
+        await_ready('LOCATIONS')
+        assert json.loads(production_settings.read_text(encoding='utf-8'))['saveLocations'] == [str(saves)]
+        assert (archive / 'archive.xml.gz').read_bytes() == save.read_bytes()
+        print('PASS: native editbox callback -> bounded Unicode path transport -> persistent archive add/remove/rescan; mandatory native location and save bytes preserved')
+        native_vm.run('P.back()')
+        await_ready('LIST')
+        native_vm.run('P.review("1",false)')
+        await_ready('CONFIRM')
+        native_vm.run('P.render();for _,b in ipairs(buttons) do if b.text=="Confirm cleanup" and b.properties.active then b.handlers.onClick();break end end')
+        await_ready('RESULT')
+        native_vm.run('P.back()')
+        await_ready('LIST')
+        native_vm.run('P.select("1")')
+        await_ready('DETAIL')
+        native_vm.run('P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Reclaim disk space..." and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked)')
+        await_ready('CONFIRM')
+        native_vm.run('P.render();for _,b in ipairs(buttons) do if b.text=="Confirm compaction" and b.properties.active then b.handlers.onClick();break end end;assert(P.mutating)')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[2][2]=="Compaction completed");P.back()')
+        await_ready('LIST')
+        native_vm.run('P.select("1")')
+        await_ready('DETAIL')
+        native_vm.run('P.render();for _,b in ipairs(buttons) do if b.text=="Restore points..." and b.properties.active then b.handlers.onClick();break end end')
+        await_ready('BACKUPS')
+        native_vm.run('P.render();local clicked=false;for _,b in ipairs(buttons) do if b.text=="Delete..." and b.properties.active then b.handlers.onClick();clicked=true;break end end;assert(clicked)')
+        await_ready('CONFIRM')
+        native_vm.run('P.render();for _,b in ipairs(buttons) do if b.text=="Confirm delete restore point" and b.properties.active then b.handlers.onClick();break end end')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[1][2]=="Restore point deleted")')
+        peer_universe = 'lsu1-2026-10-30_12-00-00-5-6-7-8'
+        peer_run = 'session-5-6-loaded-2026-10-30_12-00-00'
+        subprocess.run(['node','--input-type=module','-e',setup,str(storage),peer_universe,peer_run],check=True,capture_output=True)
+        peer_db = storage / 'local-data/profiles' / (peer_universe + '.db')
+        kept_hash = hashlib.sha256(db.read_bytes()).hexdigest()
+        native_vm.run('P.back()')
+        await_ready('LIST')
+        native_vm.run('assert(#P.rows==2 and P.rows[2][5]:find("Orphaned",1,true));P.select("2")')
+        await_ready('DETAIL')
+        native_vm.run('P.render();for _,b in ipairs(buttons) do if b.text=="Delete orphan universe..." and b.properties.active then b.handlers.onClick();break end end')
+        await_ready('CONFIRM')
+        native_vm.run('assert(P.rows[2][3]:find("Permanently delete",1,true));P.render();for _,b in ipairs(buttons) do if b.text=="Confirm permanent deletion" and b.properties.active then b.handlers.onClick();break end end;assert(P.mutating)')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[1][2]=="Orphan universe deleted");P.close(false)')
+        assert json.loads(peer_db.read_text(encoding='utf-8'))['owner'] == 'LifeSignsRetiredUniverse'
+        assert peer_db.stat().st_size < 1024
+        assert hashlib.sha256(db.read_bytes()).hexdigest() == kept_hash
+        assert hashlib.sha256(save.read_bytes()).hexdigest() == original_hashes[save]
+        print('PASS: actual Lua compaction, selected restore-point deletion and orphan permanent-confirmation buttons -> native/Node workers; peer history and saves unchanged')
+
     finally:
         if service is not None:
             service.stdin.write(b'STOP\n')

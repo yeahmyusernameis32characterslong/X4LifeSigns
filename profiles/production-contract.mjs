@@ -29,6 +29,7 @@ export function productionRoot(root,{expectedId=null}={}){
   const text=fs.readFileSync(c.catalogFile,'utf8'),anchor=readJson(registration.anchor),catalog=JSON.parse(text);
   if(anchor.owner!==registration.owner||anchor.id!==registration.id||anchor.root!==root||anchor.catalogDigest!==digest(text)||catalog.id!==registration.id||catalog.version!==1||!catalog.universes||Object.keys(catalog.universes).length>1024)fail('PRODUCTION_ANCHOR_MISMATCH');
   for(const [id,e] of Object.entries(catalog.universes)){universeId(id);if(!['READY','PREPARED','DELETE_PENDING','RETIRED'].includes(e.phase)||![1,2].includes(e.version)||!Number.isSafeInteger(e.generation)||e.generation<0)fail('INVALID_PRODUCTION_ENTRY');}
+  for(const[id,e]of Object.entries(catalog.universes))if(e.phase==='RETIRED'&&(!/^[a-f0-9]{64}$/.test(e.retirementHash||'')||fileHash(path.join(root,'local-data/profiles',id+'.db'))!==e.retirementHash))fail('RETIREMENT_MARKER_MISMATCH');
   return {...c,catalog};
 }
 export function updateCatalog(c,catalog){

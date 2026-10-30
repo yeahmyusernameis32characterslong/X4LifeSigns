@@ -1,6 +1,10 @@
 # Internal companion IPC only. Paths are JSON data, never executable expressions.
 param([switch]$ProbeAvailability)
 $ErrorActionPreference='Stop'
+# Node writes UTF-8 JSON to redirected stdin. Windows PowerShell's inherited
+# console code page is not a UTF-8 contract, even when every reply is ASCII.
+[Console]::InputEncoding=New-Object Text.UTF8Encoding($false)
+[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;

@@ -26,6 +26,13 @@ contract does not claim the actions are implemented.
   before unlinking anything, so old logs cannot recreate a baseline or receive
   persistence permission. Interrupted removals remain blocked and resume only
   from known recorded file hashes. Saves and unrelated evidence are never targets.
+  The original database pathname is atomically replaced by a tiny non-SQLite
+  retirement marker before its backups are removed. This keeps older ordinary
+  store code from treating an absent filename as permission to rebuild a baseline.
+  The marker's hash is bound into the catalogue; it contains no history rows.
+  Permanent confirmation includes every associated maintenance restore point,
+  including the newly verified safety copy. It does not claim secure erasure or
+  removal of unrelated incomplete/building databases.
 - Keep existing ancestry, overwritten-save history, writer/load barriers,
   registration identity and explicit menu confirmation. Validate all destructive
   operations on disposable copies before deployment. No autonomous live cleanup,

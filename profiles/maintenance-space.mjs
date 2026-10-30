@@ -59,7 +59,9 @@ export async function executeSpace(root,confirmation,{nativeSaveDirectory=null,o
     const volume=fs.statfsSync(c.directory),freeBefore=volume.bavail*volume.bsize;let job;
     if(plan.kind==='RESUMEDELETE'){
       if(e.phase!=='DELETE_PENDING')fail('NO_DELETION_TO_RESUME');job=readJob(c,e);deletionTargets(c,job);
-      const remaining=job.targets.filter(t=>fs.existsSync(t.file));if(remaining.length){guard=await handles([remaining[0].file]);await guard.add(remaining.slice(1).map(t=>t.file),true);}
+      const remaining=job.targets.filter(t=>t.file!==p.file&&fs.existsSync(t.file));
+      guard=await handles([p.file]);await guard.add(remaining.map(t=>t.file),true);
+      if(!job.retired&&fileHash(p.file)!==job.databaseHash)fail('DELETE_SOURCE_CHANGED_PRESERVE_EVIDENCE');
     }else{
       if(e.phase!=='READY'||fileHash(p.file)!==plan.dbHash)fail('TARGET_CHANGED');checkSidecars(p.file);
       if(Object.values(c.catalog.universes).some(e=>!['READY','RETIRED'].includes(e.phase)))fail('RECOVERY_REQUIRED');
@@ -79,21 +81,37 @@ export async function executeSpace(root,confirmation,{nativeSaveDirectory=null,o
       for(const point of points)receipt(c,id,point.id);
       for(const point of originalPoints)if(fileHash(point.file)!==point.hash||fileHash(point.receipt)!==point.receiptHash)fail('RESTORE_POINT_CHANGED_AFTER_REVIEW');
       guard.assert();if(fileHash(p.file)!==plan.dbHash)fail('TARGET_CHANGED');if(plan.inputs)unchangedScope(settings,plan.inputs);
-      job={rootId:c.registration.id,universe:id,kind:plan.kind,operation:randomUUID(),before:e,retired:plan.kind==='DELETEUNIVERSE',backups:points.map(p=>p.id),targets:targets.map(file=>({file,hash:fileHash(file),bytes:checkPath(file).size})),freeBefore};
+      job={rootId:c.registration.id,universe:id,kind:plan.kind,operation:randomUUID(),before:e,databaseHash:plan.dbHash,retired:plan.kind==='DELETEUNIVERSE',backups:points.map(p=>p.id),targets:targets.map(file=>({file,hash:fileHash(file),bytes:checkPath(file).size})),freeBefore};
+      if(job.retired){
+        const marker=path.join(c.directory,'retired-'+job.operation+'.marker'),text=JSON.stringify({owner:'LifeSignsRetiredUniverse',rootId:c.registration.id,universe:id,operation:job.operation})+'\n',fd=fs.openSync(marker,'wx');try{fs.writeFileSync(fd,text);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+        job.marker={file:marker,hash:fileHash(marker),bytes:checkPath(marker).size};
+      }
       job.digest=digest(job.targets);deletionTargets(c,job);writeJson(journal(c,job.operation),job);onPhase('DELETE_JOURNALED');
       setEntry(c,id,{...e,phase:'DELETE_PENDING',operation:job.operation,retired:job.retired,deleteDigest:digest(job)});onPhase('DELETE_PREPARED');
     }
     if(job.universe!==id)fail('DELETE_UNIVERSE_CHANGED');
-    const targets=deletionTargets(c,job);for(const t of targets)if(fs.existsSync(t.file)&&fileHash(t.file)!==t.hash)fail('DELETE_TARGET_CHANGED_PRESERVE_EVIDENCE');
+    const targets=deletionTargets(c,job);
+    if(job.retired&&(!job.marker||job.marker.file!==path.join(c.directory,'retired-'+job.operation+'.marker')||job.marker.bytes>1024))fail('RETIREMENT_MARKER_CHANGED');
+    for(const t of targets)if(fs.existsSync(t.file)&&fileHash(t.file)!==t.hash&&!(job.retired&&t.file===p.file&&fileHash(t.file)===job.marker.hash))fail('DELETE_TARGET_CHANGED_PRESERVE_EVIDENCE');
     // Once published, retirement is irrevocable for replay even if a process
     // exits between unlinks. Only this known target set can be resumed.
-    for(const t of targets){guard?.assert();if(fs.existsSync(t.file)){checkSidecars(t.file);fs.unlinkSync(t.file);}onPhase('FILE_REMOVED',t.file);}
+    for(const t of targets){
+      guard?.assert();
+      if(job.retired&&t.file===p.file){
+        if(!fs.existsSync(t.file))fail('RETIREMENT_TARGET_MISSING');
+        if(fileHash(t.file)!==job.marker.hash){
+          if(fileHash(job.marker.file)!==job.marker.hash)fail('RETIREMENT_MARKER_CHANGED');
+          await guard.add([job.marker.file],true,true);await guard.install(job.marker.file,t.file);
+        }
+      }else if(fs.existsSync(t.file)){checkSidecars(t.file);fs.unlinkSync(t.file);}
+      onPhase('FILE_REMOVED',t.file);
+    }
     await guard?.close();guard=null;
-    for(const t of targets)if(fs.existsSync(t.file))fail('FILE_REMOVAL_INCOMPLETE');
-    const after=job.retired?{phase:'RETIRED',version:job.before.version,generation:job.before.generation,operation:job.operation,lastBackup:null,retired:true}:{...job.before,lastBackup:job.backups.includes(job.before.lastBackup)?null:job.before.lastBackup};
+    for(const t of targets)if(job.retired&&t.file===p.file?fileHash(t.file)!==job.marker.hash:fs.existsSync(t.file))fail('FILE_REMOVAL_INCOMPLETE');
+    const after=job.retired?{phase:'RETIRED',version:job.before.version,generation:job.before.generation,operation:job.operation,lastBackup:null,retired:true,retirementHash:job.marker.hash}:{...job.before,lastBackup:job.backups.includes(job.before.lastBackup)?null:job.before.lastBackup};
     setEntry(c,id,after);onPhase('DELETE_REGISTERED');
     const freeAfter=fs.statfsSync(c.directory).bavail*fs.statfsSync(c.directory).bsize;writeJson(journal(c,job.operation)+'.completed.json',{operation:job.operation,jobDigest:digest(job),completed:true,freeAfter});
-    result={rows:[['RESULT',job.retired?'Orphan universe deleted':'Restore point deleted',id,'Verified selected file removal','X4 saves unchanged'],['RESULT','Removed files',String(targets.reduce((n,t)=>n+t.bytes,0))+' file bytes',String(freeAfter-job.freeBefore)+' observed free-disk bytes change','Volume activity can affect the observed change'],['RESULT','Retained safeguards',job.retired?'Permanent retirement marker':'Current database and other backups','Unrelated evidence unchanged','Refresh for current list']]};
+    result={rows:[['RESULT',job.retired?'Orphan universe deleted':'Restore point deleted',id,'Verified selected history removal','X4 saves unchanged'],['RESULT','Removed files',String(targets.reduce((n,t)=>n+t.bytes,0)-(job.marker?.bytes||0))+' net target file bytes',String(freeAfter-job.freeBefore)+' observed free-disk bytes change','Volume activity can affect the observed change'],['RESULT','Retained safeguards',job.retired?'Tiny permanent retirement marker':'Current database and other backups','Unrelated evidence unchanged','Refresh for current list']]};
   }finally{await guard?.close();lock.close();}
   return result;
 }
