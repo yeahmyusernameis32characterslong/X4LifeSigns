@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
 import { PreviewService } from '../preview-service.mjs';
 import { PREVIEW_HELLO,PREVIEW_REPLY,parsePreviewRequest,previewReply,scanProgressRows } from '../preview-protocol.mjs';
-import { previewModel,displaySize,applyProtection } from '../preview-model.mjs';
+import { previewModel,displaySize,applyProtection,actionProblem } from '../preview-model.mjs';
 import { readSettings,setProtection,validateSettings,SETTINGS_NAME } from '../preview-settings.mjs';
 import { ProfileStore } from '../store.mjs';
 import { startService } from '../service.mjs';
@@ -253,5 +253,8 @@ test('action guard replies give bounded friendly instructions without exposing r
   assert.equal(fields[5],'ERROR');assert.ok(!reason.includes(code));assert.ok(Buffer.byteLength(reason)<=96);
   assert.equal(reason,i===0?'Clean unused history first, then reclaim disk space.':'The action could not proceed safely. Refresh and review again.');
   assert.equal(s.confirmation,null);assert.equal(s.mutating,false);
+ }
+ for(const code of ['UNIVERSE_PROTECTED','STALE_CONFIRMATION_REFRESH','STALE_SPACE_CONFIRMATION','INSUFFICIENT_BACKUP_SPACE','WRITER_OR_MAINTENANCE_BUSY']){
+  assert.ok(Buffer.byteLength(actionProblem(code))<=96);assert.ok(!actionProblem(code).includes(code));assert.notEqual(actionProblem(code),actionProblem('UNKNOWN'));
  }
 });

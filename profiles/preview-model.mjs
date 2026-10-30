@@ -6,7 +6,11 @@ export function actionProblem(code) {
     CLEAN_SAVED_HISTORY_BEFORE_COMPACTION: 'Clean unused history first, then reclaim disk space.',
     CONFIRMATION_REQUIRED: 'Open a fresh preview and confirm your chosen action.',
     RECOVERY_REQUIRED: 'An earlier operation needs recovery. Refresh to inspect it.',
-    PROTECTED_UNIVERSE: 'This universe is protected. Remove protection before making changes.',
+    UNIVERSE_PROTECTED: 'This universe is protected. Remove protection before making changes.',
+    STALE_CONFIRMATION_REFRESH: 'The preview is out of date. Refresh and review the action again.',
+    STALE_SPACE_CONFIRMATION: 'The preview is out of date. Refresh and review the action again.',
+    INSUFFICIENT_BACKUP_SPACE: 'There is not enough free disk space to create the required safety backup.',
+    WRITER_OR_MAINTENANCE_BUSY: 'Life Signs is using this history. Wait, then refresh and try again.',
     EVIDENCE_CHANGED: 'The inputs changed. Refresh and review the action again.',
   };
   return Object.hasOwn(messages, code) ? messages[code] : 'The action could not proceed safely. Refresh and review again.';
