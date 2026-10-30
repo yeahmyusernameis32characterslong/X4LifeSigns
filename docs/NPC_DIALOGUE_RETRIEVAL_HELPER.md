@@ -1,6 +1,9 @@
 # NPC dialogue retrieval helper experiment
 
-Status: **In progress: implementation and offline model evaluation authorised; no helper performance or dialogue accuracy result claimed yet.**
+Status: **Implemented as an optional offline helper; initial model evaluation complete, Agent review pending.**
+See [evaluated results and limitations](NPC_DIALOGUE_RETRIEVAL_RESULTS.md).
+This is not a verified gameplay dialogue system or a claim that all generated
+dialogue is factually correct.
 
 ## Goal and owner authority
 
