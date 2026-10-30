@@ -242,3 +242,11 @@ The fixture data is explicitly synthetic. Tests cover branches, exact identifier
 roles, scope denials, cursors, schema-v2 metadata/seals, source preservation and
 model-selected tool dispatch. A widget/game/schema test is unnecessary: no X4
 XML, Lua, installed service or gameplay integration changes in this workstream.
+
+The first measured synthetic combat batch exposed four reversed incoming-contact
+answers and three false order-absence claims after an overly narrow type search.
+Those original trials remain retained locally. A subsequent helper revision adds
+deterministic event-direction/uncertainty labels, an authorised recorded-type
+catalogue and explicit prompt guidance; these are recorder vocabulary, not
+answers selected for an incident. Corrected-model accuracy requires fresh trials
+and is reported separately from implementation/unit-test success.

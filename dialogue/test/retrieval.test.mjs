@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 import {DialogueReader} from '../retrieval.mjs';import {captureSnapshot,inspectSnapshot} from '../snapshot.mjs';import {runDialogue} from '../model-session.mjs';
 import {fileHash,openDatabase,migrateProduction} from '../../profiles/production-contract.mjs';
 import {makeFixture,A,B,CAPTAIN,MANAGER,FOREIGN} from './fixture.mjs';
+import {eventMeaning} from '../event-meaning.mjs';
 function fixture(t){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ls-dialogue-'));const f=makeFixture(dir),readers=[];t.after(()=>{for(const r of readers)r.close();assert.equal(path.dirname(dir),path.resolve(os.tmpdir()));fs.rmSync(dir,{recursive:true});});return {...f,dir,readers};}
 function reader(t,f,grant={},opts={}){const r=new DialogueReader(f.binding,{npcSeed:CAPTAIN,run:A,record:f.record,access:'command',...grant},opts);f.readers.push(r);return r;}
 function all(r,query={}){const rows=[];let p=r.call('search_history',query).result;rows.push(...p.events);while(p.next){p=r.call('search_history',{after:p.next}).result;rows.push(...p.events);}return rows;}
@@ -57,4 +58,9 @@ test('schema-v2 root/generation binding and seals are read without registration 
  const before=f.binding.sha256,r=reader(t,f);assert(all(r).length>0);assert.equal(fileHash(f.binding.file),before);
  assert.throws(()=>new DialogueReader({...f.binding,entry:{...f.binding.entry,generation:2}},{npcSeed:CAPTAIN,run:A,record:f.record,access:'command'}),/GENERATION/);
  assert.throws(()=>new DialogueReader({...f.binding,rootId:'foreign-root'},{npcSeed:CAPTAIN,run:A,record:f.record,access:'command'}),/GENERATION/);
+});
+test('event vocabulary preserves contact direction, order uncertainty and distress participant inversion',()=>{
+ assert.equal(eventMeaning('ATTACKED').direction,'OTHER_TO_SUBJECT');assert.equal(eventMeaning('ATTACKING').direction,'SUBJECT_TO_OTHER');
+ assert.equal(eventMeaning('KILLED_OBJECT').direction,'SUBJECT_KILLED_OTHER');assert.equal(eventMeaning('ORDER_STATE_CHANGED',{order_state:'ready'}).issuer,'UNKNOWN_UNLESS_EXPLICITLY_RECORDED');
+ assert.equal(eventMeaning('DISTRESS_CALL',{participant_role:'ATTACKER_IN_DISTRESS_REPORT'}).otherRole,'distress caller');assert.equal(eventMeaning('UNRECOGNISED'),null);
 });
