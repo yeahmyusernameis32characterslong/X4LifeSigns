@@ -12,7 +12,7 @@ export function inspectSnapshot(binding) {
   checkPath(binding.file);checkSidecars(binding.file);
   if (fileHash(binding.file)!==binding.sha256) throw Error('SNAPSHOT_HASH_CHANGED');
   const db=openDatabase(binding.file);
-  try {validateProduction(db,binding.universe,binding.rootId,binding.entry);}
+  try {if(!validateProduction(db,binding.universe,binding.rootId,binding.entry).ready)throw Error('SNAPSHOT_NOT_READY');}
   catch(e){db.close();throw e;}
   return db;
 }
