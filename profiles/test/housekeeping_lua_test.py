@@ -194,7 +194,11 @@ P.rows=oldRows;P.state=oldState;P.stale=oldStale;P.testMode=false
     vm.run('clock=3.4;P.update();assert(P.state=="STALE" and P.pending==nil and not P.live)')
     reply(HELLO, f'LSDB1|HOUSEKEEPING|HELLO|{OTHER}|2|INITIAL|END\n')
     vm.run('clock=4.5;P.update();assert(P.live);clock=11;P.update();assert(P.state=="UNAVAILABLE" and P.stale);P.worldObserved();assert(not P.active and not P.initial(menu));menu.onUpdate();assert(vanillaUpdates>0);menu.onCloseElement();assert(vanillaCloses==1)')
-    print('PASS: actual LuaJIT compile/run; anchored injection, vanilla callbacks, correlation, stale/late/restart/close, Unicode, details, protection state and unavailable companion')
+    for stage, total in [('FOLDERS', ''), ('SAVE_LOCKS', '4'), ('SAVE_HASHES', '4'), ('SAVE_HASH_RECHECK', '4')]:
+        seq = int(vm.run('return tostring(P.seq)', True))
+        payload = frame(client, seq, state='SCANNING', rows=[['PROGRESS', stage, '2', total, '']])
+        vm.run('local p=P.parse(' + literal(payload) + ',{gen=' + literal(GEN) + ',seq=' + str(seq) + ',page=0,verb="REFRESH"});assert(p and p.progress and p.progress:find("2",1,true))')
+    print('PASS: actual LuaJIT compile/run; anchored injection, vanilla callbacks, correlation, stale/late/restart/close, Unicode, details, protection state, scan phases and unavailable companion')
 finally:
     vm.close()
 

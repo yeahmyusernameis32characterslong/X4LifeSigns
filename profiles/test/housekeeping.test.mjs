@@ -82,10 +82,11 @@ test('missing, foreign, building, sidecar and WAL DBs never create or repair dat
 // Shape established independently from native X4 900 owner archives, not from
 // the extractor. Synthetic identities/checkpoint expectations are explicit.
 const xml = () => `<savegame><info><game id="X4" version="900"/></info><script><refs type="string"><ref id="10" string="${U}"/><ref id="11" string="${A}"/></refs><refs type="list"><ref id="10"/></refs></script><md><script name="LifeSigns_EventRecorder"><cue name="UniverseIdentity"><vars><value name="$Id" type="string" value="10"/><value name="$CheckpointRun" type="string" value="11"/><value name="$CheckpointRecord" type="largefloat" value="8"/></vars></cue></script></md></savegame>`;
-test('native save scope ignores only documented Steam metadata, preserving unknown-file refusals',async t=>{
+test('save discovery ignores unrelated extensions before availability or parsing, preserving unknown XML refusals',async t=>{
  const dir=temp(t);fs.writeFileSync(path.join(dir,'save.xml.gz'),gzipSync(xml()));fs.writeFileSync(path.join(dir,'steam_autocloud.vdf'),'"steam_autocloud" { "accountid" "0" }');
  const before=hash(path.join(dir,'steam_autocloud.vdf'));let result=await inventorySaves([dir],local);assert.equal(result.complete,true);assert.equal(result.roots.length,1);assert.equal(result.unknowns.length,0);assert.equal(result.saves.length,1);assert.equal(hash(path.join(dir,'steam_autocloud.vdf')),before);
- fs.writeFileSync(path.join(dir,'other.vdf'),'unknown');result=await inventorySaves([dir],local);assert.ok(result.unknowns.some(u=>u.code==='UNSUPPORTED_FILE'));
+ fs.writeFileSync(path.join(dir,'other.vdf'),'unknown');result=await inventorySaves([dir],{...local,getAvailability:file=>{assert.notEqual(path.basename(file),'other.vdf');return 'LOCAL_METADATA_ONLY';}});assert.equal(result.unknowns.length,0);assert.equal(result.saves.length,1);
+ fs.writeFileSync(path.join(dir,'other.xml'),'<not-a-save/>');result=await inventorySaves([dir],local);assert.ok(result.unknowns.length>0);
 });
 test('plain XML and native gzip resolve typed refs to the independently expected checkpoint and stay byte-identical',async t=>{
   const dir=temp(t);
@@ -125,7 +126,7 @@ test('resource limits, provider metadata and concurrent file changes block rathe
 test('inventory includes all declared folders and archives; unknown/missing locations block without creating anything',async t=>{
   const dir=temp(t),a=path.join(dir,'one'),b=path.join(dir,'two');fs.mkdirSync(a);fs.mkdirSync(b);fs.writeFileSync(path.join(a,'save.xml'),xml());fs.writeFileSync(path.join(b,'save.xml.gz'),gzipSync(xml()));
   let r=await inventorySaves([a,b],local);assert.equal(r.complete,true);assert.equal(r.roots.length,2);
-  fs.writeFileSync(path.join(b,'unsupported.zip'),'fixture');r=await inventorySaves([a,b,path.join(dir,'missing')],local);assert.equal(r.complete,false);assert.equal(r.unknowns.length,2);assert.equal(fs.existsSync(path.join(dir,'missing')),false);
+  fs.writeFileSync(path.join(b,'unsupported.zip'),'fixture');r=await inventorySaves([a,b,path.join(dir,'missing')],local);assert.equal(r.complete,false);assert.equal(r.unknowns.length,1);assert.equal(fs.existsSync(path.join(dir,'missing')),false);
 });
 test('standalone CLI requires explicit scopes, rejects Apply and never creates a missing DB directory',async t=>{
   const dir=temp(t),save=path.join(dir,'saves');fs.mkdirSync(save);fs.writeFileSync(path.join(save,'save.xml'),xml());

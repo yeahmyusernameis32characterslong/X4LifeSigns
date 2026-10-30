@@ -9,6 +9,18 @@ Deployment revisions and owner observations are recorded separately in the hando
 - Keep the installed profile's detected save folder mandatory. Persist additional
   folders through native menu text entry, normalise/deduplicate paths, and scan
   subfolders recursively. Removing a location never changes its contents.
+  Choose folders containing saves rather than a whole project tree or drive.
+  Only `.xml` and `.xml.gz` save candidates receive file availability, content
+  hashing and parsing checks. Other regular files are ignored without opening
+  their contents. Directories and links still receive safety checks; XML files
+  that are not recognised saves make the scope incomplete rather than being
+  silently treated as missing saves.
+  Folder discovery reports entries checked; securing inputs, content hashes,
+  save parsing and final content verification report their own scan stages.
+  Discovery stops with an incomplete-scope result after 10,000 entries or
+  90 seconds (plus any current metadata call). Choose a narrower save folder
+  if this happens. An incomplete scope never authorises cleanup or classifies
+  a universe as orphaned. Save candidates are not skipped to fit these limits.
   Detection failure makes the inventory incomplete. Settings changes invalidate
   prior confirmations and are excluded during maintenance.
 - Compaction works on a verified staging copy, outside its SQL transaction. Keep

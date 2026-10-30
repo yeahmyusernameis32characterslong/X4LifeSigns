@@ -45,10 +45,13 @@ export async function inventorySaves(locations, options = {}) {
     try {
       checkAvailability(dir, getAvailability);
       checkPath(dir, { directory: true });
-      const before = fs.readdirSync(dir).sort();
+      const items = fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name));
+      const before = items.map(item=>item.name).sort();
       observations.push({ file: dir, listing: before });
-      for (const name of before) {
+      for (const item of items) {
         if (++files > (options.maxFiles || 10000)) throw Error('RESOURCE_LIMIT');
+        const name=item.name;
+        if(!item.isDirectory()&&!item.isSymbolicLink()&&!/\.xml(?:\.gz)?$/i.test(name))continue;
         const file = path.join(dir, name), rel = relative ? relative + '/' + name : name;
         const stat = fs.lstatSync(file);
         if (stat.isDirectory() && !stat.isSymbolicLink()) { await walk(file, location, rel); continue; }

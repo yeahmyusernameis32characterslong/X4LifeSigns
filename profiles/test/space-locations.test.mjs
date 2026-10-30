@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {gzipSync} from 'node:zlib';
 import {ProfileStore} from '../store.mjs';import {ProfileConsumer} from '../service.mjs';import {escapeValue} from '../../recorder/log-format.mjs';
 import {registerProduction,productionRoot,fileHash,contentDigest,readJson,writeJson,digest,openDatabase} from '../production-contract.mjs';
-import {reviewProduction,executeProduction,scanProduction} from '../maintenance-production.mjs';import {reviewSpace,executeSpace,restorePoints} from '../maintenance-space.mjs';
+import {reviewProduction,executeProduction,scanProduction,filesInScope} from '../maintenance-production.mjs';import {reviewSpace,executeSpace,restorePoints} from '../maintenance-space.mjs';
 import {readMenuSettings,changeLocation,setProtection,SETTINGS_NAME} from '../preview-settings.mjs';
 import {PreviewService} from '../preview-service.mjs';import {parsePreviewRequest} from '../preview-protocol.mjs';import {EventEmitter} from 'node:events';
 import {fork} from 'node:child_process';import {once} from 'node:events';
@@ -16,6 +16,16 @@ async function fixture(t){
 }
 const options=f=>({nativeSaveDirectory:f.saves,...(process.platform==='win32'?{}:{handles:async()=>({add:async()=>{},assert(){},close:async()=>{},install:async(a,b)=>fs.renameSync(a,b)})})});
 const clean=async f=>executeProduction(f.root,await reviewProduction(f.root,U,'CLEAN',options(f)),options(f));
+
+test('folder enumeration reports progress, includes nested files, and bounds broad scopes before content reads',t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ls-scope-'));t.after(()=>fs.rmSync(dir,{recursive:true}));
+ fs.mkdirSync(path.join(dir,'nested'));fs.writeFileSync(path.join(dir,'nested','save.xml.gz'),'not read during enumeration');fs.writeFileSync(path.join(dir,'unrelated.txt'),'preserved');
+ const settings={value:{saveLocations:[dir,path.join(dir,'nested')]}},progress=[],opts={getAvailability:()=> 'LOCAL_METADATA_ONLY',onProgress:p=>progress.push(p)};
+ const files=filesInScope(settings,opts);assert.equal(files.length,1);assert.ok(files.includes(path.join(dir,'nested','save.xml.gz')));assert.equal(progress[0].completed,0);assert.ok(progress.at(-1).completed>0);assert.ok(progress.every(p=>p.stage==='FOLDERS'&&p.total===null));
+ assert.throws(()=>filesInScope(settings,{...opts,maxEntries:1}),/SAVE_SCOPE_TOO_BROAD/);
+ let clock=0;assert.throws(()=>filesInScope(settings,{...opts,now:()=>clock++,maxMilliseconds:2}),/SAVE_SCOPE_TOO_BROAD/);
+ assert.equal(fs.readFileSync(files[0],'utf8'),'not read during enumeration');
+});
 
 test('menu locations retain native scope, normalise duplicates, persist Unicode archives and never remove folders',async t=>{
  const f=await fixture(t),r=readMenuSettings(f.c.directory,f.saves);let s=changeLocation(f.c.directory,r.digest,f.saves,{add:f.archive});assert.equal(s.value.saveLocations.length,2);

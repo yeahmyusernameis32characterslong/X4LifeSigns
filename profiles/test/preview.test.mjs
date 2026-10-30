@@ -150,7 +150,7 @@ test('scan progress stays scanning, bounded and correlated through cancellation,
 });
 
 test('progress rows admit fixed stages and numeric counts only, without provisional retention results',()=>{
- for(const progress of [{stage:'SAVES',completed:999999999,total:null},{stage:'DATABASES',completed:2,total:3},{stage:'SAVE_RECHECK',completed:0,total:0},{stage:'DATABASE_RECHECK',completed:3,total:3}]) {
+ for(const progress of [{stage:'FOLDERS',completed:4,total:null},{stage:'SAVE_LOCKS',completed:0,total:4},{stage:'SAVE_HASHES',completed:2,total:4},{stage:'SAVE_HASH_RECHECK',completed:4,total:4},{stage:'SAVES',completed:999999999,total:null},{stage:'DATABASES',completed:2,total:3},{stage:'SAVE_RECHECK',completed:0,total:0},{stage:'DATABASE_RECHECK',completed:3,total:3}]) {
   const rows=scanProgressRows(progress);assert.equal(rows.length,1);
   assert.ok(Buffer.byteLength(previewReply(G,{client:C,seq:1,verb:'REFRESH'},'SCANNING',rows))<4096);
  }

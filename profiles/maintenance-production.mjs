@@ -16,25 +16,43 @@ import {universeId} from './profile-schema.mjs';
 function syncCreatedFile(file){const fd=fs.openSync(file,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
 
 export function paths(c,id){universeId(id);if(!c.catalog.universes[id])fail('UNREGISTERED_UNIVERSE');return {file:path.join(c.root,'local-data','profiles',id+'.db'),backups:path.join(c.directory,'backups'),plan:path.join(c.directory,'plan-'+digest(id)+'.json')};}
-export function filesInScope(settings){
-  const result=[];function walk(dir){checkPath(dir,{directory:true});checkAvailability(dir);for(const name of fs.readdirSync(dir).sort()){if(result.length>=10000)fail('SAVE_SCOPE_RESOURCE_LIMIT');const file=path.join(dir,name),info=fs.lstatSync(file);if(info.isDirectory()&&!info.isSymbolicLink())walk(file);else {checkPath(file);checkAvailability(file);result.push(file);}}}
+export function filesInScope(settings,{onProgress=()=>{},now=Date.now,maxEntries=10000,maxMilliseconds=90000,getAvailability}={}){
+  const result=[],seen=new Set(),started=now();let entries=0;
+  const progress=()=>{onProgress({stage:'FOLDERS',completed:entries,total:null});if(now()-started>=maxMilliseconds)fail('SAVE_SCOPE_TOO_BROAD');};
+  function walk(dir){
+    progress();if(seen.has(dir))return;seen.add(dir);
+    checkPath(dir,{directory:true});checkAvailability(dir,getAvailability);
+    const names=fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name));
+    if(entries+names.length>maxEntries)fail('SAVE_SCOPE_TOO_BROAD');
+    for(const item of names){
+      ++entries;progress();const name=item.name;
+      // Unrelated regular files are not save inputs: do not open, hash or
+      // launch availability probes for them. Directory/link safety stays strict.
+      if(!item.isDirectory()&&!item.isSymbolicLink()&&!/\.xml(?:\.gz)?$/i.test(name))continue;
+      const file=path.join(dir,name),info=fs.lstatSync(file);
+      if(info.isDirectory()&&!info.isSymbolicLink())walk(file);else {checkPath(file);checkAvailability(file,getAvailability);result.push(file);}
+    }
+    progress();
+  }
   for(const dir of settings.value.saveLocations)walk(dir);return [...new Set(result)].sort();
 }
 export async function scope(c,settings,onProgress=()=>{}){
-  let files;try{files=filesInScope(settings);}catch{return {inventory:{complete:false,saves:[],roots:[],locations:settings.value.saveLocations.map((path,i)=>({label:'location-'+(i+1),path})),unknowns:[{code:'SCAN_INCOMPLETE'}]},inputs:[],scopeDigest:null};}
+  let files;try{files=filesInScope(settings,{onProgress});}catch(e){return {inventory:{complete:false,saves:[],roots:[],locations:settings.value.saveLocations.map((path,i)=>({label:'location-'+(i+1),path})),unknowns:[{code:e.message==='SAVE_SCOPE_TOO_BROAD'?'SAVE_SCOPE_TOO_BROAD':'SCAN_INCOMPLETE'}]},inputs:[],scopeDigest:null};}
+  onProgress({stage:'SAVE_LOCKS',completed:0,total:files.length});
   const guard=process.platform==='win32'?await maintenanceHandles(files,{inputsOnly:true}):null;
   try{
-    const inputs=files.map(file=>({file,hash:fileHash(file),modified:checkPath(file).mtimeMs})),cacheFile=path.join(c.directory,'save-inventory-cache.json');let inventory;
+    onProgress({stage:'SAVE_HASHES',completed:0,total:files.length});
+    const inputs=files.map((file,i)=>{const input={file,hash:fileHash(file),modified:checkPath(file).mtimeMs};onProgress({stage:'SAVE_HASHES',completed:i+1,total:files.length});return input;}),cacheFile=path.join(c.directory,'save-inventory-cache.json');let inventory;
     if(fs.existsSync(cacheFile)){
       let cache;try{cache=readJson(cacheFile);}catch{ /* Optional cache is not authority; fully reparse. */ }
       if(cache?.version===2&&cache.proof===digest({locations:cache.locations,inputs:cache.inputs,inventory:cache.inventory})&&digest(cache.locations)===digest(settings.value.saveLocations)&&digest(cache.inputs)===digest(inputs))inventory=cache.inventory;
     }
     if(!inventory){inventory=await inventorySaves(settings.value.saveLocations,{onProgress});if(inventory.complete&&!inventory.unknowns.length)writeJson(cacheFile,{version:2,locations:settings.value.saveLocations,inputs,inventory,proof:digest({locations:settings.value.saveLocations,inputs,inventory})});}
-    guard?.assert();unchangedScope(settings,inputs);
+    guard?.assert();unchangedScope(settings,inputs,onProgress);
     return {inventory,inputs,scopeDigest:digest({inventory:inventory.manifestDigest,inputs})};
   }finally{await guard?.close();}
 }
-export function unchangedScope(settings,inputs){if(JSON.stringify(filesInScope(settings))!==JSON.stringify(inputs.map(i=>i.file)))fail('SAVE_SCOPE_CHANGED');for(const i of inputs)if(fileHash(i.file)!==i.hash||checkPath(i.file).mtimeMs!==i.modified)fail('SAVE_INPUT_CHANGED');}
+export function unchangedScope(settings,inputs,onProgress=()=>{}){if(JSON.stringify(filesInScope(settings,{onProgress}))!==JSON.stringify(inputs.map(i=>i.file)))fail('SAVE_SCOPE_CHANGED');onProgress({stage:'SAVE_HASH_RECHECK',completed:0,total:inputs.length});for(const [n,i] of inputs.entries()){if(fileHash(i.file)!==i.hash||checkPath(i.file).mtimeMs!==i.modified)fail('SAVE_INPUT_CHANGED');onProgress({stage:'SAVE_HASH_RECHECK',completed:n+1,total:inputs.length});}}
 export function snapshot(c,id){const e=c.catalog.universes[id],p=paths(c,id);if(e.phase!=='READY')fail('RECOVERY_REQUIRED');return inspectProfileDatabase(p.file,{validateDatabase:(db,u)=>validateProduction(db,u,c.registration.id,e)});}
 function preview(c,id,inventory,settings){return retentionPreview(snapshot(c,id),inventory.roots,{complete:inventory.complete,unknowns:inventory.unknowns,pinned:settings.value.protectedUniverses.includes(id)});}
 export function setEntry(c,id,entry){updateCatalog(c,{...c.catalog,universes:{...c.catalog.universes,[id]:entry}});}
