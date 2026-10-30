@@ -16,6 +16,21 @@ function Ordinary([string]$Path) {
         $resolved=[IO.Path]::GetDirectoryName($resolved)
     }
 }
+function AssertUnregisteredInstall([string]$Root) {
+    # This generic installer rebuilds configuration. Registered production roots
+    # require the preservation/rollback procedure, never an unpinned reinstall.
+    if (Test-Path -LiteralPath (Join-Path $Root 'local-data/housekeeping-production.json')) {
+        throw 'Housekeeping is registered. Use the production upgrade procedure to preserve its registration and anchor.'
+    }
+    $existing=Join-Path $Root 'local-data/profile-service-lifecycle/config.local.json'
+    if (Test-Path -LiteralPath $existing) {
+        $config=Get-Content -LiteralPath $existing -Raw | ConvertFrom-Json
+        if ($config.PSObject.Properties.Name -contains 'productionRootId' -or $config.PSObject.Properties.Name -contains 'productionAnchor') {
+            throw 'Production registration pins exist. Restore or verify registration before upgrading this installation.'
+        }
+    }
+}
+AssertUnregisteredInstall $sourceRoot
 foreach ($p in @($sourceRoot,$GameRoot,$NodeExecutable)) { Ordinary $p; if ($p -match '["\r\n]') { throw 'Invalid path character' } }
 if ((git -C $sourceRoot rev-parse HEAD) -ne $ApprovedCommit -or (git -C $sourceRoot status --porcelain)) { throw 'Approved checkout is not clean/current' }
 if ((& $NodeExecutable --version).Trim() -ne 'v24.21.0') { throw 'Expected verified Node24.21.0' }
@@ -43,7 +58,7 @@ checkPath(process.argv[2]);
 # Packaging preflight only. Installing the preview dependencies is a separate
 # explicit build step; never fetch packages or run npm scripts during deployment.
 $bundle=Get-Content -LiteralPath (Join-Path $sourceRoot 'profiles/companion-files.json') -Raw | ConvertFrom-Json
-if ($bundle.version -ne 1 -or $bundle.files.Count -ne 31) { throw 'Unexpected companion bundle manifest' }
+if ($bundle.version -ne 1 -or $bundle.files.Count -ne 37) { throw 'Unexpected companion bundle manifest' }
 $files=@($bundle.files)
 foreach ($relative in $files) {
     if ($relative -notmatch '^(profiles|recorder|bridge)/[a-zA-Z0-9_./-]+$' -or $relative -match '(^|/)\.\.(/|$)') { throw 'Unsafe companion bundle path' }

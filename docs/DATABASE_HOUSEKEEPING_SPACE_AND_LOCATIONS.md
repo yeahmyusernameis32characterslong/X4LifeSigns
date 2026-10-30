@@ -152,6 +152,12 @@ owner observation of the new native X4 controls.
 
 ## Remaining owner acceptance checks
 
+The generic `install-profile-service.ps1` installer refuses registered production
+roots and configurations with production pins. Production upgrades must preserve
+the registration, independent anchor, catalogue, settings and rollback copies;
+they must not rebuild an unpinned configuration through the generic installer.
+Its bundle preflight recognises the current 37-file companion manifest.
+
 Remain at the initial X4 menu, without loading a save. Open **Life Signs >
 Database Management** and wait for a complete scan of your configured folders.
 Select the surviving universe; keep its current save-location scope unchanged.
