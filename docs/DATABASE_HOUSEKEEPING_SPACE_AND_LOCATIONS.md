@@ -11,15 +11,17 @@ Deployment revisions and owner observations are recorded separately in the hando
   subfolders recursively. Removing a location never changes its contents.
   Choose folders containing saves rather than a whole project tree or drive.
   Only `.xml` and `.xml.gz` save candidates receive file availability, content
-  hashing and parsing checks. Other regular files are ignored without opening
-  their contents. Directories and links still receive safety checks; XML files
-  that are not recognised saves make the scope incomplete rather than being
-  silently treated as missing saves.
+  checks. Other regular files are ignored without opening their contents.
+  Plain XML candidates receive a bounded 4KB root-element probe: a positively
+  identified non-save root is discounted before hashing or full parsing.
+  Ambiguous, malformed, DTD or unsupported save headers remain candidates and
+  fail closed. Directories and candidates receive fresh batched Windows
+  metadata checks; links remain blocked and are never followed silently.
   Folder discovery reports entries checked; securing inputs, content hashes,
   save parsing and final content verification report their own scan stages.
-  Discovery stops with an incomplete-scope result after 10,000 entries or
-  90 seconds (plus any current metadata call). Choose a narrower save folder
-  if this happens. An incomplete scope never authorises cleanup or classifies
+  The earlier 90-second/10,000-entry discovery restriction is removed. Root
+  folders are supported, with a one-million-entry resource guard and the
+  worker's existing memory limit. An incomplete scope never authorises cleanup or classifies
   a universe as orphaned. Save candidates are not skipped to fit these limits.
   Detection failure makes the inventory incomplete. Settings changes invalidate
   prior confirmations and are excluded during maintenance.

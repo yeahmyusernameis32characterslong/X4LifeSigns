@@ -4,8 +4,7 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {backup} from 'node:sqlite';
 import {checkPath,checkSidecars} from '../bridge/src/session-path.js';
-import {checkAvailability} from './inventory-path.mjs';
-import {inventorySaves} from './save-inventory.mjs';
+import {inventorySaves,discoverSaveInputs} from './save-inventory.mjs';
 import {inspectProfileDatabase} from './profile-inventory.mjs';
 import {retentionPreview} from './retention-plan.mjs';
 import {displaySize} from './preview-model.mjs';
@@ -16,28 +15,11 @@ import {universeId} from './profile-schema.mjs';
 function syncCreatedFile(file){const fd=fs.openSync(file,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
 
 export function paths(c,id){universeId(id);if(!c.catalog.universes[id])fail('UNREGISTERED_UNIVERSE');return {file:path.join(c.root,'local-data','profiles',id+'.db'),backups:path.join(c.directory,'backups'),plan:path.join(c.directory,'plan-'+digest(id)+'.json')};}
-export function filesInScope(settings,{onProgress=()=>{},now=Date.now,maxEntries=10000,maxMilliseconds=90000,getAvailability}={}){
-  const result=[],seen=new Set(),started=now();let entries=0;
-  const progress=()=>{onProgress({stage:'FOLDERS',completed:entries,total:null});if(now()-started>=maxMilliseconds)fail('SAVE_SCOPE_TOO_BROAD');};
-  function walk(dir){
-    progress();if(seen.has(dir))return;seen.add(dir);
-    checkPath(dir,{directory:true});checkAvailability(dir,getAvailability);
-    const names=fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name));
-    if(entries+names.length>maxEntries)fail('SAVE_SCOPE_TOO_BROAD');
-    for(const item of names){
-      ++entries;progress();const name=item.name;
-      // Unrelated regular files are not save inputs: do not open, hash or
-      // launch availability probes for them. Directory/link safety stays strict.
-      if(!item.isDirectory()&&!item.isSymbolicLink()&&!/\.xml(?:\.gz)?$/i.test(name))continue;
-      const file=path.join(dir,name),info=fs.lstatSync(file);
-      if(info.isDirectory()&&!info.isSymbolicLink())walk(file);else {checkPath(file);checkAvailability(file,getAvailability);result.push(file);}
-    }
-    progress();
-  }
-  for(const dir of settings.value.saveLocations)walk(dir);return [...new Set(result)].sort();
+export function filesInScope(settings,options={}){
+  return discoverSaveInputs(settings.value.saveLocations,options).files.map(f=>f.file).sort();
 }
 export async function scope(c,settings,onProgress=()=>{}){
-  let files;try{files=filesInScope(settings,{onProgress});}catch(e){return {inventory:{complete:false,saves:[],roots:[],locations:settings.value.saveLocations.map((path,i)=>({label:'location-'+(i+1),path})),unknowns:[{code:e.message==='SAVE_SCOPE_TOO_BROAD'?'SAVE_SCOPE_TOO_BROAD':'SCAN_INCOMPLETE'}]},inputs:[],scopeDigest:null};}
+  let files;try{files=filesInScope(settings,{onProgress});}catch(e){return {inventory:{complete:false,saves:[],roots:[],locations:settings.value.saveLocations.map((path,i)=>({label:'location-'+(i+1),path})),unknowns:[{code:['SAVE_SCOPE_TOO_BROAD','LINKED_SAVE_SUBFOLDER','UNAVAILABLE_OR_PROVIDER_INPUT'].includes(e.message)?e.message:'SCAN_INCOMPLETE'}]},inputs:[],scopeDigest:null};}
   onProgress({stage:'SAVE_LOCKS',completed:0,total:files.length});
   const guard=process.platform==='win32'?await maintenanceHandles(files,{inputsOnly:true}):null;
   try{

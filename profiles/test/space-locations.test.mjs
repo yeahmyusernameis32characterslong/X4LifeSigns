@@ -21,9 +21,10 @@ test('folder enumeration reports progress, includes nested files, and bounds bro
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ls-scope-'));t.after(()=>fs.rmSync(dir,{recursive:true}));
  fs.mkdirSync(path.join(dir,'nested'));fs.writeFileSync(path.join(dir,'nested','save.xml.gz'),'not read during enumeration');fs.writeFileSync(path.join(dir,'unrelated.txt'),'preserved');
  const settings={value:{saveLocations:[dir,path.join(dir,'nested')]}},progress=[],opts={getAvailability:()=> 'LOCAL_METADATA_ONLY',onProgress:p=>progress.push(p)};
- const files=filesInScope(settings,opts);assert.equal(files.length,1);assert.ok(files.includes(path.join(dir,'nested','save.xml.gz')));assert.equal(progress[0].completed,0);assert.ok(progress.at(-1).completed>0);assert.ok(progress.every(p=>p.stage==='FOLDERS'&&p.total===null));
+ const files=filesInScope(settings,opts);assert.equal(files.length,1);assert.ok(files.includes(path.join(dir,'nested','save.xml.gz')));assert.equal(progress[0].completed,0);assert.ok(progress.some(p=>p.stage==='FOLDERS'&&p.completed>0));assert.ok(progress.every(p=>p.stage==='FOLDERS'&&p.total===null||p.stage==='XML_HEADERS'&&p.total===1));
  assert.throws(()=>filesInScope(settings,{...opts,maxEntries:1}),/SAVE_SCOPE_TOO_BROAD/);
  let clock=0;assert.throws(()=>filesInScope(settings,{...opts,now:()=>clock++,maxMilliseconds:2}),/SAVE_SCOPE_TOO_BROAD/);
+ assert.equal(filesInScope(settings,{...opts,now:()=>clock++*100000}).length,1);
  assert.equal(fs.readFileSync(files[0],'utf8'),'not read during enumeration');
 });
 
@@ -33,6 +34,15 @@ test('menu locations retain native scope, normalise duplicates, persist Unicode 
  assert.throws(()=>changeLocation(f.c.directory,s.digest,f.saves,{remove:0}),/NATIVE/);assert.throws(()=>changeLocation(f.c.directory,r.digest,f.saves,{remove:1}),/SETTINGS_CHANGED/);
  for(const add of ['', 'relative', '\\server\share',path.join(f.archive,'absent'),'x\n'])assert.throws(()=>changeLocation(f.c.directory,s.digest,f.saves,{add}));
  fs.writeFileSync(path.join(f.archive,'keep.txt'),'untouched');s=changeLocation(f.c.directory,s.digest,f.saves,{remove:1});assert.deepEqual(s.value.saveLocations,[f.saves]);assert.equal(fs.readFileSync(path.join(f.archive,'keep.txt'),'utf8'),'untouched');
+});
+
+test('linked archive subtree keeps every production cleanup blocked and preserves both endpoints',async t=>{
+ const f=await fixture(t),r=readMenuSettings(f.c.directory,f.saves);changeLocation(f.c.directory,r.digest,f.saves,{add:f.archive});
+ const target=path.join(f.archive,'ordinary');fs.mkdirSync(target);const link=path.join(f.archive,'link');fs.symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
+ const before=fileHash(f.file),peer=fileHash(f.peer),result=await scanProduction(f.root,options(f));
+ assert.equal(result.inventory.complete,false);assert.ok(result.inventory.unknowns.some(u=>u.code==='LINKED_SAVE_SUBFOLDER'));
+ assert.ok(result.databases.every(d=>d.status==='BLOCKED'&&d.candidates===null));
+ assert.equal(fileHash(f.file),before);assert.equal(fileHash(f.peer),peer);assert.ok(fs.lstatSync(link).isSymbolicLink());assert.ok(fs.statSync(target).isDirectory());
 });
 test('missing mandatory native scope stays incomplete and cannot classify an orphan',async t=>{
  const f=await fixture(t);fs.renameSync(f.saves,f.saves+'-unavailable');const r=await scanProduction(f.root,options(f));assert.equal(r.inventory.complete,false);assert(r.databases.every(d=>d.status==='BLOCKED'));await assert.rejects(reviewSpace(f.root,V,'DELETEUNIVERSE',options(f)),/NOT_A_VERIFIED_ORPHAN/);

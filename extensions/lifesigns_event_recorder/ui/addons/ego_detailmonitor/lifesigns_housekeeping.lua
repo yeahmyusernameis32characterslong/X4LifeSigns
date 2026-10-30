@@ -41,7 +41,7 @@ function P.parse(text, expected)
     end
     local progress
     if state=="SCANNING" and count>0 then
-        local labels={FOLDERS="Searching folders and files",SAVE_LOCKS="Securing scan inputs",SAVE_HASHES="Checking file contents",SAVE_HASH_RECHECK="Verifying file contents",SAVES="Checking saves",SAVE_RECHECK="Rechecking save inputs",DATABASES="Checking databases",DATABASE_RECHECK="Rechecking databases"}
+        local labels={FOLDERS="Searching folders and files",XML_HEADERS="Identifying XML save files",SAVE_LOCKS="Securing scan inputs",SAVE_HASHES="Checking file contents",SAVE_HASH_RECHECK="Verifying file contents",SAVES="Checking saves",SAVE_RECHECK="Rechecking save inputs",DATABASES="Checking databases",DATABASE_RECHECK="Rechecking databases"}
         local row=rows[1];local label=labels[row[2]];local completed=uint(row[3]);local total=uint(row[4])
         if count==1 and row[1]=="ACTION" and row[2]=="Progress" then
             progress=row[3]..(P.productionMode and " (selected universe history)" or " (test copies only)")

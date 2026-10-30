@@ -2,8 +2,50 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { createHash } from 'node:crypto';
+import { SaxesParser } from 'saxes';
 import { checkPath } from '../bridge/src/session-path.js';
-import { readOnlyInput, availability, sameSnapshot, checkAvailability } from './inventory-path.mjs';
+import { readOnlyInput, availability, sameSnapshot, checkAvailabilityPaths } from './inventory-path.mjs';
+
+// Only a positively identified different XML root is discounted. Malformed,
+// ambiguous or long headers remain candidates and fail closed in inspectSave.
+export function isSaveCandidate(file){
+  const info=checkPath(file),fd=fs.openSync(file,'r'),buf=Buffer.alloc(4096);let root;
+  try{
+    const n=fs.readSync(fd,buf,0,buf.length,0);
+    if(buf[0]===31&&buf[1]===139)return true;
+    const parser=new SaxesParser({xmlns:true}),stop=Error('ROOT_FOUND');
+    parser.on('opentag',node=>{root=node.local;throw stop;});parser.on('doctype',()=>{throw Error('DTD');});
+    try{parser.write(buf.subarray(0,n).toString('utf8'));}catch(e){if(e!==stop)return true;}
+    if(!sameSnapshot(info,fs.fstatSync(fd))||!sameSnapshot(info,checkPath(file)))throw Error('INPUT_CHANGED');
+    return !root||root==='savegame';
+  }finally{fs.closeSync(fd);}
+}
+
+export function discoverSaveInputs(locations,{onProgress=()=>{},getAvailability=availability,maxEntries=1000000,now=Date.now,maxMilliseconds=Infinity}={}){
+  const queue=locations.map((folder,i)=>({file:path.resolve(folder),location:'location-'+(i+1),relative:''})),seen=new Set(),directories=[],files=[];let entries=0;const started=now();
+  const progress=()=>{onProgress({stage:'FOLDERS',completed:entries,total:null});if(now()-started>=maxMilliseconds)throw Error('SAVE_SCOPE_TOO_BROAD');};
+  let head=0;
+  while(head<queue.length){
+    progress();const batch=[];
+    while(head<queue.length&&batch.length<32){const d=queue[head++],key=process.platform==='win32'?d.file.toLowerCase():d.file;if(!seen.has(key)){seen.add(key);batch.push(d);}}
+    checkAvailabilityPaths(batch.map(d=>d.file),getAvailability);
+    for(const dir of batch){
+      checkPath(dir.file,{directory:true});const items=fs.readdirSync(dir.file,{withFileTypes:true});
+      directories.push({...dir,listing:items.map(i=>i.name).sort()});
+      for(const item of items){
+        if(++entries>maxEntries)throw Error('SAVE_SCOPE_TOO_BROAD');progress();
+        const file=path.join(dir.file,item.name),relative=dir.relative?dir.relative+'/'+item.name:item.name;
+        if(item.isDirectory())queue.push({...dir,file,relative});
+        else if(item.isSymbolicLink()){const error=Error('LINKED_SAVE_SUBFOLDER');error.input=file;throw error;}
+        else if(/\.xml(?:\.gz)?$/i.test(item.name))files.push({file,relative,location:dir.location});
+      }
+    }
+  }
+  const candidates=[];
+  onProgress({stage:'XML_HEADERS',completed:0,total:files.length});
+  for(let i=0;i<files.length;i+=32){const batch=files.slice(i,i+32);checkAvailabilityPaths(batch.map(f=>f.file),getAvailability);for(const f of batch)if(isSaveCandidate(f.file))candidates.push(f);onProgress({stage:'XML_HEADERS',completed:i+batch.length,total:files.length});}
+  return {files:candidates,directories};
+}
 
 export async function inspectSave(file, { getAvailability = availability, maxBytes = 8 * 1024 ** 3,
   maxRefs = 2000000, maxDepth = 256, timeout = 600000, heapMb = 256, beforeVerify } = {}) {
@@ -40,47 +82,33 @@ export async function inventorySaves(locations, options = {}) {
   let checked = 0;
   options.onProgress?.({ stage: 'SAVES', completed: 0, total: null });
   if (!Array.isArray(locations) || !locations.length) { output.complete = false; output.unknowns.push({ code: 'NO_DECLARED_SAVE_LOCATIONS' }); return output; }
-  const seen = new Set(), observations = []; let files = 0;
-  async function walk(dir, location, relative = '') {
-    try {
-      checkAvailability(dir, getAvailability);
-      checkPath(dir, { directory: true });
-      const items = fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name));
-      const before = items.map(item=>item.name).sort();
-      observations.push({ file: dir, listing: before });
-      for (const item of items) {
-        if (++files > (options.maxFiles || 10000)) throw Error('RESOURCE_LIMIT');
-        const name=item.name;
-        if(!item.isDirectory()&&!item.isSymbolicLink()&&!/\.xml(?:\.gz)?$/i.test(name))continue;
-        const file = path.join(dir, name), rel = relative ? relative + '/' + name : name;
-        const stat = fs.lstatSync(file);
-        if (stat.isDirectory() && !stat.isSymbolicLink()) { await walk(file, location, rel); continue; }
-        let entry;
-        observations.push({ file, info: stat });
-        // Valve documents this exact Auto-Cloud administrative file as safe for
-        // games to ignore. Other unexpected files still make scope uncertain.
-        if(name==='steam_autocloud.vdf'){checkPath(file);checkAvailability(file,getAvailability);continue;}
-        if (!/\.xml(?:\.gz)?$/i.test(name)) entry = { name, status: 'UNKNOWN', code: 'UNSUPPORTED_FILE' };
-        else entry = await inspectSave(file, { ...options, getAvailability });
-        entry.source = location + '/' + rel; output.saves.push(entry);
-        options.onProgress?.({ stage: 'SAVES', completed: ++checked, total: null });
-        if (entry.status === 'CHECKPOINT') output.roots.push({ ...entry.root, source: entry.source });
-        if (entry.status === 'UNKNOWN') output.unknowns.push({ source: entry.source, universe: entry.universe, code: entry.code });
+  const observations=[],seenRoots=new Set();
+  output.locations=locations.map((folder,i)=>({label:'location-'+(i+1),path:path.resolve(folder)}));
+  // Keep each root independent: a failed archive does not erase known native
+  // checkpoints, but still blocks every destructive conclusion.
+  for(const [i,folder] of locations.entries()){
+    const key=path.resolve(folder);if(seenRoots.has(key))continue;seenRoots.add(key);
+    const label='location-'+(i+1);
+    try{
+      const discovered=discoverSaveInputs([folder],{...options,getAvailability,onProgress:options.onProgress});
+      observations.push(...discovered.directories.map(d=>({file:d.file,listing:d.listing})));
+      for(const input of discovered.files){
+        const info=checkPath(input.file);observations.push({file:input.file,info});
+        const entry=await inspectSave(input.file,{...options,getAvailability});
+        entry.source=label+'/'+input.relative;output.saves.push(entry);
+        options.onProgress?.({stage:'SAVES',completed:++checked,total:null});
+        if(entry.status==='CHECKPOINT')output.roots.push({...entry.root,source:entry.source});
+        if(entry.status==='UNKNOWN')output.unknowns.push({source:entry.source,universe:entry.universe,code:entry.code});
       }
-      if (JSON.stringify(before) !== JSON.stringify(fs.readdirSync(dir).sort())) throw Error('INVENTORY_CHANGED');
-    } catch (e) { output.complete = false; output.unknowns.push({ source: location + '/' + relative, code: /^[A-Z_]+$/.test(e.message) ? e.message : 'UNREADABLE_SAVE_LOCATION' }); }
-  }
-  for (const [i, value] of locations.entries()) {
-    const folder = path.resolve(value), label = 'location-' + (i + 1);
-    if (seen.has(folder)) continue; seen.add(folder); output.locations.push({ label, path: folder }); await walk(folder, label);
+    }catch(e){output.complete=false;output.unknowns.push({source:label,code:/^[A-Z_]+$/.test(e.message)?e.message:'UNREADABLE_SAVE_LOCATION'});}
   }
   // A later scan may outlast a change to an earlier file/location. Recheck all
   // metadata/listings before publishing; this is still not an atomic snapshot.
   let rechecked = 0;
   options.onProgress?.({ stage: 'SAVE_RECHECK', completed: 0, total: observations.length });
+  try{checkAvailabilityPaths(observations.map(o=>o.file),getAvailability);}catch{output.complete=false;output.unknowns.push({code:'INVENTORY_CHANGED'});}
   for (const o of observations) {
     try {
-      checkAvailability(o.file, getAvailability);
       if (o.listing ? JSON.stringify(o.listing) !== JSON.stringify(fs.readdirSync(o.file).sort()) : !sameSnapshot(o.info, checkPath(o.file))) throw Error('INVENTORY_CHANGED');
       options.onProgress?.({ stage: 'SAVE_RECHECK', completed: ++rechecked, total: observations.length });
     } catch { output.complete = false; output.unknowns.push({ code: 'INVENTORY_CHANGED' }); break; }

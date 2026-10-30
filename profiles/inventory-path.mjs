@@ -55,3 +55,11 @@ export function checkAvailability(file, getAvailability = availability) {
   const states = getAvailability === availability ? availabilityMany(paths) : paths.map(p => getAvailability(p));
   if (states.some(state => state !== 'LOCAL_METADATA_ONLY')) throw Error('UNAVAILABLE_OR_PROVIDER_INPUT');
 }
+
+// Fresh bounded batches within one observation phase, never across scans.
+export function checkAvailabilityPaths(files,getAvailability=availability){
+  const paths=new Set();
+  for(const file of files)for(let p=path.resolve(file);;p=path.dirname(p)){paths.add(p);if(path.dirname(p)===p)break;}
+  const values=[...paths];
+  for(let i=0;i<values.length;i+=32){const batch=values.slice(i,i+32),states=getAvailability===availability?availabilityMany(batch):batch.map(getAvailability),blocked=states.findIndex(v=>v!=='LOCAL_METADATA_ONLY');if(blocked>=0){const error=Error('UNAVAILABLE_OR_PROVIDER_INPUT');error.input=batch[blocked];throw error;}}
+}

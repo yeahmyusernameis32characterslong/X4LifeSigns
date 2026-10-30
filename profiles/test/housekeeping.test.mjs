@@ -86,7 +86,8 @@ test('save discovery ignores unrelated extensions before availability or parsing
  const dir=temp(t);fs.writeFileSync(path.join(dir,'save.xml.gz'),gzipSync(xml()));fs.writeFileSync(path.join(dir,'steam_autocloud.vdf'),'"steam_autocloud" { "accountid" "0" }');
  const before=hash(path.join(dir,'steam_autocloud.vdf'));let result=await inventorySaves([dir],local);assert.equal(result.complete,true);assert.equal(result.roots.length,1);assert.equal(result.unknowns.length,0);assert.equal(result.saves.length,1);assert.equal(hash(path.join(dir,'steam_autocloud.vdf')),before);
  fs.writeFileSync(path.join(dir,'other.vdf'),'unknown');result=await inventorySaves([dir],{...local,getAvailability:file=>{assert.notEqual(path.basename(file),'other.vdf');return 'LOCAL_METADATA_ONLY';}});assert.equal(result.unknowns.length,0);assert.equal(result.saves.length,1);
- fs.writeFileSync(path.join(dir,'other.xml'),'<not-a-save/>');result=await inventorySaves([dir],local);assert.ok(result.unknowns.length>0);
+ fs.writeFileSync(path.join(dir,'other.xml'),'<not-a-save/>');result=await inventorySaves([dir],local);assert.equal(result.unknowns.length,0);assert.equal(result.saves.length,1);
+ fs.writeFileSync(path.join(dir,'uncertain.xml'),'<savegame>');result=await inventorySaves([dir],local);assert.ok(result.unknowns.length>0);
 });
 test('plain XML and native gzip resolve typed refs to the independently expected checkpoint and stay byte-identical',async t=>{
   const dir=temp(t);

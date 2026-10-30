@@ -46,7 +46,7 @@ export function previewReply(gen, request, state, rows = [], page = 0) {
 
 // Informational counts only. No paths, identities or provisional conclusions.
 export function scanProgressRows(progress) {
-  if (!progress || !['FOLDERS','SAVE_LOCKS','SAVE_HASHES','SAVE_HASH_RECHECK','SAVES','SAVE_RECHECK','DATABASES','DATABASE_RECHECK'].includes(progress.stage) ||
+  if (!progress || !['FOLDERS','XML_HEADERS','SAVE_LOCKS','SAVE_HASHES','SAVE_HASH_RECHECK','SAVES','SAVE_RECHECK','DATABASES','DATABASE_RECHECK'].includes(progress.stage) ||
       !Number.isSafeInteger(progress.completed) || progress.completed < 0 || progress.completed > 999999999 ||
       (['SAVES','FOLDERS'].includes(progress.stage) ? progress.total !== null :
         !Number.isSafeInteger(progress.total) || progress.total < progress.completed || progress.total > 999999999)) throw Error('Invalid scan progress');

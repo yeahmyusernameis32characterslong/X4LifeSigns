@@ -1,5 +1,5 @@
 const number = x => Number.isSafeInteger(x) && x >= 0 ? String(x) : 'Unknown';
-const problem = x => x==='SAVE_SCOPE_TOO_BROAD'?'Folder scope too broad; choose a folder containing saves':String(x).toLowerCase().replaceAll('_', ' ');
+const problem = x => x==='SAVE_SCOPE_TOO_BROAD'?'Folder entry safety limit reached':x==='LINKED_SAVE_SUBFOLDER'?'Linked folder or file found; scan cannot follow links':String(x).toLowerCase().replaceAll('_', ' ');
 // Decimal display units only; inventory and retention continue to use exact bytes.
 export function displaySize(bytes) {
   if (!Number.isSafeInteger(bytes) || bytes < 0) return 'Unknown';
