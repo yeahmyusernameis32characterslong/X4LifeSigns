@@ -122,31 +122,46 @@ export class DialogueReader {
     const keys=['subject_name','other_name','other_faction','sector_name','detail','detail_name','source_event','participant_role','order_name','order_state','assigned_idcode','actual_role','control_post'];
     return {ref:this.ref(e),time:e.game_time,type:e.event_type,meaning:eventMeaning(e.event_type,e.fields),subject:{kind:e.subject_kind,seed:e.subject_seed,idcode:e.subject_idcode},other:{seed:e.other_seed,idcode:e.other_idcode},access:e.access,fields:full?e.fields:Object.fromEntries(keys.filter(k=>Object.hasOwn(e.fields,k)).map(k=>[k,e.fields[k]]))};
   }
-  search(a){
-    safeArgs(a,['types','text','from','to','after']);let query,offset;
-    if(a.after){if(Object.keys(a).length!==1||!this.cursors.has(a.after))throw Error('INVALID_OR_FOREIGN_CURSOR');({query,offset}=this.cursors.get(a.after));}
-    else{
+  normaliseQuery(a){
       if(a.types!==undefined&&(!Array.isArray(a.types)||a.types.length>32||a.types.some(t=>typeof t!=='string'||!/^[A-Z_]{2,80}$/.test(t))))throw Error('INVALID_EVENT_TYPES');
       if(a.text!==undefined&&(typeof a.text!=='string'||a.text.length>100))throw Error('INVALID_SEARCH_TEXT');
       for(const k of ['from','to'])if(a[k]!==undefined&&(!Number.isFinite(a[k])||a[k]<0))throw Error('INVALID_TIME_RANGE');
       if(a.from!==undefined&&a.to!==undefined&&a.from>a.to)throw Error('INVALID_TIME_RANGE');
-      query={types:a.types||[],text:(a.text||'').toLowerCase(),from:a.from??0,to:a.to??Number.MAX_VALUE};offset=0;
-    }
+      return {types:[...new Set(a.types||[])].sort(),text:(a.text||'').toLowerCase(),from:a.from??0,to:a.to??Number.MAX_VALUE};
+  }
+  filterSql(query){return {sql:`time>=? AND time<=? AND instr(search,?)>0${query.types.length?' AND type IN ('+query.types.map(()=>'?').join(',')+')':''}`,args:[query.from,query.to,query.text,...query.types]};}
+  filterEvents(query){return this.events.map((e,i)=>({e,i})).filter(({e})=>(!query.types.length||query.types.includes(e.event_type))&&Number(e.game_time)>=query.from&&Number(e.game_time)<=query.to&&JSON.stringify(e.fields).toLowerCase().includes(query.text));}
+  summary(a){
+    safeArgs(a,['types','text','from','to']);const query=this.normaliseQuery(a);let groups;
+    if(this.mode==='baseline'){
+      const map=new Map();for(const {e,i}of this.filterEvents(query)){const g=map.get(e.event_type)||{type:e.event_type,count:0,first:i,last:i};g.count++;g.last=i;map.set(e.event_type,g);}groups=[...map.values()].sort((a,b)=>a.type.localeCompare(b.type));
+    }else{const {sql,args}=this.filterSql(query);groups=this.index.prepare('SELECT type,count(*) AS count,min(position) AS first,max(position) AS last FROM evidence WHERE '+sql+' GROUP BY type ORDER BY type').all(...args);}
+    const point=i=>({ref:this.ref(this.events[i]),time:this.events[i].game_time});
+    return {totalObservations:groups.reduce((n,g)=>n+g.count,0),byType:groups.map(g=>({type:g.type,observations:g.count,first:point(g.first),last:point(g.last),meaning:eventMeaning(g.type)})),query,scope:this.scopeId,qualification:'Exact matching observation counts in this authorised scope, not shots, battles, unique losses or personal eyewitness memories. Other records outside this scope are not searched or disclosed. Use search_history/read_events for individual facts.'};
+  }
+  search(a){
+    safeArgs(a,['types','text','from','to','after']);let query,offset;
+    if(a.after){
+      if(!this.cursors.has(a.after))throw Error('INVALID_OR_FOREIGN_CURSOR');({query,offset}=this.cursors.get(a.after));
+      const repeated={...query,...a};delete repeated.after;
+      if(JSON.stringify(this.normaliseQuery(repeated))!==JSON.stringify(query))throw Error('CURSOR_FILTER_CHANGED');
+    }else{query=this.normaliseQuery(a);offset=0;}
     let positions,total;
     if(this.mode==='baseline'){
-      const all=this.events.map((e,i)=>({e,i})).filter(({e})=>(!query.types.length||query.types.includes(e.event_type))&&Number(e.game_time)>=query.from&&Number(e.game_time)<=query.to&&JSON.stringify(e.fields).toLowerCase().includes(query.text));total=all.length;positions=all.slice(offset,offset+this.pageSize).map(x=>x.i);
+      const all=this.filterEvents(query);total=all.length;positions=all.slice(offset,offset+this.pageSize).map(x=>x.i);
     }else{
-      const sql=`time>=? AND time<=? AND instr(search,?)>0${query.types.length?' AND type IN ('+query.types.map(()=>'?').join(',')+')':''}`,args=[query.from,query.to,query.text,...query.types];
+      const {sql,args}=this.filterSql(query);
       total=this.index.prepare('SELECT count(*) n FROM evidence WHERE '+sql).get(...args).n;
       positions=this.index.prepare('SELECT position FROM evidence WHERE '+sql+' ORDER BY position LIMIT ? OFFSET ?').all(...args,this.pageSize,offset).map(x=>x.position);
     }
     let next=null;if(offset+positions.length<total){if(this.cursors.size>=10000)throw Error('CURSOR_RESOURCE_LIMIT');next=randomUUID();this.cursors.set(next,{query,offset:offset+positions.length});}
-    return {events:positions.map(i=>this.eventRow(this.events[i],this.mode==='baseline')),coverage:{total,returned:positions.length,offset,complete:next===null,meaning:'Complete within the authorised recorded scope only'},next};
+    return {events:positions.map(i=>this.eventRow(this.events[i],this.mode==='baseline')),coverage:{total,returned:positions.length,offset,allAuthorisedMatchesReturned:next===null,outsideGrant:'NOT_SEARCHED_OR_DISCLOSED',meaning:'Exhausting these matches does not prove absence outside this person and evidenced postings.'},next};
   }
   call(name,args={}) {
     this.guard();const started=performance.now();let result;
     if(name==='profile'){safeArgs(args,['target']);result=this.profile(args.target);}
     else if(name==='search_history')result=this.search(args);
+    else if(name==='history_summary')result=this.summary(args);
     else if(name==='read_events'){
       safeArgs(args,['refs']);if(!Array.isArray(args.refs)||!args.refs.length||args.refs.length>10||args.refs.some(r=>typeof r!=='string'||!this.byRef.has(r)))throw Error('EVENT_OUTSIDE_GRANT');
       result={events:args.refs.map(r=>this.eventRow(this.byRef.get(r),true))};

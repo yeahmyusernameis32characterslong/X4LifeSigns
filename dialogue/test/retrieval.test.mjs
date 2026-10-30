@@ -33,8 +33,9 @@ test('indexed subject queries and legacy broad-read baseline retain identical au
  }
 });
 test('cursor coverage, filters, hostile input and cross-person/checkpoint cursor rejection',t=>{
- const f=fixture(t),r=reader(t,f,{}, {pageSize:2}),other=reader(t,f,{run:B,record:2});const page=r.call('search_history',{}).result;assert(page.next);assert.equal(page.coverage.complete,false);
- assert.throws(()=>other.call('search_history',{after:page.next}),/FOREIGN_CURSOR/);assert.throws(()=>r.call('search_history',{after:page.next,types:[]}),/CURSOR/);
+ const f=fixture(t),r=reader(t,f,{}, {pageSize:2}),other=reader(t,f,{run:B,record:2});const page=r.call('search_history',{}).result;assert(page.next);assert.equal(page.coverage.allAuthorisedMatchesReturned,false);
+ assert.throws(()=>other.call('search_history',{after:page.next}),/FOREIGN_CURSOR/);assert.throws(()=>r.call('search_history',{after:page.next,types:['ATTACKING']}),/CURSOR/);
+ assert.deepEqual(r.call('search_history',{after:page.next,types:[]}).result.events,r.call('search_history',{after:page.next}).result.events);
  assert.equal(new Set(all(r).map(e=>e.ref)).size,all(r).length);assert.equal(all(r,{types:['KILLED_OBJECT']}).length,1);assert.equal(all(r,{text:"'); DELETE FROM events;--"}).length,0);
  assert.throws(()=>r.call('search_history',{sql:'SELECT *'}),/ARGUMENTS/);assert.throws(()=>r.call('search_history',{from:NaN}),/TIME/);assert.throws(()=>r.call('delete',{}),/UNKNOWN_TOOL/);
 });
@@ -59,6 +60,14 @@ test('schema-v2 root/generation binding and seals are read without registration 
  const before=f.binding.sha256,r=reader(t,f);assert(all(r).length>0);assert.equal(fileHash(f.binding.file),before);
  assert.throws(()=>new DialogueReader({...f.binding,entry:{...f.binding.entry,generation:2}},{npcSeed:CAPTAIN,run:A,record:f.record,access:'command'}),/GENERATION/);
  assert.throws(()=>new DialogueReader({...f.binding,rootId:'foreign-root'},{npcSeed:CAPTAIN,run:A,record:f.record,access:'command'}),/GENERATION/);
+});
+test('scoped summaries equal individual records and broad-read baseline without implying shots or hidden history',t=>{
+ const f=fixture(t),r=reader(t,f),b=reader(t,f,{}, {mode:'baseline'}),summary=r.call('history_summary',{}).result;
+ assert.equal(summary.totalObservations,all(r).length);assert.deepEqual(summary,b.call('history_summary',{}).result);
+ assert.equal(summary.byType.find(g=>g.type==='KILLED_OBJECT').observations,1);assert(summary.qualification.includes('not shots'));
+ assert.equal(reader(t,f,{npcSeed:MANAGER}).call('history_summary',{}).result.totalObservations,1);
+ assert.equal(reader(t,f,{npcSeed:FOREIGN}).call('history_summary',{}).result.totalObservations,0);
+ assert.throws(()=>r.call('history_summary',{sql:'SELECT'}),/ARGUMENTS/);
 });
 test('event vocabulary preserves contact direction, order uncertainty and distress participant inversion',()=>{
  assert.equal(eventMeaning('ATTACKED').direction,'OTHER_TO_SUBJECT');assert.equal(eventMeaning('ATTACKING').direction,'SUBJECT_TO_OTHER');

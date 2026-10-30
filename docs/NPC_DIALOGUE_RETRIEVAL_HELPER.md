@@ -209,7 +209,8 @@ read-only connection, with schema-v1/v2 generation validation.
 
 The host supplies snapshot hash/universe/production entry and exact NPC seed,
 run, record and personal/command access. Model tools are `profile` (self or current
-evidenced posting), `search_history` (bounded chronological pages) and `read_events`
+evidenced posting), `history_summary` (scoped counts and boundary refs),
+`search_history` (bounded chronological pages) and `read_events`
 (previously authorised event refs). Model arguments cannot change that grant,
 choose a file, execute SQL or run a shell. Cursors and conversation continuations
 belong to the exact snapshot/checkpoint/person/policy scope. Changed snapshot
@@ -250,3 +251,11 @@ deterministic event-direction/uncertainty labels, an authorised recorded-type
 catalogue and explicit prompt guidance; these are recorder vocabulary, not
 answers selected for an incident. Corrected-model accuracy requires fresh trials
 and is reported separately from implementation/unit-test success.
+
+Realistic paging trials subsequently reached a visible context budget in both
+modes; they are incomplete, not fast successful answers or evidence of absence.
+The next interface revision permits identical repeated cursor filters while
+rejecting changed/foreign cursors, and adds a scoped summary so the model can
+obtain counts before retrieving individual evidence. Summary counts describe
+observation records, not shots, battles or unique losses. Exhausted pages refer
+only to authorised matches; outside-grant history is neither searched nor disclosed.
