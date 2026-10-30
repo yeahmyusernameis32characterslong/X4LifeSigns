@@ -49,6 +49,14 @@ function Installed {
     try { [xml]$content=Get-Content -LiteralPath (Join-Path $extension 'content.xml') -Raw; return $content.content.id -eq 'lifesigns_event_recorder' -and $content.content.enabled -ne '0' }
     catch { return $false }
 }
+function VerifyRegistration {
+    if ($settings.PSObject.Properties.Name -notcontains 'productionRootId') { return }
+    $file=Join-Path $settings.databaseRoot 'local-data/housekeeping-production.json'
+    $registration=Get-Content -LiteralPath $file -Raw|ConvertFrom-Json
+    if($registration.id -ne $settings.productionRootId -or $registration.owner -ne 'LifeSignsProductionMaintenance' -or $registration.anchor -ne $settings.productionAnchor){throw 'Production registration missing or changed; recovery required'}
+    $anchor=Get-Content -LiteralPath $settings.productionAnchor -Raw|ConvertFrom-Json
+    if($anchor.id -ne $settings.productionRootId -or $anchor.root -ne [IO.Path]::GetFullPath($settings.databaseRoot)){throw 'Independent production anchor mismatch'}
+}
 function FinishChild {
     if ($null -eq $script:child) { return }
     $script:child.WaitForExit()
@@ -97,6 +105,7 @@ try {
         }
         if ($null -ne $gameKey -and $installed -and $null -eq $child -and $attempts -lt 3 -and [DateTime]::UtcNow -ge $nextAttempt) {
             VerifyCode
+            VerifyRegistration
             $arguments=@($settings.serviceScript,'--logs',$settings.logDirectory,'--replies',(Join-Path $settings.extensionDirectory 'runtime'),'--since',$games[0].started.ToString('o'),'--control-stdin','--root',$settings.databaseRoot)
             if ($settings.PSObject.Properties.Name -contains 'debugLog') {
                 if (-not [IO.Path]::IsPathRooted($settings.debugLog) -or $settings.debugLog -match '["\r\n]') { throw 'Invalid debuglog path' }

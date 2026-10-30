@@ -8,6 +8,9 @@ import { parseRecord } from '../recorder/log-format.mjs';
 import { ProfileStore, runId, universeId } from './store.mjs';
 import { checkPath } from '../bridge/src/session-path.js';
 import { LoadFence, parseLoadRequest, CHALLENGE_RUN, FENCE_RUN, ACTIVE_RUN } from './load-fence.mjs';
+import { PreviewService } from './preview-service.mjs';
+import { PREVIEW_HELLO, PREVIEW_REPLY } from './preview-protocol.mjs';
+import {registered,productionRoot} from './production-contract.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export class ReplyPublicationError extends Error {
@@ -18,7 +21,7 @@ export class ProfileConsumer {
     onReplyDelayed = (e) => console.error(`Profile reply publication delayed; retrying: ${e.code}`) }) {
     this.root = path.resolve(root); this.replyDirectory = path.resolve(replyDirectory);
     checkPath(this.replyDirectory, { directory: true }); this.stores = new Map();
-    this.pendingReplies = new Map(); this.renameReply=renameReply; this.onReplyDelayed=onReplyDelayed;
+    this.pendingReplies = new Map(); this.renameReply=renameReply; this.onReplyDelayed=onReplyDelayed;this.retiredRuns=new Set();
   }
   consume(lines) {
     const groups = new Map();
@@ -29,8 +32,13 @@ export class ProfileConsumer {
       if (!Object.hasOwn(row.fields, 'record')) continue;
       if (row.kind === 'RUN_BEGIN') {
         if (row.fields.database_protocol !== 'LSDB1') continue;
+        if(registered(this.root)){
+          const entry=productionRoot(this.root).catalog.universes[row.fields.lifesigns_universe_id];
+          if(entry?.phase==='RETIRED'||entry?.retired){this.retiredRuns.add(row.run);this.pendingReplies.delete(row.run);continue;}
+        }
         if (!this.stores.has(row.run)) this.stores.set(row.run, new ProfileStore(this.root, row.fields.lifesigns_universe_id, row.run));
       }
+      if(this.retiredRuns.has(row.run))continue;
       if (!this.stores.has(row.run)) throw Error('Profile row received before owned startup');
       if (!groups.has(row.run)) groups.set(row.run, []); groups.get(row.run).push(row);
     }
@@ -39,6 +47,7 @@ export class ProfileConsumer {
       let status;
       try { status = this.stores.get(run).ingest(rows); }
       catch (e) { const store = this.stores.get(run); this.reply({ universe: store.id, run, state: 'ERROR', record: 0 }); throw e; }
+      if(status.state==='SEALED_REPLAY'){this.pendingReplies.delete(run);continue;}
       // A committed transaction and delivery of its acknowledgement are separate.
       // Publication failure must not turn valid committed data into a log error.
       this.reply(status); statuses.push(status);
@@ -113,19 +122,21 @@ export class LogTail {
 }
 export function startService({ logDirectory, replyDirectory, root = ROOT, interval = 250, notBefore = null,
   debugLog = null,
+  createPreview = options => new PreviewService(options),
   onRunError = (e, name) => console.error(`Rejected profile log ${name}: ${e.message}`),
   onError = e => { console.error(e.message); process.exitCode = 1; } }) {
   if (notBefore !== null && (!Number.isFinite(notBefore) || notBefore < 0)) throw Error('Invalid launch time');
   const consumer = new ProfileConsumer({ root, replyDirectory }), tails = new Map(), failed = new Set();
   const fence = debugLog ? new LoadFence({root, replyDirectory, processStarted: notBefore ?? 0}) : null;
-  let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false;
+  const preview = debugLog ? createPreview({root,replyDirectory,nativeSaveDirectory:path.join(path.dirname(debugLog),'save')}) : null;
+  let controlTail = null, pending = null, publishPending = false, activePending = null, timer, stopped = false, stopPromise;
   function names() {
     return fs.readdirSync(logDirectory).filter(n => /^profiles-session-\d+-\d+-loaded-[0-9_-]+\.log$/.test(n))
       .sort((a,b) => a.slice(a.indexOf('-loaded-')).localeCompare(b.slice(b.indexOf('-loaded-'))));
   }
   function eligible(name) {
     const run = name.slice(9,-4); runId(run);
-    if ([CHALLENGE_RUN,FENCE_RUN,ACTIVE_RUN].includes(run)) throw Error('Reserved control run in profile log');
+    if ([CHALLENGE_RUN,FENCE_RUN,ACTIVE_RUN,PREVIEW_HELLO,PREVIEW_REPLY].includes(run)) throw Error('Reserved control run in profile log');
     if (fence?.isClosed(run)) return false;
     const file=path.join(logDirectory,name); checkPath(file);
     return notBefore === null || fs.statSync(file).birthtimeMs >= notBefore;
@@ -133,14 +144,23 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
   function stop({ drain = true } = {}) {
     if (stopped) return;
     clearInterval(timer);
-    try { if (drain) while (poll()) { /* Complete-row drain, excluding closed sessions. */ } }
-    finally { stopped = true; consumer.close(); }
+    preview?.stop();
+    const finish=()=>{try { if (drain) while (poll()) { /* Complete-row drain, excluding closed sessions. */ } }
+      finally { stopped=true;consumer.close(); }};
+    if(preview?.hasReaders()) {
+      stopPromise ??= preview.waitForExit().then(finish);return stopPromise;
+    }
+    if(stopPromise)return stopPromise;
+    finish();
   }
   function profiles(limits = null) {
     let progressed = false;
     for (const name of limits ? limits.keys() : names()) {
       if (failed.has(name) || !eligible(name)) continue;
       const file = path.join(logDirectory,name);
+      // Close the preview's read transaction before any writer is constructed.
+      // This delays ingestion by a poll, never native LoadGame/NewGame dispatch.
+      preview?.suspend();if(preview?.hasReaders())return progressed;
       if (!tails.has(file)) tails.set(file,new LogTail(file));
       const tail=tails.get(file);
       try {
@@ -155,6 +175,7 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
           if(!tail.startup && row.kind==='RUN_BEGIN' && row.fields.database_protocol==='LSDB1') tail.startup=row;
         }
         const statuses=consumer.consume(lines);
+        if(statuses.length) preview?.suspend();
         if(fence && statuses.length) activePending=statuses.at(-1);
       } catch(e) {
         if(e instanceof ReplyPublicationError) throw e;
@@ -173,14 +194,17 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
     if(stopped) return false;
     let progressed=false;
     try {
+      preview?.poll();
       if(fence) {
         // Read control before profiles, including after worker restart. Challenge
         // matching makes historical requests harmless; no timestamp guess here.
         if(!controlTail && fs.existsSync(debugLog)) { checkPath(debugLog);controlTail=new LogTail(debugLog); }
         if(controlTail) {
           for(const line of controlTail.poll()) {
+            if(preview?.handle(line)) continue;
             const token=parseLoadRequest(line);
             if(!token || !fence.accepts(token)) continue;
+            preview?.suspend();
             if(token===fence.state.ack) { publishPending=true; continue; }
             if(!pending) {
               const limits=new Map(names().filter(eligible).map(name=>[name,fs.statSync(path.join(logDirectory,name)).size]));
@@ -191,7 +215,11 @@ export function startService({ logDirectory, replyDirectory, root = ROOT, interv
           // profiles before catching up to the current control-file boundary.
           if(controlTail.offset<fs.statSync(debugLog).size) return true;
         }
+        if(preview?.hasReaders()&&(pending||publishPending))return true;
         if(pending) {
+          // A load request can arrive before any profile log exists. Drain the
+          // maintenance worker before acknowledging that boundary as well.
+          if(preview?.hasReaders())return true;
           progressed=profiles(pending.limits);
           const drained=[...pending.limits].every(([name,size])=>failed.has(name) || (tails.get(path.join(logDirectory,name))?.offset ?? 0)>=size);
           if(!drained) return true;

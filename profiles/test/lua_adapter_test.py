@@ -203,7 +203,7 @@ failure({loadlib=function() error('must not load with unknown policy') end},'thr
             (runtime/(name+'.reply')).write_bytes(('LSDB1|CONTROL|'+name+'|'+body+'|END\n').encode('ascii'))
         control_file(challenge_run,'CHALLENGE|'+first)
         control_file(fence_run,'FENCED|'+stale)
-        execute("loadCalls={};function LoadGame(...) loadCalls[#loadCalls+1]={n=select('#',...),...} end; LifeSignsDatabaseAdapter.installLoadFence(); clock=10; LoadGame('synthetic-save',nil,7); assert(LifeSignsDatabaseAdapter.loadFence.blocked);callbacks.onUpdate(); assert(#loadCalls==0);LoadGame('duplicate');assert(#loadCalls==0)")
+        execute("loadCalls={};function LoadGame(...) loadCalls[#loadCalls+1]={n=select('#',...),...} end; LifeSignsDatabaseAdapter.installLoadFence();LifeSignsHousekeeping={mutating=true,worldObserved=function() error('must not leave maintenance') end};LoadGame('maintenance-blocked');assert(#loadCalls==0 and LifeSignsDatabaseAdapter.loadFence.state=='IDLE');LifeSignsHousekeeping=nil;clock=10; LoadGame('synthetic-save',nil,7); assert(LifeSignsDatabaseAdapter.loadFence.blocked);callbacks.onUpdate(); assert(#loadCalls==0);LoadGame('duplicate');assert(#loadCalls==0)")
         # Matching fence without challenge rotation must still not dispatch.
         control_file(fence_run,'FENCED|'+first)
         execute("clock=10.2; callbacks.onUpdate();assert(#loadCalls==0)")

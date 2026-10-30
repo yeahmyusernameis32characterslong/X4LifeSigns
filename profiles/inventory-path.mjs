@@ -1,0 +1,65 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import { checkPath, sameFile } from '../bridge/src/session-path.js';
+
+export const sameSnapshot = (a, b) => sameFile(a, b) && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
+export function metadataAvailability(attributes,cloud=null){
+  if(!Number.isInteger(attributes)||attributes<0||attributes>4294967295)return 'UNKNOWN';
+  if(attributes&(0x1000|0x40000|0x400000))return 'PROVIDER_OR_REPARSE';
+  if(!(attributes&0x400))return 'LOCAL_METADATA_ONLY';
+  // CfAPI, not pinning intent: a recognised placeholder must be consumable and
+  // fully present. Unknown tags, redirects, partial/recall/invalid states refuse.
+  if(!Array.isArray(cloud)||cloud.length!==3||cloud[0]!==attributes||!cloud.every(n=>Number.isInteger(n)&&n>=0&&n<=4294967295)||((cloud[1]&0xffff0fff)>>>0)!==0x9000001a||cloud[2]===4294967295||!(cloud[2]&1)||(cloud[2]&0x30))return 'PROVIDER_OR_REPARSE';
+  return 'LOCAL_METADATA_ONLY';
+}
+// Metadata only. No hydration, attribute changes or path interpolation into code.
+export function availabilityMany(files, { platform = process.platform, execute = execFileSync } = {}) {
+  if (!files.length) return [];
+  if (platform !== 'win32') return files.map(() => 'LOCAL_METADATA_ONLY');
+  const unknown = () => files.map(() => 'UNKNOWN');
+  try {
+    // JSON travels as environment data, never interpolated into PowerShell code.
+    // Every invocation reads fresh attributes; no across-file/scan cache.
+    const values = JSON.parse(execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      "$ErrorActionPreference='Stop'; $paths=ConvertFrom-Json -InputObject $env:LIFESIGNS_INVENTORY_ATTRIBUTE_PATHS; $values=@(foreach($p in $paths){try{[int][System.IO.File]::GetAttributes([string]$p)}catch{$null}}); ConvertTo-Json -InputObject $values -Compress"], {
+      env: { ...process.env, LIFESIGNS_INVENTORY_ATTRIBUTE_PATHS: JSON.stringify(files) }, encoding: 'utf8', windowsHide: true, timeout: 10000
+    }));
+    if (!Array.isArray(values) || values.length !== files.length) return unknown();
+    const indices=values.map((v,i)=>Number.isInteger(v)&&(v&0x400)?i:-1).filter(i=>i>=0);let cloud=[];
+    if(indices.length)try{cloud=JSON.parse(execute('powershell.exe',['-NoProfile','-NonInteractive','-File',fileURLToPath(new URL('./maintenance-handles.ps1',import.meta.url)),'-ProbeAvailability'],{env:{...process.env,LIFESIGNS_INVENTORY_ATTRIBUTE_PATHS:JSON.stringify(indices.map(i=>files[i]))},encoding:'utf8',windowsHide:true,timeout:10000}));}catch{ /* Unknown metadata remains unavailable. */ }
+    return values.map((value,i)=>Number.isInteger(value)&&value>=-2147483648&&value<=4294967295?metadataAvailability(value>>>0,cloud[indices.indexOf(i)]):'UNKNOWN');
+  } catch { return unknown(); }
+}
+export function availability(file) {
+  return availabilityMany([file])[0];
+}
+
+export function readOnlyInput(file, getAvailability = availability) {
+  checkAvailability(file, getAvailability);
+  const info = checkPath(file);
+  const fd = fs.openSync(file, 'r');
+  if (!sameSnapshot(info, fs.fstatSync(fd))) { fs.closeSync(fd); throw Error('INPUT_CHANGED'); }
+  return { info, fd };
+}
+
+export function checkAvailability(file, getAvailability = availability) {
+  const paths = [];
+  for (let p = path.resolve(file);; p = path.dirname(p)) {
+    paths.push(p);
+    if (path.dirname(p) === p) break;
+  }
+  // Preserve injectable per-path checks; the production path batches only the
+  // process launch, not the metadata observations or the before/after phases.
+  const states = getAvailability === availability ? availabilityMany(paths) : paths.map(p => getAvailability(p));
+  if (states.some(state => state !== 'LOCAL_METADATA_ONLY')) throw Error('UNAVAILABLE_OR_PROVIDER_INPUT');
+}
+
+// Fresh bounded batches within one observation phase, never across scans.
+export function checkAvailabilityPaths(files,getAvailability=availability){
+  const paths=new Set();
+  for(const file of files)for(let p=path.resolve(file);;p=path.dirname(p)){paths.add(p);if(path.dirname(p)===p)break;}
+  const values=[...paths];
+  for(let i=0;i<values.length;i+=32){const batch=values.slice(i,i+32),states=getAvailability===availability?availabilityMany(batch):batch.map(getAvailability),blocked=states.findIndex(v=>v!=='LOCAL_METADATA_ONLY');if(blocked>=0){const error=Error('UNAVAILABLE_OR_PROVIDER_INPUT');error.input=batch[blocked];throw error;}}
+}

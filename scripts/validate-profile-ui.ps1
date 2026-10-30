@@ -8,8 +8,11 @@ if ((Get-FileHash -LiteralPath $schema -Algorithm SHA256).Hash -ne '67d318ee4a68
 $extension = Join-Path $root 'extensions/lifesigns_event_recorder'
 $file = Join-Path $extension 'ui.xml'
 [xml]$addon = Get-Content -LiteralPath $file -Raw
-if ($addon.addon.name -ne 'lifesigns_event_recorder' -or $addon.SelectNodes('/addon/environment').Count -ne 1 -or $addon.addon.environment.type -ne 'menus' -or $addon.SelectNodes('/addon/environment/file').Count -ne 1 -or $addon.addon.environment.file.name -ne 'ui/addons/ego_detailmonitor/lifesigns_database.lua' -or $addon.addon.environment.dependency.name -ne 'ego_detailmonitor') { throw 'Unexpected extension addon registration.' }
-if (-not (Test-Path -LiteralPath (Join-Path $extension $addon.addon.environment.file.name) -PathType Leaf)) { throw 'Registered Lua file missing.' }
+if ($addon.addon.name -ne 'lifesigns_event_recorder' -or $addon.SelectNodes('/addon/environment').Count -ne 1 -or $addon.addon.environment.type -ne 'menus') { throw 'Unexpected extension addon registration.' }
+$expectedFiles=@('ui/addons/ego_detailmonitor/lifesigns_database.lua','ui/addons/ego_detailmonitor/lifesigns_housekeeping.lua')
+$expectedDependencies=@('ego_detailmonitor','ego_gameoptions')
+if (($addon.SelectNodes('/addon/environment/file') | ForEach-Object { $_.name }) -join ',' -cne ($expectedFiles -join ',') -or ($addon.SelectNodes('/addon/environment/dependency') | ForEach-Object { $_.name }) -join ',' -cne ($expectedDependencies -join ',')) { throw 'Unexpected extension files/dependencies.' }
+foreach ($relative in $expectedFiles) { if (-not (Test-Path -LiteralPath (Join-Path $extension $relative) -PathType Leaf)) { throw 'Registered Lua file missing.' } }
 if (Test-Path -LiteralPath (Join-Path $extension 'ui/addons/ego_detailmonitor/ui.xml')) { throw 'Do not patch the vanilla addon registration.' }
 $settings = New-Object System.Xml.XmlReaderSettings
 $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit

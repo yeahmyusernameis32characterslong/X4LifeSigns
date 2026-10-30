@@ -227,6 +227,13 @@ A failure in speech recognition or speech synthesis must not crash the Node.js s
 
 ## Experimental SQLite profile test
 
+PR #25 adds a standalone read-only save inventory/retention preview. Run
+`npm ci --prefix profiles --ignore-scripts --no-audit --no-fund` then
+`npm test --prefix profiles`. Its native gzip/XML support, scope and evidence
+boundaries are documented in [Stage 1](docs/DATABASE_HOUSEKEEPING_STAGE1.md).
+The [Stage 2 menu test plan](docs/DATABASE_HOUSEKEEPING_STAGE2.md) adds standalone
+LuaJIT/native/real-companion checks and separately gated owner-run menu tests.
+
 The owner accepted the integration objective; see the
 [PR #20 completion summary](docs/SQLITE_PROFILE_COMPLETION.md) for the final
 verification scope and remaining follow-ups. The consolidated private SQL test
@@ -248,3 +255,33 @@ python profiles/test/load_permission_lua_test.py '<installed lua51_64.dll>' '<bu
 It must reject old READY after recreation and missing/mismatched service permission,
 while allowing current NEED_BASELINE/READY. This is not an in-game test; see the
 [load-boundary test plan](docs/LUA_LOAD_FENCE_TEST.md) for native acceptance.
+
+## Offline housekeeping Stage3 laboratory
+
+Run `node --test profiles/test/maintenance-v2.test.mjs` or include it through
+`npm.cmd --prefix profiles test`. The [Stage3 contract and limits](docs/DATABASE_HOUSEKEEPING_STAGE3.md)
+describe the factory-created temporary fixture roots, source preservation,
+sealed replay, child ancestry, catalogue/refusal and explicit recovery tests.
+Real disposable child processes exit during migration to test crash evidence;
+X4 and actual owner databases are not started or migrated. The modules are not
+packaged/imported by the production companion. Fixture fault tests deliberately
+remove or move temporary rows/files; Stage 3 alone has no pruning API.
+
+## Offline housekeeping Stage 4 laboratory
+
+Run `node --test profiles/test/pruning-v2.test.mjs`, or the full profiles suite
+above. [Stage 4](docs/DATABASE_HOUSEKEEPING_STAGE4.md) adds disposable paired
+backup/restore, actual transactional pruning and repeated-maintenance tests.
+All inputs remain factory-created synthetic temporary labs. No production
+imports, packaging, menu Apply or owner-data access is added. Failure injection,
+real SQLite FULL and real child-process termination are distinct evidence;
+hot journals refuse unchanged and power-loss recovery is not established.
+
+## Disposable interrupted-prune recovery
+
+Run `node --test profiles/test/recovery-v2.test.mjs` or the full profiles suite.
+The [recovery follow-up](docs/DATABASE_HOUSEKEEPING_RECOVERY.md) tests explicit
+verified-backup restoration of a recorded damaged database/journal checkpoint,
+preservation of the pair and real process exits during recovery/repeated resume.
+Unknown journals still refuse. No original damaged DB is opened with SQLite,
+and no actual owner data or production path is accepted.

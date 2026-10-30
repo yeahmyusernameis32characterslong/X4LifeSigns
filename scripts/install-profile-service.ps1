@@ -16,6 +16,21 @@ function Ordinary([string]$Path) {
         $resolved=[IO.Path]::GetDirectoryName($resolved)
     }
 }
+function AssertUnregisteredInstall([string]$Root) {
+    # This generic installer rebuilds configuration. Registered production roots
+    # require the preservation/rollback procedure, never an unpinned reinstall.
+    if (Test-Path -LiteralPath (Join-Path $Root 'local-data/housekeeping-production.json')) {
+        throw 'Housekeeping is registered. Use the production upgrade procedure to preserve its registration and anchor.'
+    }
+    $existing=Join-Path $Root 'local-data/profile-service-lifecycle/config.local.json'
+    if (Test-Path -LiteralPath $existing) {
+        $config=Get-Content -LiteralPath $existing -Raw | ConvertFrom-Json
+        if ($config.PSObject.Properties.Name -contains 'productionRootId' -or $config.PSObject.Properties.Name -contains 'productionAnchor') {
+            throw 'Production registration pins exist. Restore or verify registration before upgrading this installation.'
+        }
+    }
+}
+AssertUnregisteredInstall $sourceRoot
 foreach ($p in @($sourceRoot,$GameRoot,$NodeExecutable)) { Ordinary $p; if ($p -match '["\r\n]') { throw 'Invalid path character' } }
 if ((git -C $sourceRoot rev-parse HEAD) -ne $ApprovedCommit -or (git -C $sourceRoot status --porcelain)) { throw 'Approved checkout is not clean/current' }
 if ((& $NodeExecutable --version).Trim() -ne 'v24.21.0') { throw 'Expected verified Node24.21.0' }
@@ -40,6 +55,19 @@ checkPath(process.argv[2]);
 '@ | & $NodeExecutable --input-type=module - $DebugLog
     if ($LASTEXITCODE -ne 0) { throw 'Unsafe or missing debuglog input' }
 } finally { Pop-Location }
+# Packaging preflight only. Installing the preview dependencies is a separate
+# explicit build step; never fetch packages or run npm scripts during deployment.
+$bundle=Get-Content -LiteralPath (Join-Path $sourceRoot 'profiles/companion-files.json') -Raw | ConvertFrom-Json
+if ($bundle.version -ne 1 -or $bundle.files.Count -ne 37) { throw 'Unexpected companion bundle manifest' }
+$files=@($bundle.files)
+foreach ($relative in $files) {
+    if ($relative -notmatch '^(profiles|recorder|bridge)/[a-zA-Z0-9_./-]+$' -or $relative -match '(^|/)\.\.(/|$)') { throw 'Unsafe companion bundle path' }
+    Ordinary (Join-Path $sourceRoot $relative)
+}
+foreach ($spec in @(@('saxes','6.0.0'),@('xmlchars','2.2.0'))) {
+    $dependency=Get-Content -LiteralPath (Join-Path $sourceRoot ('profiles/node_modules/'+$spec[0]+'/package.json')) -Raw | ConvertFrom-Json
+    if ($dependency.name -ne $spec[0] -or $dependency.version -ne $spec[1]) { throw 'Run the approved profiles npm ci build step before deployment' }
+}
 $state=Join-Path $sourceRoot 'local-data/profile-service-lifecycle'
 $installs=Join-Path $sourceRoot 'local-data/profile-service-install'
 foreach ($p in @($state,$installs)) { if (-not (Test-Path -LiteralPath $p)) { New-Item -ItemType Directory -Path $p | Out-Null }; Ordinary $p }
@@ -74,7 +102,6 @@ if (Test-Path -LiteralPath $oldConfig) {
 $deployment=Join-Path $installs ($ApprovedCommit.Substring(0,12)+'-'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fffffff'))
 New-Item -ItemType Directory -Path $deployment | Out-Null
 foreach ($p in @($shortcutPath,$oldConfig,(Join-Path $state 'watcher-state.local.json'))) { if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p -Destination (Join-Path $deployment ('prior-'+[IO.Path]::GetFileName($p))) } }
-$files=@('profiles/service.mjs','profiles/store.mjs','profiles/load-fence.mjs','profiles/watch-x4.ps1','recorder/log-format.mjs','bridge/src/session-path.js','bridge/src/session-key.js','bridge/package.json')
 $manifest=@()
 foreach ($relative in $files) {
     $from=Join-Path $sourceRoot $relative; Ordinary $from

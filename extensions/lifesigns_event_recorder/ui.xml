@@ -2,6 +2,8 @@
 <addon name="lifesigns_event_recorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
   <environment type="menus">
     <dependency name="ego_detailmonitor" />
+    <dependency name="ego_gameoptions" />
     <file name="ui/addons/ego_detailmonitor/lifesigns_database.lua" />
+    <file name="ui/addons/ego_detailmonitor/lifesigns_housekeeping.lua" />
   </environment>
 </addon>
