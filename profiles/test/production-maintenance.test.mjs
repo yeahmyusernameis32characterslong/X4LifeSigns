@@ -1,10 +1,10 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {gzipSync} from 'node:zlib';import {DatabaseSync} from 'node:sqlite';
 import {ProfileStore} from '../store.mjs';import {ProfileConsumer} from '../service.mjs';
-import {registerProduction,productionRoot,fileHash,contentDigest,readJson,rootLease} from '../production-contract.mjs';
+import {registerProduction,productionRoot,fileHash,contentDigest,readJson,rootLease,digest,writeJson} from '../production-contract.mjs';
 import {reviewProduction,executeProduction,scanProduction} from '../maintenance-production.mjs';import {maintenanceHandles} from '../maintenance-handles.mjs';
 import {SETTINGS_NAME,setProtection} from '../preview-settings.mjs';
 import {escapeValue} from '../../recorder/log-format.mjs';
-import {fork} from 'node:child_process';import {once} from 'node:events';
+import {fork,execFileSync} from 'node:child_process';import {once} from 'node:events';
 const U='lsu1-2026-10-30_12-00-00-1-2-3-4',V='lsu1-2026-10-30_12-00-00-5-6-7-8',A='session-1-2-loaded-2026-10-30_12-00-00',B='session-3-4-loaded-2026-10-30_12-01-00',C='session-5-6-loaded-2026-10-30_12-02-00',D='session-7-8-loaded-2026-10-30_12-03-00';
 const row=(run,n,kind,fields={})=>({run,session:'UNAVAILABLE',seq:'1',age:String(n),kind,fields:{record:String(n),...fields}}),start=(id,run,parent='NONE',n='0')=>row(run,1,'RUN_BEGIN',{database_protocol:'LSDB1',lifesigns_universe_id:id,parent_run:parent,parent_record:n}),event=(run,n)=>row(run,n,'ENTITY_EVENT',{subject_kind:'SHIP',subject_seed:'42',event_type:'ATTACKED'});
 const xml=(run,n)=>`<savegame><info><game id="X4" version="900"/></info><script><refs type="string"><ref id="10" string="${U}"/><ref id="11" string="${run}"/></refs></script><md><script name="LifeSigns_EventRecorder"><cue name="UniverseIdentity"><vars><value name="$Id" type="string" value="10"/><value name="$CheckpointRun" type="string" value="11"/><value name="$CheckpointRecord" type="largefloat" value="${n}"/></vars></cue></script></md></savegame>`;
@@ -61,6 +61,17 @@ test('new universe publication joins paired registration without migrating exist
  const f=await fixture(t),id='lsu1-2026-10-30_13-00-00-9-10-11-12',peer=fileHash(f.file),s=new ProfileStore(f.root,id,A);
  try{s.ingest([start(id,A),row(A,2,'SNAPSHOT_BEGIN'),row(A,3,'SNAPSHOT_END',{profiles:'0'})]);}finally{s.close();}
  assert.equal(productionRoot(f.root).catalog.universes[id].version,1);assert.equal(fileHash(f.file),peer);
+});
+test('known dead-process catalogue publication repairs metadata pairs only; unknown generations refuse',async t=>{
+ const f=await fixture(t),before=fileHash(f.file),pid=Number(execFileSync(process.execPath,['-e','process.stdout.write(String(process.pid))'],{encoding:'utf8',windowsHide:true}));
+ for(const point of ['BEFORE_CATALOG','AFTER_CATALOG','AFTER_ANCHOR']){
+  const c=productionRoot(f.root),text=fs.readFileSync(c.catalogFile,'utf8'),next={...c.catalog,publicationTest:point},nextHash=digest(JSON.stringify(next)+'\n');
+  writeJson(c.pending,{rootId:c.registration.id,pid,beforeHash:digest(text),nextHash,next});
+  if(point!=='BEFORE_CATALOG')writeJson(c.catalogFile,next);
+  if(point==='AFTER_ANCHOR')writeJson(c.registration.anchor,{owner:c.registration.owner,id:c.registration.id,root:c.root,catalogDigest:nextHash});
+  assert.equal(productionRoot(f.root).catalog.publicationTest,point);assert.equal(fileHash(f.file),before);
+ }
+ const c=productionRoot(f.root);writeJson(c.pending,{rootId:c.registration.id,pid,beforeHash:'0'.repeat(64),nextHash:'1'.repeat(64),next:c.catalog});assert.throws(()=>productionRoot(f.root),/RECOVERY_MISMATCH/);fs.unlinkSync(c.pending);
 });
 test('production inventory cache requires fresh hashes and scope metadata; changed save is parsed again',{timeout:90000},async t=>{
  const f=await fixture(t),stages=[];let result=await scanProduction(f.root,{onProgress:p=>stages.push(p.stage)});assert.ok(stages.includes('SAVES'));assert.equal(result.databases.find(d=>d.universe===U).candidates.records,6);

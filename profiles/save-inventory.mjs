@@ -35,7 +35,7 @@ export async function inspectSave(file, { getAvailability = availability, maxByt
 
 export async function inventorySaves(locations, options = {}) {
   const output = { mode: 'READ_ONLY_PREVIEW', coverage: 'DECLARED_LOCATIONS_ONLY', atomicInventory: false,
-    complete: true, locations: [], saves: [], roots: [], unknowns: [], warnings: ['External/unregistered saves are outside this inventory.', 'No Apply operation is implemented.'] };
+    complete: true, locations: [], saves: [], roots: [], unknowns: [], warnings: ['External/unregistered saves are outside this inventory.', 'Inventory does not modify saves or databases.'] };
   const getAvailability = options.getAvailability || availability;
   let checked = 0;
   options.onProgress?.({ stage: 'SAVES', completed: 0, total: null });
@@ -54,6 +54,9 @@ export async function inventorySaves(locations, options = {}) {
         if (stat.isDirectory() && !stat.isSymbolicLink()) { await walk(file, location, rel); continue; }
         let entry;
         observations.push({ file, info: stat });
+        // Valve documents this exact Auto-Cloud administrative file as safe for
+        // games to ignore. Other unexpected files still make scope uncertain.
+        if(name==='steam_autocloud.vdf'){checkPath(file);checkAvailability(file,getAvailability);continue;}
         if (!/\.xml(?:\.gz)?$/i.test(name)) entry = { name, status: 'UNKNOWN', code: 'UNSUPPORTED_FILE' };
         else entry = await inspectSave(file, { ...options, getAvailability });
         entry.source = location + '/' + rel; output.saves.push(entry);

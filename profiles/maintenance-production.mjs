@@ -12,6 +12,7 @@ import {readSettings} from './preview-settings.mjs';
 import {maintenanceHandles} from './maintenance-handles.mjs';
 import {productionRoot,rootLease,openDatabase,validateProduction,updateCatalog,fileHash,readJson,writeJson,digest,fail,retainedDigest,contentDigest,migrateProduction} from './production-contract.mjs';
 import {universeId} from './profile-schema.mjs';
+function syncCreatedFile(file){const fd=fs.openSync(file,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
 
 function paths(c,id){universeId(id);if(!c.catalog.universes[id])fail('UNREGISTERED_UNIVERSE');return {file:path.join(c.root,'local-data','profiles',id+'.db'),backups:path.join(c.directory,'backups'),plan:path.join(c.directory,'plan-'+digest(id)+'.json')};}
 function filesInScope(settings){
@@ -24,9 +25,9 @@ async function scope(c,settings,onProgress=()=>{}){
     const inputs=files.map(file=>({file,hash:fileHash(file),modified:checkPath(file).mtimeMs})),cacheFile=path.join(c.directory,'save-inventory-cache.json');let inventory;
     if(fs.existsSync(cacheFile)){
       let cache;try{cache=readJson(cacheFile);}catch{ /* Optional cache is not authority; fully reparse. */ }
-      if(cache?.version===1&&cache.proof===digest({locations:cache.locations,inputs:cache.inputs,inventory:cache.inventory})&&digest(cache.locations)===digest(settings.value.saveLocations)&&digest(cache.inputs)===digest(inputs))inventory=cache.inventory;
+      if(cache?.version===2&&cache.proof===digest({locations:cache.locations,inputs:cache.inputs,inventory:cache.inventory})&&digest(cache.locations)===digest(settings.value.saveLocations)&&digest(cache.inputs)===digest(inputs))inventory=cache.inventory;
     }
-    if(!inventory){inventory=await inventorySaves(settings.value.saveLocations,{onProgress});if(inventory.complete&&!inventory.unknowns.length)writeJson(cacheFile,{version:1,locations:settings.value.saveLocations,inputs,inventory,proof:digest({locations:settings.value.saveLocations,inputs,inventory})});}
+    if(!inventory){inventory=await inventorySaves(settings.value.saveLocations,{onProgress});if(inventory.complete&&!inventory.unknowns.length)writeJson(cacheFile,{version:2,locations:settings.value.saveLocations,inputs,inventory,proof:digest({locations:settings.value.saveLocations,inputs,inventory})});}
     guard?.assert();unchangedScope(settings,inputs);
     return {inventory,inputs,scopeDigest:digest({inventory:inventory.manifestDigest,inputs})};
   }finally{await guard?.close();}
@@ -44,7 +45,7 @@ function receipt(c,id,backupId){
 async function makeBackup(c,id,e,file,onProgress){
   const backupId=randomUUID(),dir=path.join(c.directory,'backups',backupId);fs.mkdirSync(dir,{recursive:true});const target=path.join(dir,'history.db');onProgress('Creating and verifying restoration backup');
   const beforeHash=fileHash(file),db=openDatabase(file);let rows;try{validateProduction(db,id,c.registration.id,e);rows=contentDigest(db);await backup(db,target);}finally{db.close();}
-  if(fileHash(file)!==beforeHash)fail('BACKUP_SOURCE_CHANGED');
+  syncCreatedFile(target);if(fileHash(file)!==beforeHash)fail('BACKUP_SOURCE_CHANGED');
   writeJson(path.join(dir,'receipt.json'),{id:backupId,rootId:c.registration.id,universe:id,entry:e,sourceHash:beforeHash,hash:fileHash(target),contentDigest:rows});receipt(c,id,backupId);return backupId;
 }
 export async function scanProduction(root,{onProgress=()=>{}}={}){
@@ -115,7 +116,7 @@ export async function executeProduction(root,confirmation,{onProgress=()=>{},onP
       }else if(contentDigest(db)!==plan.restoreDigest)fail('RESTORE_ROWS_CHANGED');
       onPhase('STAGING_TRANSACTION',db);db.exec('COMMIT');
     }catch(error){if(db.isTransaction)db.exec('ROLLBACK');throw error;}finally{db.close();db=null;}
-    const next={phase:'READY',version:2,generation:nextGeneration,operation,lastBackup:plan.kind==='CLEAN'?beforeBackup:plan.backup,committedHash:fileHash(stage)};
+    syncCreatedFile(stage);const next={phase:'READY',version:2,generation:nextGeneration,operation,lastBackup:plan.kind==='CLEAN'?beforeBackup:plan.backup,committedHash:fileHash(stage)};
     const verify=openDatabase(stage);try{validateProduction(verify,id,c.registration.id,next);if(plan.kind==='CLEAN'&&retainedDigest(verify,plan.retained)!==plan.retainedHash)fail('STAGE_RETAINED_MISMATCH');if(plan.kind!=='CLEAN'&&contentDigest(verify)!==plan.restoreDigest)fail('STAGE_RESTORE_MISMATCH');}finally{verify.close();}
     onPhase('STAGE_VERIFIED');if(plan.inputs)unchangedScope(settings,plan.inputs);
     checkSidecars(p.file);if(readSettings(c.directory).digest!==plan.settingsDigest||fileHash(p.file)!==plan.dbHash)fail('INPUTS_CHANGED_BEFORE_INSTALL');
