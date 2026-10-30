@@ -8,6 +8,7 @@ import {checkAvailability} from './inventory-path.mjs';
 import {inventorySaves} from './save-inventory.mjs';
 import {inspectProfileDatabase} from './profile-inventory.mjs';
 import {retentionPreview} from './retention-plan.mjs';
+import {displaySize} from './preview-model.mjs';
 import {readMenuSettings} from './preview-settings.mjs';
 import {maintenanceHandles} from './maintenance-handles.mjs';
 import {productionRoot,rootLease,openDatabase,validateProduction,updateCatalog,fileHash,readJson,writeJson,digest,fail,retainedDigest,contentDigest,migrateProduction,replayDigest} from './production-contract.mjs';
@@ -100,7 +101,7 @@ export async function reviewProduction(root,id,kind,{nativeSaveDirectory=null,ba
     const rows=[['CONFIRM','Universe history',id,'',''],['CONFIRM',plan.kind==='CLEAN'?'Keep / remove history records':plan.kind==='RECOVER'?'Recover interrupted operation':'Restore selected universe',plan.kind==='CLEAN'?`${plan.retained.reduce((n,r)=>n+r.through,0)} / ${plan.candidates.records}`:'Verified pre-maintenance history','Selected universe only',''],['CONFIRM','Scope',plan.kind==='CLEAN'?'Back up, then clean this database':'Preserve current state, restore backup','Other universes and saves unchanged','Backups retained; no compaction']];
     if(kind==='COMPACT'){
       const db=openDatabase(p.file);let free;try{free=db.prepare('PRAGMA freelist_count').get().freelist_count*db.prepare('PRAGMA page_size').get().page_size;}finally{db.close();}
-      rows[1]=['CONFIRM','Reclaim disk space',`${checkPath(p.file).size} database bytes`,`${free} free-page bytes (estimate)`,'All history and seals preserved'];
+      rows[1]=['CONFIRM','Reclaim disk space',`${displaySize(checkPath(p.file).size)} database`,`${displaySize(free)} free pages (estimate)`,'All history and seals preserved'];
       rows[2]=['CONFIRM','Scope','Compact this database only','New verified backup retained','Actual database/net storage reported separately'];
     }
     return {token,plan,rows};
@@ -150,6 +151,6 @@ export async function executeProduction(root,confirmation,{onProgress=()=>{},onP
     if(fileHash(p.file)!==next.committedHash)fail('INSTALLED_HASH_CHANGED');
     setEntry(c,id,next);onPhase('REGISTERED');onProgress('Verified');
     const databaseByteReduction=beforeBytes-checkPath(p.file).size,backupDirectory=path.join(c.directory,'backups',beforeBackup),backupBytes=checkPath(path.join(backupDirectory,'history.db')).size+checkPath(path.join(backupDirectory,'receipt.json')).size;
-    return {backupId:beforeBackup,databaseByteReduction,backupBytes,netFileByteReduction:databaseByteReduction-backupBytes,rows:[['RESULT','Universe history',id,'Verified',''],['RESULT',plan.kind==='COMPACT'?'Compaction completed':plan.kind==='CLEAN'?'Cleanup completed':plan.kind==='RECOVER'?'Recovery completed':'Restoration completed',plan.kind==='COMPACT'?`${databaseByteReduction} database byte reduction`:plan.kind==='CLEAN'?`${plan.candidates.records} history records removed`:'Verified previous history restored','Selected universe only',''],['RESULT','Restore point retained',plan.kind==='COMPACT'?`${backupBytes} new backup bytes retained`:'Database history backup',plan.kind==='COMPACT'?`${databaseByteReduction-backupBytes} net file-byte reduction`:'Saves and other universes unchanged','Refresh for current counts']]};
+    return {backupId:beforeBackup,databaseByteReduction,backupBytes,netFileByteReduction:databaseByteReduction-backupBytes,rows:[['RESULT','Universe history',id,'Verified',''],['RESULT',plan.kind==='COMPACT'?'Compaction completed':plan.kind==='CLEAN'?'Cleanup completed':plan.kind==='RECOVER'?'Recovery completed':'Restoration completed',plan.kind==='COMPACT'?`${databaseByteReduction<0?'-':''}${displaySize(Math.abs(databaseByteReduction))} database reduction`:plan.kind==='CLEAN'?`${plan.candidates.records} history records removed`:'Verified previous history restored','Selected universe only',''],['RESULT','Restore point retained',plan.kind==='COMPACT'?`${displaySize(backupBytes)} new backup retained`:'Database history backup',plan.kind==='COMPACT'?`${databaseByteReduction-backupBytes<0?'-':''}${displaySize(Math.abs(databaseByteReduction-backupBytes))} net file reduction`:'Saves and other universes unchanged','Refresh for current counts']]};
   }finally{db?.close();await guard?.close();lock.close();}
 }

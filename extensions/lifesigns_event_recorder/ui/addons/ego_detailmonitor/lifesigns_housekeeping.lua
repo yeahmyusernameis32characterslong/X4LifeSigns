@@ -65,6 +65,7 @@ function P.request(verb,item,enabled,page)
     if not P.gen or P.seq>=999999999 then P.state="UNAVAILABLE";P.dirty=true;return end
     P.seq=P.seq+1
     P.pending={gen=P.gen,seq=P.seq,page=page or 0,verb=verb,enabled=enabled==true,since=getElapsedTime()};P.lastText=nil;P.progress=nil
+    if verb=="REMOVELOCATION" then P.locationsChanged=true end
     P.mutating=verb=="APPLY" or verb=="RESTORE" or verb=="COMPACT" or verb=="DELETEUNIVERSE" or verb=="BACKUPDELETE"
     if verb~="CANCEL" then P.state="SCANNING";P.stale=true end
     if verb=="PROTECT" then P.progress="Saving protection preference..." end
@@ -76,6 +77,7 @@ function P.extra(verb,item,text)
     P.seq=P.seq+1
     if P.seq>999999999 then P.state="UNAVAILABLE";return end
     P.pending={gen=P.gen,seq=P.seq,page=0,verb=verb,since=getElapsedTime()};P.lastText=nil;P.progress=nil;P.state="SCANNING";P.stale=true;P.dirty=true
+    if verb=="ADDLOCATION" then P.locationsChanged=true end
     local hex=text:gsub(".",function(c) return string.format("%02x",string.byte(c)) end)
     DebugError("LSHK2|"..P.gen.."|"..P.client.."|"..P.seq.."|"..verb.."|"..item.."|"..hex.."|END")
 end
@@ -118,7 +120,7 @@ function P.select(id)
 end
 function P.locations()
     if P.active and P.gen then P.request("CANCEL") end
-    P.locationsChanged=false;P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
+    P.view="LOCATIONS";P.rows={};P.selected=nil;P.page=0;P.request("LOCATIONS")
 end
 function P.review(id,restore)
     if not (P.testMode or P.productionMode) or P.state~="READY" or P.stale then return end
@@ -178,7 +180,7 @@ function P.update()
         P.pending=nil;P.stale=false;P.page=reply.page;P.pages=reply.pages;P.rows=reply.rows
         if pending.verb=="ADDLOCATION" or pending.verb=="REMOVELOCATION" then P.locationsChanged=true end
         if pending.verb=="PROTECT" then P.protected=pending.enabled end
-        if pending.verb=="REFRESH" then P.view="LIST";P.selected=nil end
+        if pending.verb=="REFRESH" then P.locationsChanged=false;P.view="LIST";P.selected=nil end
         if pending.verb=="APPLY" or pending.verb=="RESTORE" or pending.verb=="COMPACT" or pending.verb=="DELETEUNIVERSE" or pending.verb=="BACKUPDELETE" then P.view="RESULT" end
         if P.view=="LIST" then P.listRows=P.rows end
         for _,row in ipairs(P.rows) do if row[1]=="INFO" and row[2]=="Protection" then

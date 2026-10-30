@@ -6,6 +6,11 @@ without automatic cleanup or merge. The newer direct owner instruction
 supersedes the smaller resumption brief's deployment boundary. Deployment and
 owner observations are recorded separately in the private handoff.
 
+The additional menu-managed save locations, compaction, restore-point deletion
+and orphan-retirement actions are specified in
+[Space and save locations](DATABASE_HOUSEKEEPING_SPACE_AND_LOCATIONS.md).
+That owner-approved increment supersedes the original no-space-action boundary.
+
 ## Implementation contract
 
 1. Register the real root without changing existing database contents. Pair an
@@ -29,8 +34,8 @@ owner observations are recorded separately in the private handoff.
 6. Journal prepared old/new identities before installation; interrupted operations
    remain blocked until explicit preview/confirmation restores a verified backup,
    preserving interrupted evidence. Restore only the selected universe and refuse
-   silent rewind of gameplay added since maintenance. Keep backups; no compaction,
-   orphan-universe deletion or automatic prune.
+   silent rewind of gameplay added since maintenance. Space actions and permanent removals require their own explicit review and
+   confirmation; there is no automatic prune.
 7. Drain maintenance before constructing gameplay writers or publishing load
    acknowledgements, including every supported load route. Existing UI layout
    stays; production labels and confirmation identify actual live-history scope.
@@ -95,16 +100,21 @@ refuse with evidence preserved. Normal restoration refuses silent rewind after
 new gameplay changes the cleaned database. Restoration restores original history
 rows, while retaining the current production schema and a new generation.
 
-Backups and failed stages are retained; there is no automatic purge, compaction,
-whole-universe retirement or deletion of saves/logs. Unmatched universes and
-unsupported/partial/incomplete save cutoffs remain ineligible. Missing files,
+Failed stages and unrelated evidence are retained. Backups remain until their
+explicitly confirmed deletion. Compaction and verified orphan retirement follow
+the separate space-action contract; saves/logs are never deletion targets.
+Unsupported/partial/incomplete save cutoffs remain ineligible. A complete
+zero-matching-save result can offer Delete orphan universe, with protection
+and fresh-scope safeguards. Missing files,
 unrecognised damage and complete anchor loss require assisted recovery rather
 than a guessed repair. Code rollback after migration must not downgrade a database
 or copy a backup over it independently of its registered state.
 
 ## Save scope and performance
 
-Production settings are separate from the old preview/test settings. Deployment
+Production settings are separate from the old preview/test settings. The Save
+locations menu always includes the detected native profile folder and lets the
+player add/remove additional archives without editing JSON. Deployment
 preserves existing locations and protection, adds the installed X4 profile's local
 save folder, and carries forward protection selected on matching test-universe
 IDs. Check **Save locations** before the first cleanup. Cloud/external copies

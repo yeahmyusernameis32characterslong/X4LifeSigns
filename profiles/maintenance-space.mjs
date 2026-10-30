@@ -7,11 +7,12 @@ import {readMenuSettings} from './preview-settings.mjs';
 import {productionRoot,rootLease,fileHash,readJson,writeJson,digest,fail} from './production-contract.mjs';
 import {paths,scope,snapshot,receipt,setEntry,makeBackup,unchangedScope,listRestorePoints} from './maintenance-production.mjs';
 import {retentionPreview} from './retention-plan.mjs';
+import {displaySize} from './preview-model.mjs';
 import {maintenanceHandles} from './maintenance-handles.mjs';
 
 export const restorePoints=listRestorePoints;
 const uuid=x=>typeof x==='string'&&/^[a-f0-9-]{36}$/.test(x);
-export function backupRows(root,id){const c=productionRoot(root);return restorePoints(c,id).map(p=>[p.id,'Restore point',p.modified,String(p.bytes)+' bytes',c.catalog.universes[id].lastBackup===p.id?'Current restore point':'Earlier restore point']);}
+export function backupRows(root,id){const c=productionRoot(root);return restorePoints(c,id).map(p=>[p.id,'Restore point',p.modified,displaySize(p.bytes),c.catalog.universes[id].lastBackup===p.id?'Current restore point':'Earlier restore point']);}
 function planFile(c,id){return path.join(c.directory,'space-plan-'+digest(id)+'.json');}
 function journal(c,operation){if(!uuid(operation))fail('INVALID_DELETE_OPERATION');return path.join(c.directory,'delete-'+operation+'.json');}
 function readJob(c,e){const job=readJson(journal(c,e.operation));if(digest(job)!==e.deleteDigest||job.rootId!==c.registration.id||job.operation!==e.operation||job.universe===undefined||job.digest!==digest(job.targets)||!['BACKUPDELETE','DELETEUNIVERSE'].includes(job.kind))fail('DELETE_JOURNAL_CHANGED');return job;}
@@ -32,11 +33,11 @@ export async function reviewSpace(root,id,kind,{nativeSaveDirectory=null,backupI
         if(result.status!=='PREVIEW_ONLY'||result.roots.length||result.candidates?.kind!=='ORPHAN_UNIVERSE')fail('NOT_A_VERIFIED_ORPHAN');
         const points=restorePoints(c,id,{hashes:true});for(const point of points)receipt(c,id,point.id);
         plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),scopeDigest:s.scopeDigest,inputs:s.inputs,points};
-        rows=[['CONFIRM','Delete orphan universe',id,'No matching saves were found in your configured save locations.','Database and ALL its restore points, including the fresh safety copy'],['CONFIRM','Permanent deletion',"Permanently delete this universe's Life Signs history?",'Saves stored elsewhere may still need it.','This does not delete X4 save files.'],['CONFIRM','Selected file space',String(checkPath(p.file).size)+' database bytes',String(points.reduce((n,p)=>n+p.bytes,0))+' restore-point bytes','Minimal retirement metadata is retained']];
+        rows=[['CONFIRM','Delete orphan universe',id,'No matching saves were found in your configured save locations.','Database and ALL its restore points, including the fresh safety copy'],['CONFIRM','Permanent deletion',"Permanently delete this universe's Life Signs history?",'Saves stored elsewhere may still need it.','This does not delete X4 save files.'],['CONFIRM','Selected file space',displaySize(checkPath(p.file).size)+' database',displaySize(points.reduce((n,p)=>n+p.bytes,0))+' restore points','Minimal retirement metadata is retained']];
       }else if(kind==='BACKUPDELETE'){
         const point=restorePoints(c,id,{hashes:true}).find(p=>p.id===backupId);if(!point)fail('UNKNOWN_RESTORE_POINT');receipt(c,id,point.id);
         plan={kind,universe:id,entry:e,dbHash:fileHash(p.file),point};
-        rows=[['CONFIRM','Delete restore point',backupId,String(point.bytes)+' file bytes','Selected restore point only'],['CONFIRM','Restoration option lost','This backup can no longer restore its earlier history.','Current database and saves are unchanged.',e.lastBackup===backupId?'The current Restore option will be removed.':'Other restore points are retained.']];
+        rows=[['CONFIRM','Delete restore point',point.modified,displaySize(point.bytes),backupId],['CONFIRM','Restoration option lost','This backup can no longer restore its earlier history.','Current database and saves are unchanged.',e.lastBackup===backupId?'The current Restore option will be removed.':'Other restore points are retained.']];
       }else fail('INVALID_SPACE_ACTION');
     }
     plan={...plan,rootId:c.registration.id,nativeSaveDirectory,settingsDigest:settings.digest,created:Date.now()};const token=digest(plan);writeJson(planFile(c,id),{token,plan});return {token,plan,rows};
@@ -111,7 +112,7 @@ export async function executeSpace(root,confirmation,{nativeSaveDirectory=null,o
     const after=job.retired?{phase:'RETIRED',version:job.before.version,generation:job.before.generation,operation:job.operation,lastBackup:null,retired:true,retirementHash:job.marker.hash}:{...job.before,lastBackup:job.backups.includes(job.before.lastBackup)?null:job.before.lastBackup};
     setEntry(c,id,after);onPhase('DELETE_REGISTERED');
     const freeAfter=fs.statfsSync(c.directory).bavail*fs.statfsSync(c.directory).bsize;writeJson(journal(c,job.operation)+'.completed.json',{operation:job.operation,jobDigest:digest(job),completed:true,freeAfter});
-    result={rows:[['RESULT',job.retired?'Orphan universe deleted':'Restore point deleted',id,'Verified selected history removal','X4 saves unchanged'],['RESULT','Removed files',String(targets.reduce((n,t)=>n+t.bytes,0)-(job.marker?.bytes||0))+' net target file bytes',String(freeAfter-job.freeBefore)+' observed free-disk bytes change','Volume activity can affect the observed change'],['RESULT','Retained safeguards',job.retired?'Tiny permanent retirement marker':'Current database and other backups','Unrelated evidence unchanged','Refresh for current list']]};
+    result={rows:[['RESULT',job.retired?'Orphan universe deleted':'Restore point deleted',id,'Verified selected history removal','X4 saves unchanged'],['RESULT','Removed files',displaySize(targets.reduce((n,t)=>n+t.bytes,0)-(job.marker?.bytes||0))+' net target files',(freeAfter<job.freeBefore?'-':'+')+displaySize(Math.abs(freeAfter-job.freeBefore))+' observed free-disk change','Volume activity can affect the observed change'],['RESULT','Retained safeguards',job.retired?'Tiny permanent retirement marker':'Current database and other backups','Unrelated evidence unchanged','Refresh for current list']]};
   }finally{await guard?.close();lock.close();}
   return result;
 }
