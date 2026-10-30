@@ -1,3 +1,22 @@
+# Life Signs menu readability
+
+## Current status — accepted, 30 October 2026
+
+Implemented and deployed at `1399884d741c85a5efb8312eed907ad5d59bc8c3`.
+Owner confirmed the readability improvements and the final unshaded explanatory
+notes. Agent reviewed the seven-file stacked diff with no blocking finding;
+independent Linux Node preview tests passed26/26, with no failures/skips.
+Codex's Windows183 profile tests and four installed Lua/native checks remain
+separately attributed. No new schema validation was needed: XML/MD/native source
+is unchanged. This is scoped menu acceptance, not general housekeeping safety.
+
+Owner authorised merging PR27 into its PR25 branch and resuming PR25.
+PR25 itself remains unmerged into main. Earlier pause, deployment-pending and
+approval instructions below are historical records, superseded by this status.
+Future deployments must still use matched companion/Lua files and existing safeguards.
+
+## Historical task and delivery record
+
 # Life Signs menu readability — Codex implementation brief
 
 Owner-authorised, 29 October 2026. Original implementation brief below; see the
