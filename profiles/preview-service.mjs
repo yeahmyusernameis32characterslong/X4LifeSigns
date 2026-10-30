@@ -4,7 +4,7 @@ import { fork } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { checkPath } from '../bridge/src/session-path.js';
 import { PREVIEW_HELLO, PREVIEW_REPLY, parsePreviewRequest, previewReply, scanProgressRows } from './preview-protocol.mjs';
-import { applyProtection } from './preview-model.mjs';
+import { applyProtection, actionProblem } from './preview-model.mjs';
 import { readSettings, setProtection, readMenuSettings, changeLocation } from './preview-settings.mjs';
 import {TEST_REGISTRATION,testRegistration} from './maintenance-test.mjs';
 import {registered,productionRoot,rootLease} from './production-contract.mjs';
@@ -99,7 +99,7 @@ export class PreviewService {
       if(this.stopped||this.ticket!==ticket||answered)return;
       if(message?.actionProgress){this.reply(request,'SCANNING',[['ACTION','Progress',message.actionProgress,this.productionMode?'Selected universe history':'Test copies only','']]);return;}
       answered=true;this.scanning=false;this.mutating=false;
-      if(message.error||!message.action){this.reply(request,'ERROR',[['ERROR',this.productionMode?'History action blocked':'Test action blocked',message.error||'ACTION_FAILED',this.productionMode?'Refresh to inspect current state':'Close X4 and report to Codex','Preserve backups and evidence']]);return;}
+      if(message.error||!message.action){this.reply(request,'ERROR',[['ERROR',this.productionMode?'History action blocked':'Test action blocked',actionProblem(message.error),this.productionMode?'Refresh to inspect current state':'Close X4 and report to Codex','Preserve backups and evidence']]);return;}
       if(!execute&&request.verb!=='BACKUPS')this.confirmation={client:request.client,id,created:this.now(),value:message.action};
       else if(execute){this.model=null;this.baseModel=null;this.confirmation=null;}
       this.reply(request,'READY',message.action.rows,request.verb==='BACKUPS'?request.page:0);

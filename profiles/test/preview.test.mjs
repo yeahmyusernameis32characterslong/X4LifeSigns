@@ -243,3 +243,15 @@ test('scan IPC may arrive after exit, and isolated scan errors retain an actiona
  const f=fake(t),s=f.service;s.handle(request(s.gen,1));const worker=f.children[0];worker.emit('exit',0);assert.match(f.text(),/SCANNING/);worker.emit('message',{model});worker.emit('close',0);assert.match(f.text(),/READY/);
  s.testMode=true;s.readSettings=()=>readSettings(f.root);s.handle(request(s.gen,2));f.children[1].emit('message',{error:'EVIDENCE_CHANGED'});assert.match(f.text(),/ERROR/);assert.ok(f.text().includes(Buffer.from('EVIDENCE_CHANGED').toString('hex')));f.children[1].emit('close',0);
 });
+
+test('action guard replies give bounded friendly instructions without exposing raw errors',t=>{
+ const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('close',0);
+ s.productionMode=true;s.readSettings=()=>readSettings(f.root);
+ for(const [i,code] of ['CLEAN_SAVED_HISTORY_BEFORE_COMPACTION','PRIVATE_PATH_OR_UNKNOWN_CODE','__proto__'].entries()){
+  s.handle(request(s.gen,i+2,'COMPACTREVIEW',1));const worker=f.children.at(-1);worker.emit('message',{error:code});worker.emit('close',0);
+  const fields=f.text().trim().split('|'),reason=Buffer.from(fields[11],'hex').toString();
+  assert.equal(fields[5],'ERROR');assert.ok(!reason.includes(code));assert.ok(Buffer.byteLength(reason)<=96);
+  assert.equal(reason,i===0?'Clean unused history first, then reclaim disk space.':'The action could not proceed safely. Refresh and review again.');
+  assert.equal(s.confirmation,null);assert.equal(s.mutating,false);
+ }
+});

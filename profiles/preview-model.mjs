@@ -1,5 +1,16 @@
 const number = x => Number.isSafeInteger(x) && x >= 0 ? String(x) : 'Unknown';
 const problem = x => x==='SAVE_SCOPE_TOO_BROAD'?'Folder entry safety limit reached':x==='LINKED_SAVE_SUBFOLDER'?'Linked folder or file found; scan cannot follow links':String(x).toLowerCase().replaceAll('_', ' ');
+// Worker codes remain diagnostic data; never display arbitrary exception text or paths.
+export function actionProblem(code) {
+  const messages = {
+    CLEAN_SAVED_HISTORY_BEFORE_COMPACTION: 'Clean unused history first, then reclaim disk space.',
+    CONFIRMATION_REQUIRED: 'Open a fresh preview and confirm your chosen action.',
+    RECOVERY_REQUIRED: 'An earlier operation needs recovery. Refresh to inspect it.',
+    PROTECTED_UNIVERSE: 'This universe is protected. Remove protection before making changes.',
+    EVIDENCE_CHANGED: 'The inputs changed. Refresh and review the action again.',
+  };
+  return Object.hasOwn(messages, code) ? messages[code] : 'The action could not proceed safely. Refresh and review again.';
+}
 // Decimal display units only; inventory and retention continue to use exact bytes.
 export function displaySize(bytes) {
   if (!Number.isSafeInteger(bytes) || bytes < 0) return 'Unknown';
