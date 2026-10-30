@@ -73,7 +73,7 @@ local function cell(row)
  function c:setBackgroundColSpan() return self end
  function c:setIcon() return self end
  function c:createText(text,properties) labels[#labels+1]=text;self.textProperties=properties;row.height=math.max(row.height,properties and properties.minRowHeight or 16);return self end
- function c:createButton(properties) self.properties=properties;row.height=math.max(row.height,properties.height or 19);buttons[#buttons+1]=self;return self end
+ function c:createButton(properties) assert(row.rowdata,'Button defined in an unselectable row');self.properties=properties;row.height=math.max(row.height,properties.height or 19);buttons[#buttons+1]=self;return self end
  function c:setText(text,properties) self.text=text;self.textProperties=properties;return self end
  function c:createEditBox(properties) editboxes[#editboxes+1]=self;self.properties=properties;row.height=math.max(row.height,properties.height or 19);return self end
  function c:createCheckBox(value,properties) self.check=value;self.properties=properties;row.height=math.max(row.height,19);return self end
@@ -88,6 +88,11 @@ local function makeTable(properties)
  return t
 end
 local t=makeTable()
+-- Match the engine validation that previously escaped the widget mock.
+do
+ local ok,err=pcall(function() t:addRow(false)[1]:createButton({active=false}) end)
+ assert(not ok and string.find(err,'Button defined in an unselectable row',1,true))
+end
 local f={addTable=function(_,columns,properties) local result=makeTable(properties);result.index=#renderTables+1;renderTables[#renderTables+1]=result;tableProperties=properties;columnWidths=result.widths;return result end,display=function() displays=displays+1;tableProperties=renderTables[3].properties;columnWidths=renderTables[3].widths end}
 Color={row_title={r=0,g=128,b=255,a=100}}
 Helper={borderSize=3,clearDataForRefresh=function() end,scaleX=function(v) return v end,scaleY=function(v) return v end}

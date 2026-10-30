@@ -258,7 +258,8 @@ function P.render()
     if locationActions then headers[5]="Remove" end
     r=t:addRow(false,{fixed=true,bgColor=rowHeading});for i=1,columns do r[i]:createText(headers[i],heading) end
     for index,data in ipairs(P.rows) do
-        r=t:addRow(P.view=="LIST",{bgColor=index%2==1 and rowDark or rowAlternate})
+        -- X4 rejects buttons in unselectable rows, even disabled buttons.
+        r=t:addRow(P.view=="LIST" or locationActions or backupActions,{bgColor=index%2==1 and rowDark or rowAlternate})
         if P.view=="LIST" then local id=data[1];button(r,1,data[2],function() P.select(id) end,P.state=="READY" and not P.stale and id~="0") else r[1]:createText(data[2],normal) end
         for i=2,4 do local value=data[i+1];if P.view=="LOCATIONS" and i==2 and value then value=value:gsub("\\","\\ "):gsub("/","/ ") end;if value and value:sub(1,5)=="lsu1-" then value=value:gsub("-","- ") end;r[i]:createText(value,normal) end
         if actions then
