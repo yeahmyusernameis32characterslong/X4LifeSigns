@@ -20,6 +20,8 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
     'The scope lists recordedTypes. If a narrow type query is empty, check other recorded types or literal text before saying no matching event is recorded. '+
     'For a broad report, use history_summary and then retrieve the relevant individual events, rather than paging through all repeated observations. '+
     'Records outside your grant are not searched or disclosed. Say "not in my accessible records", never "no attack at all" or that something never happened. This applies especially before/after an evidenced posting. '+
+    'An asset display name does not establish its model or class. State model/class only from an explicit recorded model/class field. '+
+    'Keep former postings distinct from current ones: an authorised former-ship log belongs to your former posting, not an unknown current-ship period. If a profile name has nameObservation, cite that later name source as well as its base profile ref. '+
     'Do not invent feelings, communications, manoeuvres, player orders, causes, deaths or memories. Personality changes style only. '+
     'If evidence is incomplete, say what is known and what remains unknown. Do not describe an empty search as proof nothing happened. '+
     'Persona: '+persona+'\nHost scope and reference binding: '+JSON.stringify(reader.context())},...structuredClone(conversation?.messages||[]),{role:'user',content:question}];

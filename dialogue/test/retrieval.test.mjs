@@ -29,6 +29,7 @@ test('selected checkpoint, child ancestry and record ordering exclude abandoned 
 test('indexed subject queries and legacy broad-read baseline retain identical authorised refs and full fields',t=>{
  const f=fixture(t);for(const grant of [{},{npcSeed:MANAGER},{run:B,record:2}]){
   const fast=reader(t,f,grant),slow=reader(t,f,grant,{mode:'baseline'}),a=all(fast),b=all(slow);
+  assert.deepEqual(fast.call('profile',{target:'self'}).result,slow.call('profile',{target:'self'}).result);assert.deepEqual(fast.call('profile',{target:'posting'}).result,slow.call('profile',{target:'posting'}).result);
   assert.deepEqual(a.map(e=>e.ref),b.map(e=>e.ref));for(const e of a)assert.deepEqual(fast.call('read_events',{refs:[e.ref]}).result,slow.call('read_events',{refs:[e.ref]}).result);
  }
 });
@@ -80,4 +81,15 @@ test('unready/foreign snapshots refuse and hostile recorded text remains data in
  const s=new ProfileStore(f.dir,U,B);s.ingest([{run:B,session:'UNAVAILABLE',seq:'1',age:'3',kind:'ENTITY_EVENT',fields:{record:'3',event_type:'DOCKED',subject_kind:'SHIP',subject_seed:'501',subject_idcode:'SYN-101',detail:text}}]);s.close();
  f.binding.sha256=fileHash(f.binding.file);const r=reader(t,f,{run:B,record:3});assert.equal(r.call('read_events',{refs:['R2:3']}).result.events[0].fields.detail,text);assert.throws(()=>r.call('exec',{sql:'DELETE FROM records'}),/UNKNOWN_TOOL/);r.close();
  const db=openDatabase(f.binding.file,false);db.exec('UPDATE universe_metadata SET ready=0');db.close();f.binding.sha256=fileHash(f.binding.file);assert.throws(()=>inspectSnapshot(f.binding),/NOT_READY/);
+});
+test('renamed posting retains the later name source and respects the selected save branch',t=>{
+ const f=fixture(t),s=new ProfileStore(f.dir,U,B);s.ingest([{run:B,session:'UNAVAILABLE',seq:'1',age:'3',kind:'ENTITY_EVENT',fields:{record:'3',event_type:'NAME_CHANGED',subject_kind:'SHIP',subject_seed:'501',subject_idcode:'SYN-101',new_name:'Renamed Lark',new_name_state:'PRESENT'}}]);s.close();f.binding.sha256=fileHash(f.binding.file);
+ const after=reader(t,f,{run:B,record:3}),before=reader(t,f,{run:B,record:2}),baseline=reader(t,f,{run:B,record:3},{mode:'baseline'});
+ const p=after.call('profile',{target:'posting'}).result;assert.equal(p.fields.name.value,'Renamed Lark');assert.equal(p.nameObservation.ref,'R2:3');assert.deepEqual(p,baseline.call('profile',{target:'posting'}).result);assert.equal(before.call('profile',{target:'posting'}).result.fields.name.value,'Lark');
+});
+test('a removed or unclear new role does not appear as a current captain in the self profile',t=>{
+ const f=fixture(t);for(const record of [f.labels.transferUnknown,f.labels.removed]){
+  const r=reader(t,f,{record});assert.equal(r.call('profile',{target:'self'}).result.latestPersonObservation.role,null);assert.equal(r.call('profile',{target:'posting'}).result.available,false);
+ }
+ const r=reader(t,f);assert.equal(r.call('profile',{target:'self'}).result.latestPersonObservation.role,'Marine');assert.equal(r.call('profile',{target:'self'}).result.latestPersonObservation.roleRef,'R1:'+f.labels.marine);
 });
