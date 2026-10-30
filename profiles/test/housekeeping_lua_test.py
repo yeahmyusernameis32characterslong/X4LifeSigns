@@ -90,7 +90,7 @@ local t=makeTable()
 local f={addTable=function(_,columns,properties) local result=makeTable(properties);result.index=#renderTables+1;renderTables[#renderTables+1]=result;tableProperties=properties;columnWidths=result.widths;return result end,display=function() displays=displays+1;tableProperties=renderTables[3].properties;columnWidths=renderTables[3].widths end}
 Color={row_title={r=0,g=128,b=255,a=100}}
 Helper={borderSize=3,clearDataForRefresh=function() end,scaleX=function(v) return v end,scaleY=function(v) return v end}
-menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,arrowColumnWidth=20,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};return f end}
+menu={name='OptionsMenu',isStartmenu=true,currentOption='main',table={x=0,y=0,width=710,widthExtraWide=1130,arrowColumnWidth=20,height=900},createOptionsFrame=function(wide) wideFrame=wide;renderTables={};buttons={};labels={};return f end}
 function menu.displayOption(_,option) seen[#seen+1]=option;return 'option',nil,42 end
 function menu.displayOptions(name,...)
  menu.currentOption=name
@@ -309,6 +309,44 @@ await createMenuTest(root,{saveFiles:[save],profileFiles:[db]});
         native_vm.run('assert(P.rows[2][2]=="Restoration completed");P.close(false)')
         assert all(hashlib.sha256(p.read_bytes()).hexdigest() == digest for p,digest in original_hashes.items())
         print('PASS: real Lua buttons -> debug transport -> Node test worker -> backup/prune/selected restore -> native reply; original source save/DB unchanged')
+        service.stdin.write(b'STOP\n');service.stdin.flush();service.stdin.close();service.wait(timeout=15)
+        assert service.returncode == 0
+        service = None
+        production_setup = """
+import fs from 'node:fs';import path from 'node:path';
+import {registerProduction,contentDigest} from CONTRACT;import {DatabaseSync} from 'node:sqlite';
+const [root,saves,file]=process.argv.slice(1),c=registerProduction(root,path.join(root,'production-anchor.json'));
+fs.mkdirSync(path.join(c.directory,'local-data'));fs.writeFileSync(path.join(c.directory,'local-data/housekeeping-preview-v1.json'),JSON.stringify({owner:'LifeSignsReadOnlyPreview',version:1,saveLocations:[saves],protectedUniverses:[]}));
+const db=new DatabaseSync(file,{readOnly:true});console.log(contentDigest(db));db.close();
+""".replace('CONTRACT', literal((repo / 'profiles/production-contract.mjs').as_uri()))
+        before_history = subprocess.run(['node','--input-type=module','-e',production_setup,str(storage),str(saves),str(db)],check=True,capture_output=True,text=True).stdout.strip()
+        service = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if '|PRODUCTION|END' in (extension / 'runtime' / (HELLO + '.reply')).read_text():
+                break
+            time.sleep(0.05)
+        native_vm.run((repo / 'extensions/lifesigns_event_recorder/ui/addons/ego_detailmonitor/lifesigns_housekeeping.lua').read_text(encoding='utf-8'))
+        native_vm.run('P=LifeSignsHousekeeping;messages={};clock=0;P.open(menu)')
+        sent = 0
+        beginning = time.monotonic()
+        await_ready('LIST')
+        native_vm.run('assert(P.productionMode and not P.testMode);P.render();assert(table.concat(labels," "):find("Manage actual Life Signs universe history",1,true));P.review("1",false)')
+        await_ready('CONFIRM')
+        native_vm.run('assert(P.rows[1][2]=="Universe history");P.render();for _,b in ipairs(buttons) do if b.text=="Confirm cleanup" and b.properties.active then b.handlers.onClick();break end end;assert(P.mutating)')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[2][2]=="Cleanup completed");P.back()')
+        await_ready('LIST')
+        native_vm.run('assert(P.rows[1][5]:find("No cleanup needed",1,true));P.review("1",true)')
+        await_ready('CONFIRM')
+        native_vm.run('P.render();for _,b in ipairs(buttons) do if b.text=="Confirm restoration" and b.properties.active then b.handlers.onClick();break end end;assert(P.mutating)')
+        await_ready('RESULT')
+        native_vm.run('assert(P.rows[2][2]=="Restoration completed");P.close(false)')
+        inspect = "import {DatabaseSync} from 'node:sqlite';import {contentDigest} from CONTRACT;const db=new DatabaseSync(process.argv[1],{readOnly:true});console.log(contentDigest(db));db.close();".replace('CONTRACT', literal((repo / 'profiles/production-contract.mjs').as_uri()))
+        after_history = subprocess.run(['node','--input-type=module','-e',inspect,str(db)],check=True,capture_output=True,text=True).stdout.strip()
+        assert before_history == after_history
+        assert hashlib.sha256(save.read_bytes()).hexdigest() == original_hashes[save]
+        print('PASS: production Lua confirmation -> native transport -> Windows handle-excluded staging install and selected restore; all prior history rows restored')
     finally:
         if service is not None:
             service.stdin.write(b'STOP\n')

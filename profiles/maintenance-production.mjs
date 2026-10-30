@@ -18,12 +18,20 @@ function filesInScope(settings){
   const result=[];function walk(dir){checkPath(dir,{directory:true});checkAvailability(dir);for(const name of fs.readdirSync(dir).sort()){if(result.length>=10000)fail('SAVE_SCOPE_RESOURCE_LIMIT');const file=path.join(dir,name),info=fs.lstatSync(file);if(info.isDirectory()&&!info.isSymbolicLink())walk(file);else {checkPath(file);checkAvailability(file);result.push(file);}}}
   for(const dir of settings.value.saveLocations)walk(dir);return [...new Set(result)].sort();
 }
-async function scope(settings,onProgress=()=>{}){
-  const files=filesInScope(settings),inventory=await inventorySaves(settings.value.saveLocations,{onProgress});
-  const inputs=files.map(file=>({file,hash:fileHash(file)}));if(JSON.stringify(files)!==JSON.stringify(filesInScope(settings)))fail('SAVE_SCOPE_CHANGED');
-  return {inventory,inputs,scopeDigest:digest({inventory:inventory.manifestDigest,inputs})};
+async function scope(c,settings,onProgress=()=>{}){
+  const files=filesInScope(settings),guard=process.platform==='win32'?await maintenanceHandles(files,{inputsOnly:true}):null;
+  try{
+    const inputs=files.map(file=>({file,hash:fileHash(file),modified:checkPath(file).mtimeMs})),cacheFile=path.join(c.directory,'save-inventory-cache.json');let inventory;
+    if(fs.existsSync(cacheFile)){
+      let cache;try{cache=readJson(cacheFile);}catch{ /* Optional cache is not authority; fully reparse. */ }
+      if(cache?.version===1&&cache.proof===digest({locations:cache.locations,inputs:cache.inputs,inventory:cache.inventory})&&digest(cache.locations)===digest(settings.value.saveLocations)&&digest(cache.inputs)===digest(inputs))inventory=cache.inventory;
+    }
+    if(!inventory){inventory=await inventorySaves(settings.value.saveLocations,{onProgress});if(inventory.complete&&!inventory.unknowns.length)writeJson(cacheFile,{version:1,locations:settings.value.saveLocations,inputs,inventory,proof:digest({locations:settings.value.saveLocations,inputs,inventory})});}
+    guard?.assert();unchangedScope(settings,inputs);
+    return {inventory,inputs,scopeDigest:digest({inventory:inventory.manifestDigest,inputs})};
+  }finally{await guard?.close();}
 }
-function unchangedScope(settings,inputs){if(JSON.stringify(filesInScope(settings))!==JSON.stringify(inputs.map(i=>i.file)))fail('SAVE_SCOPE_CHANGED');for(const i of inputs)if(fileHash(i.file)!==i.hash)fail('SAVE_INPUT_CHANGED');}
+function unchangedScope(settings,inputs){if(JSON.stringify(filesInScope(settings))!==JSON.stringify(inputs.map(i=>i.file)))fail('SAVE_SCOPE_CHANGED');for(const i of inputs)if(fileHash(i.file)!==i.hash||checkPath(i.file).mtimeMs!==i.modified)fail('SAVE_INPUT_CHANGED');}
 function snapshot(c,id){const e=c.catalog.universes[id],p=paths(c,id);if(e.phase!=='READY')fail('RECOVERY_REQUIRED');return inspectProfileDatabase(p.file,{validateDatabase:(db,u)=>validateProduction(db,u,c.registration.id,e)});}
 function preview(c,id,inventory,settings){return retentionPreview(snapshot(c,id),inventory.roots,{complete:inventory.complete,unknowns:inventory.unknowns,pinned:settings.value.protectedUniverses.includes(id)});}
 function setEntry(c,id,entry){updateCatalog(c,{...c.catalog,universes:{...c.catalog.universes,[id]:entry}});}
@@ -40,7 +48,7 @@ async function makeBackup(c,id,e,file,onProgress){
   writeJson(path.join(dir,'receipt.json'),{id:backupId,rootId:c.registration.id,universe:id,entry:e,sourceHash:beforeHash,hash:fileHash(target),contentDigest:rows});receipt(c,id,backupId);return backupId;
 }
 export async function scanProduction(root,{onProgress=()=>{}}={}){
-  const c=productionRoot(root),settings=readSettings(c.directory),s=await scope(settings,onProgress),databases=[];
+  const c=productionRoot(root),settings=readSettings(c.directory),s=await scope(c,settings,onProgress),databases=[];
   const ids=Object.keys(c.catalog.universes).sort();onProgress({stage:'DATABASES',completed:0,total:ids.length});
   for(const [i,id] of ids.entries()){
     const e=c.catalog.universes[id],p=paths(c,id);
@@ -57,12 +65,13 @@ export async function reviewProduction(root,id,kind){
   try{
     const settings=readSettings(c.directory);if(settings.value.protectedUniverses.includes(id))fail('UNIVERSE_PROTECTED');
     const p=paths(c,id),e=c.catalog.universes[id];let s,plan;
+    checkSidecars(p.file);
     if(e.phase==='PREPARED'){
       if(kind!=='RESTORE')fail('RECOVERY_REQUIRED');const r=receipt(c,id,e.beforeBackup),hash=fileHash(p.file);
       if(![e.beforeHash,e.afterHash].includes(hash))fail('INTERRUPTED_TARGET_CHANGED_PRESERVE_EVIDENCE');
       plan={kind:'RECOVER',universe:id,entry:e,dbHash:hash,backup:e.beforeBackup,restoreDigest:r.contentDigest};
     }else{
-      s=await scope(settings);const result=preview(c,id,s.inventory,settings);
+      s=await scope(c,settings);const result=preview(c,id,s.inventory,settings);
       if(kind==='CLEAN'&&(result.status!=='PREVIEW_ONLY'||!result.roots.length||!result.candidates?.records))fail('NO_SAFE_HISTORY_TO_PRUNE');
       if(kind==='RESTORE'&&(!e.lastBackup||fileHash(p.file)!==e.committedHash))fail('NEW_HISTORY_OR_NO_RESTORE_POINT');
       const r=kind==='RESTORE'?receipt(c,id,e.lastBackup):null,db=openDatabase(p.file);let retainedHash;try{retainedHash=retainedDigest(db,result.retained);}finally{db.close();}
@@ -77,6 +86,7 @@ export async function executeProduction(root,confirmation,{onProgress=()=>{},onP
   const c=productionRoot(root),lock=rootLease(c,'MAINTENANCE');let guard,db;
   try{
     const plan=confirmation?.plan,id=universeId(plan?.universe),p=paths(c,id),e=c.catalog.universes[id],saved=readJson(p.plan),settings=readSettings(c.directory);
+    checkSidecars(p.file);
     if(digest(plan)!==confirmation.token||saved.token!==confirmation.token||digest(saved.plan)!==confirmation.token||plan.rootId!==c.registration.id||digest(e)!==digest(plan.entry)||Date.now()-plan.created>600000||settings.digest!==plan.settingsDigest||settings.value.protectedUniverses.includes(id)||fileHash(p.file)!==plan.dbHash)fail('STALE_CONFIRMATION_REFRESH');
     if(plan.kind!=='RECOVER')unchangedScope(settings,plan.inputs);
     guard=await handles([p.file,...(plan.inputs||[]).map(i=>i.file)]);guard.assert();onPhase('HANDLES_ACQUIRED');
@@ -108,7 +118,7 @@ export async function executeProduction(root,confirmation,{onProgress=()=>{},onP
     const next={phase:'READY',version:2,generation:nextGeneration,operation,lastBackup:plan.kind==='CLEAN'?beforeBackup:plan.backup,committedHash:fileHash(stage)};
     const verify=openDatabase(stage);try{validateProduction(verify,id,c.registration.id,next);if(plan.kind==='CLEAN'&&retainedDigest(verify,plan.retained)!==plan.retainedHash)fail('STAGE_RETAINED_MISMATCH');if(plan.kind!=='CLEAN'&&contentDigest(verify)!==plan.restoreDigest)fail('STAGE_RESTORE_MISMATCH');}finally{verify.close();}
     onPhase('STAGE_VERIFIED');if(plan.inputs)unchangedScope(settings,plan.inputs);
-    if(readSettings(c.directory).digest!==plan.settingsDigest||fileHash(p.file)!==plan.dbHash)fail('INPUTS_CHANGED_BEFORE_INSTALL');
+    checkSidecars(p.file);if(readSettings(c.directory).digest!==plan.settingsDigest||fileHash(p.file)!==plan.dbHash)fail('INPUTS_CHANGED_BEFORE_INSTALL');
     // Both inode handles deny writes; FILE_SHARE_DELETE allows atomic replacement.
     await guard.add([stage],true,true);guard.assert();onPhase('BEFORE_PREPARE');
     setEntry(c,id,{...e,phase:'PREPARED',beforeBackup,beforeHash:plan.dbHash,afterHash:next.committedHash,next,operation});onPhase('PREPARED');

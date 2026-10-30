@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {once} from 'node:events';
-export async function maintenanceHandles(paths){
+export async function maintenanceHandles(paths,{inputsOnly=false}={}){
   if(process.platform!=='win32')throw Error('PRODUCTION_MAINTENANCE_REQUIRES_WINDOWS_HANDLES');
   const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-File',fileURLToPath(new URL('./maintenance-handles.ps1',import.meta.url))],{stdio:['pipe','pipe','pipe'],windowsHide:true});
   let pending=null,text='',error='';child.stderr.on('data',d=>{error=(error+d).slice(-2048);});
@@ -16,5 +16,5 @@ export async function maintenanceHandles(paths){
     assert(){if(child.exitCode!==null||child.signalCode!==null)throw Error('MAINTENANCE_HANDLE_LOST');},
     async close(){if(child.exitCode!==null)return;const exited=once(child,'exit');child.stdin.end(JSON.stringify({command:'CLOSE'})+'\n');await exited;},
   };
-  try{await guard.add(paths.slice(0,1),true);if(paths.length>1)await guard.add(paths.slice(1),false);return guard;}catch(e){await guard.close();throw e;}
+  try{if(inputsOnly)await guard.add(paths,false);else {await guard.add(paths.slice(0,1),true);if(paths.length>1)await guard.add(paths.slice(1),false);}return guard;}catch(e){await guard.close();throw e;}
 }

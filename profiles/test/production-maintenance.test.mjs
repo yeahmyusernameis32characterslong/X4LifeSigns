@@ -57,6 +57,28 @@ test('Windows native deny-write handles refuse an already-open unmanaged SQLite 
  const f=await fixture(t),db=new DatabaseSync(f.file);await assert.rejects(maintenanceHandles([f.file]),/REFUSED/);db.close();
  const h=await maintenanceHandles([f.file]);try{let attempted;try{attempted=new DatabaseSync(f.file);assert.throws(()=>attempted.exec('UPDATE universe_metadata SET ready=0'),/open|locked|readonly|read-only/);}finally{attempted?.close();}}finally{await h.close();}
 });
+test('new universe publication joins paired registration without migrating existing history',async t=>{
+ const f=await fixture(t),id='lsu1-2026-10-30_13-00-00-9-10-11-12',peer=fileHash(f.file),s=new ProfileStore(f.root,id,A);
+ try{s.ingest([start(id,A),row(A,2,'SNAPSHOT_BEGIN'),row(A,3,'SNAPSHOT_END',{profiles:'0'})]);}finally{s.close();}
+ assert.equal(productionRoot(f.root).catalog.universes[id].version,1);assert.equal(fileHash(f.file),peer);
+});
+test('production inventory cache requires fresh hashes and scope metadata; changed save is parsed again',{timeout:90000},async t=>{
+ const f=await fixture(t),stages=[];let result=await scanProduction(f.root,{onProgress:p=>stages.push(p.stage)});assert.ok(stages.includes('SAVES'));assert.equal(result.databases.find(d=>d.universe===U).candidates.records,6);
+ stages.length=0;result=await scanProduction(f.root,{onProgress:p=>stages.push(p.stage)});assert.ok(!stages.includes('SAVES'));assert.equal(result.databases.find(d=>d.universe===U).candidates.records,6);
+ fs.writeFileSync(path.join(f.saves,'0.xml.gz'),gzipSync(xml(B,3)));stages.length=0;result=await scanProduction(f.root,{onProgress:p=>stages.push(p.stage)});assert.ok(stages.includes('SAVES'));assert.equal(result.databases.find(d=>d.universe===U).candidates.records,5);
+});
+test('a new save arriving during staged work aborts installation with original database unchanged',{timeout:90000},async t=>{
+ const f=await fixture(t),before=fileHash(f.file),plan=await reviewProduction(f.root,U,'CLEAN');
+ await assert.rejects(execute(f,plan,{onPhase(p){if(p==='STAGE_VERIFIED')fs.writeFileSync(path.join(f.saves,'arrived.xml.gz'),gzipSync(xml(D,2)));}}),/SAVE_SCOPE_CHANGED/);
+ assert.equal(fileHash(f.file),before);assert.equal(productionRoot(f.root).catalog.universes[U].phase,'READY');
+});
+test('rolled-back catalogue pair cannot reopen migrated DB; corrupt backup and unknown sidecars refuse',{timeout:120000},async t=>{
+ const f=await fixture(t),oldCatalog=fs.readFileSync(f.c.catalogFile),oldAnchor=fs.readFileSync(f.c.registration.anchor);await execute(f,await reviewProduction(f.root,U,'CLEAN'));
+ const current=productionRoot(f.root),catalog=fs.readFileSync(current.catalogFile),anchor=fs.readFileSync(current.registration.anchor),before=fileHash(f.file);
+ fs.writeFileSync(current.catalogFile,oldCatalog);fs.writeFileSync(current.registration.anchor,oldAnchor);assert.throws(()=>new ProfileStore(f.root,U,B),/PRODUCTION|Incompatible/);fs.writeFileSync(current.catalogFile,catalog);fs.writeFileSync(current.registration.anchor,anchor);
+ const backupId=current.catalog.universes[U].lastBackup;fs.appendFileSync(path.join(current.directory,'backups',backupId,'history.db'),'changed');await assert.rejects(reviewProduction(f.root,U,'RESTORE'),/BACKUP_CHANGED/);assert.equal(fileHash(f.file),before);
+ fs.writeFileSync(f.file+'-journal','unknown');await assert.rejects(reviewProduction(f.root,U,'RESTORE'));assert.equal(fileHash(f.file),before);fs.unlinkSync(f.file+'-journal');
+});
 test('real process exits during staging and after installation preserve evidence and recover selected history',{skip:process.platform!=='win32',timeout:180000},async t=>{
  const f=await fixture(t),before=history(f.file),peer=fileHash(f.peer);
  for(const phase of ['STAGING_TRANSACTION','INSTALLED']){

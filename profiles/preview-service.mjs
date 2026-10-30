@@ -120,7 +120,7 @@ export class PreviewService {
       if(r.verb==='REFRESH'){this.scan(r,settings);return true;}
       if(r.verb==='LOCATIONS') {
         const rows=settings.value.saveLocations.map((p,i)=>[String(i+1),'Local folder '+(i+1),p,'Selected local scope','']);
-        rows.push(['0','Configure locations','Edit local-data/housekeeping-preview-v1.json','Restart companion, then Refresh','No folder picker is used']);
+        rows.push(this.productionMode?['0','Save scope','Selected local folders only','External copies are not inventoried','Refresh before cleanup']:['0','Configure locations','Edit local-data/housekeeping-preview-v1.json','Restart companion, then Refresh','No folder picker is used']);
         this.reply(r,'READY',rows,r.page);return true;
       }
       if(this.scanning){this.reply(r,'SCANNING',this.progressRows);return true;}

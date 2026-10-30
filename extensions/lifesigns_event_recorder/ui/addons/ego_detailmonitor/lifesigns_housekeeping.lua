@@ -214,7 +214,7 @@ function P.render()
     headerLine(P.productionMode and "Preview first. Only your explicitly confirmed universe can be cleaned or restored." or P.testMode and "Clean and restore individual test universes. Original saves and live history are not cleanup targets." or copy.description)
     headerLine((P.testMode or P.productionMode) and "Explicit confirmation and a verified backup are required. No compaction or permanent purge." or copy.notice)
     headerLine(P.productionMode and copy.scope or P.testMode and "Inventory uses copied local native saves only. Gameplay routing is unchanged." or copy.scope)
-    if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or (P.testMode and P.state=="ERROR" and "Test operation blocked. Close X4 and report the result below. Preserve test copies and backups.") or messages[P.state] or "Waiting for companion...") end
+    if P.state~="READY" then headerLine((P.state=="SCANNING" and P.progress) or (P.productionMode and P.state=="ERROR" and "History operation blocked. Read the result below, then Refresh to inspect the current state. Preserve backups.") or (P.testMode and P.state=="ERROR" and "Test operation blocked. Close X4 and report the result below. Preserve test copies and backups.") or messages[P.state] or "Waiting for companion...") end
     if P.stale and #P.rows>0 then headerLine("Previous results - stale. Refresh to update.") end
     local gap=Helper.scaleY(12)
     local gutter=menu.table.arrowColumnWidth+Helper.borderSize
