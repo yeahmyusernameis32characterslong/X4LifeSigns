@@ -90,3 +90,81 @@ installed service paths and restoration assets remain protected.
 
 This checkpoint records inventory and Git/API verification only. Completed
 cleanup and preservation results will be recorded separately after execution.
+
+
+## Executed cleanup and preservation
+
+Completed against explicit local manifests, with preview and identity/content
+rechecks before each removal:
+
+| Category | Removed | Logical file bytes removed |
+| --- | ---: | ---: |
+| Verified temporary access/prompt fixtures | 505 fixture folders; 16,370 files | 775,523 |
+| Verified mocked research-output fixtures | 449 fixture roots; 4,342 files | 2,104,384 |
+| Obsolete Git worktrees | 5 checkouts; 560 files including their Git pointer files | 81,502,451 |
+| Synthetic escape-test junctions | 41 link objects | 0 content bytes; targets preserved |
+| **Total** | **21,272 regular files; 2,453 directories; 41 junctions** | **84,382,358** |
+
+The five retired checkouts held the merged PR21-24 heads and a detached local
+integration result. Git's normal worktree removal was used without force. No
+branch was deleted. The integration head and its two non-remote merge commits
+remain held by `archive/local-integration-20261027`. Recreate a retired checkout
+with `git worktree add <checkout path> <retained branch or commit>` before rerunning
+an older script that explicitly expects its former path.
+
+All synthetic fixture removal was based on retained generator source and exact
+marker/structure checks. Ambiguous variants, synthetic repositories containing
+Git metadata, real research journals, copied historical evidence, original
+extracts, saved games, databases, restoration backups, deployment rollback
+sources, credentials/configuration and active dependencies were retained.
+No broad directory sweep, permission change, Git clean, GC or history rewrite
+was performed. The junction targets and exact recreation records remain available.
+
+### Measurements and verification
+
+The post-cleanup inventory checkpoint recorded 38,081 regular files, 12,411
+directories and zero junctions, with 46,907,591,101 logical file bytes. As with
+the baseline, generated audit records were excluded. The difference includes
+the new PR28 review checkout and normal Git metadata updates, so it is not the
+gross deletion figure above. Logical file sizes are not a measurement of freed
+filesystem allocation. Local audit records themselves occupied about 44.8 MB at
+verification; that cost is additional to these inventory totals. No quarantine
+or relocation was counted as recovered space.
+
+- Metadata (size, timestamps and attributes) for every retained regular file
+  outside the three real repositories' changing Git internals was compared with
+  the baseline: 33,388 unchanged; no unexpected
+  missing, modified or added paths. Synthetic Git-test repositories are included
+  in that preservation comparison.
+- SHA-256 checks passed for 99 critical runtime/data files totalling
+  2,996,844,811 bytes. Existing databases, restoration backups and service
+  configuration retain their recorded hashes. Active PR25 checkouts and the
+  editor's pre-existing changes remain intact.
+- Nine local disposable-fixture safety checks passed: preview default,
+  containment, changed files, changed/escaping links, junction-only removal,
+  exact flat/nested lists, unexpected additions and Git-metadata refusal.
+- Repository connectivity checks passed for all three retained repositories;
+  retained worktree registrations, branches and integration archive ref resolve.
+  The existing watcher remains idle; no service/game was launched or stopped.
+
+No production deployment, database housekeeping, gameplay test or merge was
+performed. Raw inventory, manifests, journals and private paths remain local.
+This PR records completed workspace housekeeping; it does not approve removal
+of the large retained evidence/database copies or change PR25's maintenance rules.
+
+
+### Root-search check and remaining review
+
+After removing the fixtures/junctions, the unchanged installed discovery code
+completed a read-only recursive search of the projects root in 273.379 seconds.
+It examined 1,405 XML headers and returned 208 candidates without another link
+refusal. This verifies that the former junction obstruction is cleared. It is
+not a completed save parse, database matching run, retention preview or X4 menu
+test. Broad-root discovery is still slow and should not be reported as a solved
+end-to-end scan-performance problem. No scanner code was changed in PR28.
+
+Further disk savings would require a separate retention decision for the large
+preserved database, save and evidence copies. Remaining synthetic Git fixtures,
+ambiguous test variants and frozen research evidence were deliberately retained.
+Future test harness work should dispose of its own temporary fixtures; the
+original research generators were preserved rather than rewritten during cleanup.
