@@ -51,6 +51,7 @@ test('model orchestrator executes model-selected tools, preserves dialogue/metri
  const f=fixture(t),r=reader(t,f);let calls=0;const chat=async()=>++calls===1?{message:{role:'assistant',tool_calls:[{function:{name:'profile',arguments:{target:'self'}}}]},prompt_eval_count:10,eval_count:4}:{message:{role:'assistant',content:'I am Iris Vale [R1:'+f.labels['NPC'+CAPTAIN]+'].'},eval_count:8};
  const out=await runDialogue({reader:r,chat,question:'Who are you?'});assert.equal(out.status,'ANSWER');assert.equal(out.metrics.toolCalls,1);assert.equal(out.metrics.modelCalls,2);assert.equal(out.trace[1].result.seed,CAPTAIN);
  const other=reader(t,f,{npcSeed:MANAGER});await assert.rejects(runDialogue({reader:other,chat,question:'What about that?',conversation:out.conversation}),/FOREIGN_CONVERSATION/);
+ const follow=await runDialogue({reader:r,chat:async()=>({message:{role:'assistant',content:'Iris Vale, as recorded in that profile.'}}),question:'Repeat your name?',conversation:out.conversation});assert.equal(follow.status,'ANSWER');assert.equal(follow.metrics.toolCalls,0);assert.equal(follow.metrics.reusedGroundedConversation,true);
  assert.equal((await runDialogue({reader:r,chat:async()=>({message:{role:'assistant',content:'Unsupported answer'}}),question:'Who?'})).status,'INCOMPLETE');
  assert.equal((await runDialogue({reader:r,chat:async()=>({done_reason:'length',message:{role:'assistant',content:'partial'}}),question:'Who?'})).status,'INCOMPLETE');
 });

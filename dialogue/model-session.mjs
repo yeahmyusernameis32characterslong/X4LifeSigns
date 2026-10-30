@@ -27,7 +27,7 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
     'Persona: '+persona+'\nHost scope and reference binding: '+JSON.stringify(reader.context())},...structuredClone(conversation?.messages||[]),{role:'user',content:question}];
   const trace=[],metrics={modelCalls:0,toolCalls:0,toolErrors:0,toolMs:0,toolBytes:0,inputBytes:0,promptTokens:0,outputTokens:0,promptMs:0,generationMs:0,loadMs:0,indexBuildMs:reader.buildMs};
   const record=x=>{trace.push(x);onTrace(x);};
-  const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null},trace,conversation:{scopeId:reader.scopeId,messages:messages.slice(1)}});
+  const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null,reusedGroundedConversation:conversation?.grounded===true},trace,conversation:{scopeId:reader.scopeId,grounded:conversation?.grounded===true||metrics.toolCalls>metrics.toolErrors,messages:messages.slice(1)}});
   while(true){
     if(now()-start>budgetMs||Buffer.byteLength(JSON.stringify(messages))>maxContextBytes){record({kind:'interrupted',reason:'RESOURCE_BUDGET_INCOMPLETE'});return finish('INCOMPLETE');}
     const input={messages,tools:dialogueTools};metrics.inputBytes+=Buffer.byteLength(JSON.stringify(input));
@@ -46,7 +46,7 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
       }
       continue;
     }
-    if(!m.content?.trim()||metrics.toolCalls===metrics.toolErrors){record({kind:'interrupted',reason:'NO_TOOL_GROUNDED_ANSWER'});return finish('INCOMPLETE');}
+    if(!m.content?.trim()||(metrics.toolCalls===metrics.toolErrors&&conversation?.grounded!==true)){record({kind:'interrupted',reason:'NO_TOOL_GROUNDED_ANSWER'});return finish('INCOMPLETE');}
     try{reader.guard();}catch(e){record({kind:'interrupted',reason:e.message});return finish('INCOMPLETE');}
     return finish('ANSWER',m.content);
   }
