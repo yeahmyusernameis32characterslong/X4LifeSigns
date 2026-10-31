@@ -1,6 +1,6 @@
 // Tool orchestration uses the existing Ollama /api/chat message convention.
 // The caller supplies the approved local transport/model; the model never does.
-import {BriefingReader,briefingTools,renderBriefing} from './briefing.mjs';
+import {BriefingReader,briefingTools,renderBriefing,briefingRefs} from './briefing.mjs';
 const briefingReaders=new WeakMap();
 export const dialogueTools = [
   {type:'function',function:{name:'history_summary',description:'For a broad briefing, first count matching authorised observation records by type and obtain first/last source refs. Counts are not shots, battles or unique losses. Follow with search_history/read_events for individual names, targets and event details. No wider knowledge is granted.',parameters:{type:'object',properties:{types:{type:'array',items:{type:'string'}},text:{type:'string'},from:{type:'number'},to:{type:'number'}},additionalProperties:false}}},
@@ -38,15 +38,15 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
     'Do not invent feelings, communications, manoeuvres, player orders, causes, deaths or memories. Personality changes style only. '+
     'If evidence is incomplete, say what is known and what remains unknown. Do not describe an empty search as proof nothing happened. ')+
     'Persona: '+persona+'\n'+(presentation==='briefing'?'Host scope: ':'Host scope and reference binding: ')+JSON.stringify(activeReader.context())},...structuredClone(conversation?.messages||[]),{role:'user',content:question}];
-  const trace=[],failedRequests=new Set(),metrics={modelCalls:0,toolCalls:0,toolErrors:0,toolMs:0,toolBytes:0,toolContentBytes:0,formatMs:0,inputBytes:0,promptTokens:0,outputTokens:0,promptMs:0,generationMs:0,loadMs:0,indexBuildMs:reader.buildMs};
+  const trace=[],failedRequests=new Set(),failedAnswers=new Set(),evidenceRefs=new Set(conversation?.evidenceRefs||[]),metrics={modelCalls:0,toolCalls:0,toolErrors:0,toolMs:0,toolBytes:0,toolContentBytes:0,formatMs:0,inputBytes:0,promptTokens:0,outputTokens:0,promptMs:0,generationMs:0,loadMs:0,indexBuildMs:reader.buildMs};
   const record=x=>{trace.push(x);onTrace(x);};
-  const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null,reusedGroundedConversation:conversation?.grounded===true},trace,conversation:{scopeId:reader.scopeId,presentation,selection,encoding,grounded:conversation?.grounded===true||metrics.toolCalls>metrics.toolErrors,messages:messages.slice(1)}});
+  const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null,reusedGroundedConversation:conversation?.grounded===true},trace,conversation:{scopeId:reader.scopeId,presentation,selection,encoding,evidenceRefs:[...evidenceRefs],grounded:conversation?.grounded===true||metrics.toolCalls>metrics.toolErrors,messages:messages.slice(1)}});
   while(true){
     if(now()-start>budgetMs||Buffer.byteLength(JSON.stringify(messages))>maxContextBytes){record({kind:'interrupted',reason:'RESOURCE_BUDGET_INCOMPLETE'});return finish('INCOMPLETE');}
     const needsSelection=selection==='structured'&&metrics.toolCalls===metrics.toolErrors&&conversation?.grounded!==true;
     // A first request cannot have a continuation cursor: none has been issued.
     const firstSchema={type:'object',properties:{view:{type:'string',enum:presentation==='briefing'?activeReader.selectionActions(question):[]}},required:['view'],additionalProperties:false};
-    const input=needsSelection?{messages:[...messages,{role:'user',content:'Choose one recall view needed for my question. An incident:name choice searches that literal name. No cursor has been issued. Return only JSON matching this schema: '+JSON.stringify(firstSchema)}],format:firstSchema}:{messages,tools:presentation==='briefing'?briefingTools:dialogueTools};metrics.inputBytes+=Buffer.byteLength(JSON.stringify(input));
+    const input=needsSelection?{messages:[...messages,{role:'user',content:'Choose one recall view needed for my question. An incident:name choice searches that literal name. No cursor has been issued. Return only JSON matching this schema: '+JSON.stringify(firstSchema)}],format:firstSchema}:{messages,tools:presentation==='briefing'?briefingTools:dialogueTools};const inputBytes=Buffer.byteLength(JSON.stringify(input));if(inputBytes>maxContextBytes){record({kind:'interrupted',reason:'RESOURCE_BUDGET_INCOMPLETE'});return finish('INCOMPLETE');}metrics.inputBytes+=inputBytes;
     let reply;const callStarted=now();
     try{reply=await chat(input);}catch(e){record({kind:'model_error',error:e.code||e.message});return finish('INCOMPLETE');}
     metrics.modelCalls++;metrics.promptTokens+=reply.prompt_eval_count||0;metrics.outputTokens+=reply.eval_count||0;
@@ -59,11 +59,15 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
       for(const t of m.tool_calls){
         metrics.toolCalls++;const name=t?.function?.name;let output;try{const v=activeReader.call(name,t.function.arguments);output=v.result;metrics.toolMs+=v.queryMs;metrics.toolBytes+=v.bytes;}
         catch(e){metrics.toolErrors++;const key=JSON.stringify(t?.function);if(failedRequests.has(key)){record({kind:'interrupted',reason:'REPEATED_INVALID_TOOL_REQUEST',request:t?.function,error:e.message});return finish('INCOMPLETE');}failedRequests.add(key);output={error:e.message,incomplete:true,instruction:'Correct the tool request within your fixed grant. A refused request is not evidence of absence.'};}
-        record({kind:'tool',request:t?.function,result:output});const formatting=now(),content=presentation==='briefing'&&encoding==='text'&&!output.error?renderBriefing(output):JSON.stringify(output);metrics.formatMs+=now()-formatting;metrics.toolContentBytes+=Buffer.byteLength(content);messages.push({role:'tool',tool_name:typeof name==='string'?name:'unknown',content});
+        record({kind:'tool',request:t?.function,result:output});if(presentation==='briefing'&&!output.error)for(const ref of briefingRefs(output,encoding))evidenceRefs.add(ref);const formatting=now(),content=presentation==='briefing'&&encoding==='text'&&!output.error?renderBriefing(output):JSON.stringify(output);metrics.formatMs+=now()-formatting;metrics.toolContentBytes+=Buffer.byteLength(content);messages.push({role:'tool',tool_name:typeof name==='string'?name:'unknown',content});
       }
       continue;
     }
     if(!m.content?.trim()||(metrics.toolCalls===metrics.toolErrors&&conversation?.grounded!==true)){record({kind:'interrupted',reason:'NO_TOOL_GROUNDED_ANSWER'});return finish('INCOMPLETE');}
+    if(presentation==='briefing'){
+      const cited=m.content.match(/\bR\d+:\d+\b/g)||[],reason=!cited.length?'MISSING_RECORD_REFS':cited.some(ref=>!evidenceRefs.has(ref))?'UNRETRIEVED_RECORD_REF':null;
+      if(reason){if(failedAnswers.has(m.content)){record({kind:'interrupted',reason:'REPEATED_UNGROUNDED_ANSWER'});return finish('INCOMPLETE');}failedAnswers.add(m.content);record({kind:'answer_repair_required',reason});messages.push({role:'user',content:'Repeat your answer using exact bracketed record references from the retrieved facts. Do not invent references or discuss tools. Keep the answer factual and distinguish unknowns.'});continue;}
+    }
     try{reader.guard();}catch(e){record({kind:'interrupted',reason:e.message});return finish('INCOMPLETE');}
     return finish('ANSWER',m.content);
   }

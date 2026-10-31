@@ -32,3 +32,8 @@ test('briefing adapter dispatches the model chosen bundle and prevents cross-pre
  const {reader}=setup(t);let n=0;const chat=async input=>{assert.equal(input.tools.length,1);return ++n===1?{message:{role:'assistant',tool_calls:[{function:{name:'recall',arguments:{view:'identity'}}}]}}:{message:{role:'assistant',content:'I am Iris Vale, currently Marine (R1:64).'}};};
  const out=await runDialogue({reader,chat,presentation:'briefing',question:'Who are you?'});assert.equal(out.status,'ANSWER');assert.equal(out.metrics.toolCalls,1);assert.equal(out.trace[1].result.identity.person.currentRole,'Marine');assert.equal(out.conversation.presentation,'briefing');await assert.rejects(runDialogue({reader,chat,question:'Again?',conversation:out.conversation}),/FOREIGN_CONVERSATION/);
 });
+test('briefing repairs missing refs and refuses invented/unretrieved refs without treating citation as truth',async t=>{
+ const {reader}=setup(t);let n=0;const chat=async()=>++n===1?{message:{role:'assistant',tool_calls:[{function:{name:'recall',arguments:{view:'identity'}}}]}}:{message:{role:'assistant',content:n===2?'I am Iris Vale.':'I am Iris Vale [R1:34].'}};
+ const out=await runDialogue({reader,chat,presentation:'briefing',question:'Who?'});assert.equal(out.status,'ANSWER');assert.equal(out.metrics.modelCalls,3);assert(out.trace.some(x=>x.reason==='MISSING_RECORD_REFS'));
+ n=0;const refusal=await runDialogue({reader,chat:async()=>++n===1?{message:{role:'assistant',tool_calls:[{function:{name:'recall',arguments:{view:'identity'}}}]}}:{message:{role:'assistant',content:'An invented event [R9:999].'}},presentation:'briefing',question:'Who?'});assert.equal(refusal.status,'INCOMPLETE');assert(refusal.trace.some(x=>x.reason==='UNRETRIEVED_RECORD_REF'));
+});
