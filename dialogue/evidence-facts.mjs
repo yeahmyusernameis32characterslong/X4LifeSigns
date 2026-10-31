@@ -1,7 +1,7 @@
 // Interpret recorder fields after authorisation. Never discover new participants
 // or join by display name, time proximity, faction or a model's interpretation.
 export function evidenceFacts(e) {
-  const f=e.fields, entity=side=>({kind:e[side+'_kind']||null,seed:e[side+'_seed']||null,idcode:e[side+'_idcode']||null,name:f[side+'_name']||null});
+  const f=e.fields, entity=side=>({kind:e[side+'_kind']||f[side+'_kind']||null,seed:e[side+'_seed']||null,idcode:e[side+'_idcode']||null,name:f[side+'_name']||null});
   const subject=entity('subject'),other=entity('other');
   const relation=(predicate,roles,notEstablished)=>({predicate,roles,notEstablished,certainty:'RECORDED_OBSERVATION'});
   switch(e.event_type){

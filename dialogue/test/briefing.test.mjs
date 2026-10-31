@@ -38,12 +38,16 @@ test('host window filters records, nearby context, topics and totals without wid
  assert.deepEqual(incident.records.map(r=>r.ref),['R1:50','R1:51']);assert(!renderBriefing(incident).includes('R1:52'));
  assert.equal(b.call('recall',{view:'combat'}).result.combatTotals.totalObservations,2);
  assert.equal(b.call('recall',{view:'service'}).result.records.length,0);
+ assert.equal(b.call('recall',{view:'orders'}).result.records.length,0);
  assert(!b.selectionActions('Kite').includes('incident:Kite'));
  const empty=setup(t,{}, {focus:{run:'R1',from:58,to:58}}).b.call('recall',{view:'combat'}).result;
  assert.equal(empty.combatTotals.totalObservations,0);assert(!JSON.stringify(empty).includes('UNKNOWN_ROLE_SECRET'));
  assert.throws(()=>new BriefingReader(b.reader,{focus:{run:'R99'}}),/FOCUS_RUN/);
  assert.throws(()=>new BriefingReader(b.reader,{focus:{run:'R1',from:55,to:50}}),/FOCUS_TIME/);
  assert.throws(()=>new BriefingReader(b.reader,{focus:{run:'R1',from:NaN}}),/FOCUS_TIME/);
+ const orderOnly=setup(t,{}, {focus:{run:'R1',from:52,to:52}}).b;
+ assert.deepEqual(orderOnly.call('recall',{view:'orders'}).result.records.map(r=>r.ref),['R1:52']);
+ assert.equal(orderOnly.call('recall',{view:'combat'}).result.combatTotals.totalObservations,0);
 });
 
 test('history windows bind conversation reuse and cannot be overridden by model arguments',async t=>{

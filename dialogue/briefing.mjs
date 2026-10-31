@@ -20,7 +20,7 @@ const sentence=e=>{
  if(['CONTROL_ROLE_ASSIGNED','CREW_ROLE_OBSERVED'].includes(e.event_type))return `My recorded role on ${assigned} was ${role||'unknown'}.`;
  return null;
 };
-export const briefingTools=[{type:'function',function:{name:'recall',description:'Read your authorised records BEFORE answering. identity: your name/current role/assignment; service: role changes and dockings; incident: contact, nearby orders and outcome (text=counterpart name/code); combat: your identity and combat totals/evidence; latest: newest accessible events. Read MORE if a cursor is returned. No arbitrary identities or SQL.',parameters:{type:'object',properties:{view:{type:'string',enum:['identity','service','incident','combat','latest']},text:{type:'string'},after:{type:'string'}},required:['view'],additionalProperties:false}}}];
+export const briefingTools=[{type:'function',function:{name:'recall',description:'Read your authorised records BEFORE answering. identity: your name/current role/assignment; service: role changes and dockings; incident: contact, nearby orders and outcome (text=counterpart name/code); combat: your identity and combat totals/evidence; latest: newest accessible events; orders: order-state observations (not combat totals). Read MORE if a cursor is returned. No arbitrary identities or SQL.',parameters:{type:'object',properties:{view:{type:'string',enum:['identity','service','incident','combat','latest','orders']},text:{type:'string'},after:{type:'string'}},required:['view'],additionalProperties:false}}}];
 
 export function briefingRefs(result,encoding){
  const p=result.identity.person,s=result.identity.posting,refs=[p.profileRef,p.latestObservationRef,p.roleRef,p.assignmentRef,s.profileRef,s.nameRef,s.roleRef];
@@ -81,15 +81,16 @@ export class BriefingReader {
   // Literal question topics matched only against authorised subjects/counterparties.
   const terms=new Set();for(const e of this.focusedEvents())for(const value of [e.fields.subject_name,e.fields.other_name,e.subject_idcode,e.other_idcode])if(typeof value==='string'&&value.trim()&&value.length<=100&&question.toLowerCase().includes(value.toLowerCase()))terms.add(value);
   for(const m of question.matchAll(/["“]([^"”]{1,100})["”]/g))terms.add(m[1]);
-  return ['identity','service','combat','latest',...[...terms].map(t=>'incident:'+t)];
+  return ['identity','service','combat','latest','orders',...[...terms].map(t=>'incident:'+t)];
  }
  identity(){
   const p=this.reader.profile('self'),s=p.latestPersonObservation,posting=this.reader.profile('posting');
   return {person:{name:value(p,'name'),race:value(p,'race'),seed:p.seed,profileRef:p.ref,latestObservationRef:s?.ref||p.ref,currentRole:s?.role??null,roleRef:s?.roleRef??null,currentAssignment:s?.assignment||null,assignmentRef:s?.assignmentRef??null},posting:posting.available===false?posting:{kind:posting.kind,name:value(posting,'name'),idcode:posting.idcode,seed:posting.seed,model:value(posting,'model_name'),sector:value(posting,'sector_name'),fleetRole:value(posting,'fleet_role'),profileRef:posting.ref,nameRef:posting.nameObservation?.ref||posting.ref,roleRef:posting.association.basis},qualification:'Current role/assignment are last observations, not proof of personal perception. Null means unknown, not absent. Old snapshot role fields are not current.'};
  }
- row(e){return {evidence:evidenceFacts(e),ref:this.reader.ref(e),gameTime:e.game_time,type:e.event_type,fact:sentence(e),subject:{kind:e.subject_kind,name:e.fields.subject_name||null,seed:e.subject_seed,idcode:e.subject_idcode},other:{kind:e.other_kind||null,name:e.fields.other_name||null,seed:e.other_seed,idcode:e.other_idcode},fields:e.fields,access:e.access};}
+ row(e){return {evidence:evidenceFacts(e),ref:this.reader.ref(e),gameTime:e.game_time,type:e.event_type,fact:sentence(e),subject:{kind:e.subject_kind,name:e.fields.subject_name||null,seed:e.subject_seed,idcode:e.subject_idcode},other:{kind:e.other_kind||e.fields.other_kind||null,name:e.fields.other_name||null,seed:e.other_seed,idcode:e.other_idcode},fields:e.fields,access:e.access};}
  select(view,text){
   const all=this.focusedEvents();
+  if(view==='orders')return all.filter(e=>e.event_type.startsWith('ORDER_'));
   if(view==='service')return all.filter(e=>e.subject_kind==='NPC'||e.event_type==='DOCKED');
   if(view==='latest')return all.slice(-this.pageSize);
   if(view==='combat'){
@@ -108,7 +109,7 @@ export class BriefingReader {
  }
  call(name,args={}){
   this.guard();const started=performance.now();if(name!=='recall')throw Error('UNKNOWN_TOOL');validArgs(args,['view','text','after']);
-  if(!['identity','service','incident','combat','latest'].includes(args.view))throw Error('INVALID_VIEW');
+  if(!['identity','service','incident','combat','latest','orders'].includes(args.view))throw Error('INVALID_VIEW');
   if(args.text!==undefined&&(typeof args.text!=='string'||!args.text.trim()||args.text.length>100))throw Error('INVALID_SEARCH_TEXT');
   if(args.view==='incident'&&!args.text&&!args.after)throw Error('INCIDENT_TEXT_REQUIRED');
   let selected,offset=0,text=args.text||'',view=args.view;
