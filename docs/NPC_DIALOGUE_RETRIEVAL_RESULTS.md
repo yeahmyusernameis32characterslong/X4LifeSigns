@@ -2,6 +2,7 @@
 
 30 October 2026. PR #29, offline only. Plan:
 [NPC dialogue retrieval helper](NPC_DIALOGUE_RETRIEVAL_HELPER.md).
+Follow-up: [31 October model residency and matched comparison](NPC_DIALOGUE_MODEL_COMPARISON.md).
 
 ## What exists
 
