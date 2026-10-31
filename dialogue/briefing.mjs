@@ -105,6 +105,7 @@ export class BriefingReader {
    // never by a person's name, roster presence or inferred command permission.
    const named=[];
    for(const e of matches)for(const side of ['subject','other']){
+    if((e[side+'_kind']||e.fields[side+'_kind'])==='NPC')continue;
     const name=e.fields[side+'_name'],idcode=e[side+'_idcode'],seed=e[side+'_seed'];
     if((name&&name.toLowerCase().includes(text.toLowerCase()))||idcode?.toLowerCase()===text.toLowerCase())named.push({seed,idcode,run:e.run_id});
    }
