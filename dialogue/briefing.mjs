@@ -12,20 +12,23 @@ const sentence=e=>{
  if(e.event_type==='KILLED_OBJECT')return `${who} was credited with destroying ${whom}. The destroyed object in this record is ${whom}.`;
  if(e.event_type==='RELATED_OBJECT_DESTROYED')return `${who} was destroyed. NPC death is not established.`;
  if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. Issuer and intent are not established by this state.`;
- if(e.event_type==='DOCKED')return `${who} docked at ${whom}. Reason is not established by this event.`;
- if(e.event_type==='CONTROL_ROLE_REMOVED')return `Control role removed for ${f.assigned_idcode||f.assigned_seed||'unknown assignment'}. An older captain/pilot role is no longer current evidence.`;
- if(['ASSIGNMENT_OBSERVED','CONTROL_ROLE_ASSIGNED','CREW_ROLE_OBSERVED'].includes(e.event_type))return `${e.event_type}: assignment ${f.assigned_idcode||f.assigned_seed||'unknown'}, role ${f.control_post||f.actual_role||'not established by this entry'}.`;
+ if(e.event_type==='DOCKED')return `${who}'s log records docking at ${whom}. Reason is not established by this event.`;
+ const assigned=f.assigned_idcode||f.assigned_seed||'unknown assignment',role=f.control_post||f.actual_role;
+ if(e.event_type==='CONTROL_ROLE_REMOVED')return `My recorded ${role||'control'} role was removed from ${assigned}.`;
+ if(e.event_type==='ASSIGNMENT_OBSERVED')return `My recorded assignment changed to ${assigned}. Role in this entry: ${role||'unknown'}.`;
+ if(['CONTROL_ROLE_ASSIGNED','CREW_ROLE_OBSERVED'].includes(e.event_type))return `My recorded role on ${assigned} was ${role||'unknown'}.`;
  return null;
 };
 export const briefingTools=[{type:'function',function:{name:'recall',description:'Read your authorised records BEFORE answering. identity: your name/current role/assignment; service: role changes and dockings; incident: contact, nearby orders and outcome (text=counterpart name/code); combat: your identity and combat totals/evidence; latest: newest accessible events. Read MORE if a cursor is returned. No arbitrary identities or SQL.',parameters:{type:'object',properties:{view:{type:'string',enum:['identity','service','incident','combat','latest']},text:{type:'string'},after:{type:'string'}},required:['view'],additionalProperties:false}}}];
 
 export function renderBriefing(result){
- const {person:p,posting:s}=result.identity,lines=['AUTHORISED RECORDS. Bracketed labels are source references; cite these exact labels.',
- `[${p.profileRef}] Your name: ${p.name??'unknown'}. Race: ${p.race??'unknown'}.`,
- `[${p.roleRef||p.latestObservationRef}] Your latest observed role: ${p.currentRole??'unknown'}.`,
- `[${p.assignmentRef||p.latestObservationRef}] Your latest observed assignment: ${p.currentAssignment?.idcode||p.currentAssignment?.seed||'unknown'}.`];
+ const {person:p,posting:s}=result.identity,lines=['SOURCED FACTS FOR YOUR ANSWER. You may quote these factual sentences. Cite the exact bracketed record refs.',
+ `[${p.profileRef}] My name is ${p.name??'unknown'}.`];
+ if(p.race)lines.push(`[${p.profileRef}] My recorded race is ${p.race}.`);
+ lines.push(`[${p.roleRef||p.latestObservationRef}] My latest observed role is ${p.currentRole??'unknown'}.`,
+ `[${p.assignmentRef||p.latestObservationRef}] My latest observed assignment is ${p.currentAssignment?.idcode||p.currentAssignment?.seed||'unknown'}.`);
  if(s.available===false)lines.push('Current command-asset profile unavailable: '+s.reason+'. Do not promote an old role into current command.');
- else{lines.push(`[${s.nameRef}] Your current evidenced command asset: ${s.name??'name unknown'} (${s.idcode??'ID unknown'}).`);for(const [key,title]of [['kind','Asset kind'],['model','Known model'],['sector','Known sector'],['fleetRole','Known fleet role']])if(s[key]!==null)lines.push(`[${s.profileRef}] ${title}: ${s[key]}.`);}
+ else{lines.push(`[${s.nameRef}] My evidenced command asset is ${s.name??'name unknown'} (${s.idcode??'ID unknown'}).`);for(const [key,title]of [['kind','Its asset kind is'],['model','Its recorded model is'],['sector','Its recorded sector is'],['fleetRole','Its assigned fleet role is']])if(s[key]!==null)lines.push(`[${s.profileRef}] ${title} ${s[key]}.`);}
  if(s.available!==false&&s.fleetRole)lines.push(`Fleet role ${s.fleetRole} is an assignment, NOT the vessel's model or class.`);
  if(result.combatTotals){const names={ATTACKED:'Incoming contacts RECEIVED by the asset',ATTACKING:'Outgoing attacks BY the asset',KILLED_OBJECT:'Kill credits: the asset destroyed another object',RELATED_OBJECT_DESTROYED:'Destruction of the subject asset',MISSILE_LAUNCHED:'Missile launches by the asset'};lines.push('EXACT COMBAT OBSERVATION TOTALS (not shots, battles or unique losses):');for(const group of result.combatTotals.byType)lines.push(`${names[group.type]||group.type}: ${group.observations} observations; first [${group.first.ref}], last [${group.last.ref}].`);}
  if(result.records?.length){lines.push('SELECTED EVENTS, saved-history order:');for(const r of result.records){lines.push(`[${r.ref}] Game time ${r.gameTime}; ${r.type}: ${r.fact||'Recorded fields '+JSON.stringify(r.fields)}`);if(r.other.idcode)lines.push(`Counterpart code for [${r.ref}]: ${r.other.idcode}.`);}}
