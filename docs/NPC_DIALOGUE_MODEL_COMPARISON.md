@@ -3,6 +3,7 @@
 31 October 2026, PR #29. Both residency measurement and matched answer trials
 are complete; Agent review pending. This continues the
 [initial helper evaluation](NPC_DIALOGUE_RETRIEVAL_RESULTS.md).
+Follow-up: [8B-only helper presentation and query experiment](NPC_DIALOGUE_8B_PRESENTATION.md).
 
 ## Residency and candidate provenance
 
