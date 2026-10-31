@@ -13,7 +13,7 @@ const sentence=e=>{
  if(e.event_type==='KILLED_OBJECT')return `${who} was credited with destroying ${whom}. The destroyed object in this record is ${whom}.`;
  if(e.event_type==='RELATED_OBJECT_DESTROYED')return `${who} was destroyed. NPC death is not established.`;
  if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. This is a state observation, NOT the time an order was issued. Issuer and intent are not established.`;
- if(e.event_type==='DOCKED')return `${who}'s log records docking at ${whom}. Reason is not established by this event.`;
+ if(e.event_type==='DOCKED')return `${who} docked at ${whom}. This records the asset's docking, not a new NPC assignment. Reason is not established by this event.`;
  const assigned=f.assigned_idcode||f.assigned_seed||'unknown assignment',role=f.control_post||f.actual_role;
  if(e.event_type==='CONTROL_ROLE_REMOVED')return `My recorded ${role||'control'} role was removed from ${assigned}.`;
  if(e.event_type==='ASSIGNMENT_OBSERVED')return `My recorded assignment changed to ${assigned}. Role in this entry: ${role||'unknown'}.`;
@@ -44,8 +44,8 @@ export function renderBriefing(result){
  if(result.records?.length&&!result.combatTotals){
   lines.push('CHRONOLOGICAL OBSERVATIONS. Saved-history order, not a claim of causation. Nearby order records are context, not proven parts of the encounter.');
   const named=v=>typeof v==='object'&&v!==null?(v.name||v.idcode||v.seed||'UNKNOWN'):v??'UNKNOWN';
-  for(const r of result.records){
-   lines.push(`[${r.ref}] Game time ${r.gameTime}; ${r.type}: ${r.fact||'Recorded fields '+JSON.stringify(r.fields)}`);
+  for(const [i,r] of result.records.entries()){
+   lines.push(`Step ${result.sequence[i].step} [${r.ref}] Game time ${r.gameTime}; ${r.type}: ${r.fact||'Recorded fields '+JSON.stringify(r.fields)}`);
    lines.push('RESOLVED '+r.evidence.predicate+': '+Object.entries(r.evidence.roles).map(([role,v])=>role+'='+named(v)).join('; ')+'.');
    lines.push('NOT ESTABLISHED by ['+r.ref+']: '+r.evidence.notEstablished.join('; ')+'.');
   }
