@@ -12,7 +12,7 @@ export function evidenceFacts(e) {
     case 'DOCKED':return relation('DOCKING_RECORDED',{dockingAsset:subject,destination:other},['NPC personally aboard','new assignment','reason for docking']);
     case 'ASSIGNMENT_OBSERVED':return relation('ASSIGNMENT_OBSERVED',{person:subject,assignment:{seed:f.assigned_seed||null,idcode:f.assigned_idcode||null}},['arrival or docking','command role unless separately recorded']);
     case 'CONTROL_ROLE_ASSIGNED':case 'CONTROL_ROLE_REMOVED':case 'CREW_ROLE_OBSERVED':return relation(e.event_type,{person:subject,assignment:{seed:f.assigned_seed||null,idcode:f.assigned_idcode||null},role:f.control_post||f.actual_role||null},['personal perception','events outside the evidenced role period']);
-    default:if(e.event_type.startsWith('ORDER_'))return relation('ORDER_STATE_OBSERVED',{asset:subject,order:f.order_name||f.subject_order_name||null,state:f.order_state||f.subject_order_state||null},['order issue time','issuer','intent','active execution from ready state alone','first shot']);
+    default:if(e.event_type.startsWith('ORDER_'))return relation('ORDER_STATE_OBSERVED',{orderHolder:subject,order:f.order_name||f.subject_order_name||null,state:f.order_state||f.subject_order_state||null},['order issue time','issuer','intent','active execution from ready state alone','first shot']);
   }
   return relation('UNINTERPRETED_RECORD',{subject,other},['any interpretation beyond the recorded fields']);
 }

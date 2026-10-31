@@ -18,6 +18,10 @@ test('resolved roles distinguish received contact, target destruction, docking d
  const dock=service.records.find(r=>r.type==='DOCKED');
  assert.equal(dock.evidence.roles.dockingAsset.name,'Kite');assert.equal(dock.evidence.roles.destination.name,'Orchard');
  assert(dock.evidence.notEstablished.includes('new assignment'));
+ // The NPC transition records contain IDs only; the authorised docking row
+ // supplies the asset's name. Retrieving that name must retain those transitions.
+ const namedAsset=b.call('recall',{view:'incident',text:'Kite'}).result;
+ assert.deepEqual(namedAsset.records.map(r=>r.ref),['R1:57','R1:59','R1:60','R1:62','R1:64']);
  const unknown=evidenceFacts({event_type:'DOCKED',subject_seed:'9',fields:{}});assert.equal(unknown.roles.destination.seed,null);
  assert.equal(evidenceFacts({event_type:'NEW_UNVERIFIED_TYPE',fields:{}}).predicate,'UNINTERPRETED_RECORD');
 });

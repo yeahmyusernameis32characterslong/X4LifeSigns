@@ -100,10 +100,23 @@ export class BriefingReader {
   }
   if(view==='incident'){
    const matches=all.filter(e=>JSON.stringify(e.fields).toLowerCase().includes(text.toLowerCase())||e.other_idcode?.toLowerCase()===text.toLowerCase());
+   // A named asset's personnel transitions can contain only its exact IDs.
+   // Join those assignments to the named asset in already authorised rows,
+   // never by a person's name, roster presence or inferred command permission.
+   const named=[];
+   for(const e of matches)for(const side of ['subject','other']){
+    const name=e.fields[side+'_name'],idcode=e[side+'_idcode'],seed=e[side+'_seed'];
+    if((name&&name.toLowerCase().includes(text.toLowerCase()))||idcode?.toLowerCase()===text.toLowerCase())named.push({seed,idcode,run:e.run_id});
+   }
+   const assigned=e=>e.subject_kind==='NPC'&&named.some(n=>{
+    const seed=e.fields.assigned_seed,code=e.fields.assigned_idcode;
+    if(seed&&n.seed)return seed===n.seed&&(!code||!n.idcode||code===n.idcode);
+    return e.run_id===n.run&&code&&n.idcode&&code===n.idcode;
+   });
    // Include nearby order context for the same authorised subject/run. Never
    // broaden access or conflate game-clock rollback across saved sessions.
    const nearby=e=>matches.some(m=>e.run_id===m.run_id&&e.subject_kind===m.subject_kind&&e.subject_seed===m.subject_seed&&e.subject_idcode===m.subject_idcode&&Math.abs(Number(e.game_time)-Number(m.game_time))<=120);
-   return all.filter(e=>matches.includes(e)||(e.event_type.startsWith('ORDER_')&&nearby(e)));
+   return all.filter(e=>matches.includes(e)||assigned(e)||(e.event_type.startsWith('ORDER_')&&nearby(e)));
   }
   return [];
  }
@@ -117,10 +130,10 @@ export class BriefingReader {
   else selected=this.select(view,text);
   const rows=selected.slice(offset,offset+this.pageSize);let next=null;
   if(offset+rows.length<selected.length){if(this.cursors.size>=10000)throw Error('CURSOR_RESOURCE_LIMIT');next=randomUUID();this.cursors.set(next,{view,text,selected,offset:offset+rows.length});}
-  const result={identity:this.identity(),records:rows.map(e=>this.row(e)),coverage:{selectedRecords:selected.length,returned:rows.length,offset,completeForSelection:!next,next,scope:'authorised records only',selection:view==='incident'?'Literal text matches plus same-subject/run order states within 120 game seconds':view==='combat'?'Combat observations, with first/last outgoing examples; repeated outgoing observations are represented by totals':view==='latest'?'Newest accessible records, not a complete history':view},uncertainty:['A kill credit does not establish the killer survived.','Order state is not proof of issuer, intent or first shot.','Selected records are not a complete world timeline. Missing records do not prove absence.']};
+  const result={identity:this.identity(),records:rows.map(e=>this.row(e)),coverage:{selectedRecords:selected.length,returned:rows.length,offset,completeForSelection:!next,next,scope:'authorised records only',selection:view==='incident'?'Literal matches, recorded-ID assignment matches, and same-subject/run order context within 120 game seconds':view==='combat'?'Combat observations, with first/last outgoing examples; repeated outgoing observations are represented by totals':view==='latest'?'Newest accessible records, not a complete history':view},uncertainty:['A kill credit does not establish the killer survived.','Order state is not proof of issuer, intent or first shot.','Selected records are not a complete world timeline. Missing records do not prove absence.']};
   if(view==='combat')result.combatTotals=this.combatSummary();
   result.sequence=evidenceSequence(result.records,offset);result.coverage.focus=this.focus;
-  result.coverage.contextLinks='Order proximity selects context only; it does not prove a shared incident or causal link.';
+  result.coverage.contextLinks='Order proximity selects context only; it does not prove a shared incident or causal link. Named-asset assignment matches use recorded IDs, not name similarity between people.';
   if(view==='identity')delete result.records;
   this.guard();const bytes=Buffer.byteLength(JSON.stringify(result));if(bytes>this.reader.maxResultBytes)throw Error('RESULT_RESOURCE_LIMIT_INCOMPLETE');return {result,bytes,queryMs:performance.now()-started};
  }
