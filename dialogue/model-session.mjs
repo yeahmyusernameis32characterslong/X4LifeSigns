@@ -43,15 +43,15 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
     if(now()-start>budgetMs||Buffer.byteLength(JSON.stringify(messages))>maxContextBytes){record({kind:'interrupted',reason:'RESOURCE_BUDGET_INCOMPLETE'});return finish('INCOMPLETE');}
     const needsSelection=selection==='structured'&&metrics.toolCalls===metrics.toolErrors&&conversation?.grounded!==true;
     // A first request cannot have a continuation cursor: none has been issued.
-    const firstSchema={...briefingTools[0].function.parameters,properties:{view:briefingTools[0].function.parameters.properties.view,text:briefingTools[0].function.parameters.properties.text}};
-    const input=needsSelection?{messages:[...messages,{role:'user',content:'Choose the recall view needed for my question. Use text for an incident name/code, omit it otherwise. No cursor has been issued. Return only JSON matching this schema: '+JSON.stringify(firstSchema)}],format:firstSchema}:{messages,tools:presentation==='briefing'?briefingTools:dialogueTools};metrics.inputBytes+=Buffer.byteLength(JSON.stringify(input));
+    const firstSchema={type:'object',properties:{view:{type:'string',enum:presentation==='briefing'?activeReader.selectionActions(question):[]}},required:['view'],additionalProperties:false};
+    const input=needsSelection?{messages:[...messages,{role:'user',content:'Choose one recall view needed for my question. An incident:name choice searches that literal name. No cursor has been issued. Return only JSON matching this schema: '+JSON.stringify(firstSchema)}],format:firstSchema}:{messages,tools:presentation==='briefing'?briefingTools:dialogueTools};metrics.inputBytes+=Buffer.byteLength(JSON.stringify(input));
     let reply;const callStarted=now();
     try{reply=await chat(input);}catch(e){record({kind:'model_error',error:e.code||e.message});return finish('INCOMPLETE');}
     metrics.modelCalls++;metrics.promptTokens+=reply.prompt_eval_count||0;metrics.outputTokens+=reply.eval_count||0;
     metrics.promptMs+=(reply.prompt_eval_duration||0)/1e6;metrics.generationMs+=(reply.eval_duration||0)/1e6;metrics.loadMs+=(reply.load_duration||0)/1e6;
     record({kind:'model',elapsedMs:now()-callStarted,reply});
     let m=reply.message;if(!m||reply.done_reason==='length'){record({kind:'interrupted',reason:'MODEL_OUTPUT_INCOMPLETE'});return finish('INCOMPLETE');}
-    if(needsSelection){try{const args=JSON.parse(m.content);record({kind:'structured_tool_selection',request:{name:'recall',arguments:args}});m={role:'assistant',tool_calls:[{function:{name:'recall',arguments:args}}]};}catch{record({kind:'interrupted',reason:'INVALID_STRUCTURED_TOOL_SELECTION'});return finish('INCOMPLETE');}}
+    if(needsSelection){try{const chosen=JSON.parse(m.content);if(Object.keys(chosen).length!==1||!firstSchema.properties.view.enum.includes(chosen.view))throw Error('INVALID_SELECTION');const args=chosen.view.startsWith('incident:')?{view:'incident',text:chosen.view.slice(9)}:chosen;record({kind:'structured_tool_selection',selection:chosen,request:{name:'recall',arguments:args}});m={role:'assistant',tool_calls:[{function:{name:'recall',arguments:args}}]};}catch{record({kind:'interrupted',reason:'INVALID_STRUCTURED_TOOL_SELECTION'});return finish('INCOMPLETE');}}
     messages.push(m);
     if(m.tool_calls?.length){
       for(const t of m.tool_calls){

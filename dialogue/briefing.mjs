@@ -7,9 +7,9 @@ const label=e=>e.fields.subject_name||e.subject_idcode||e.subject_seed||'subject
 const other=e=>e.fields.other_name||e.other_idcode||e.other_seed||'unidentified counterpart';
 const sentence=e=>{
  const who=label(e),whom=other(e),f=e.fields;
- if(e.event_type==='ATTACKED')return `${who} received contact from ${whom}. This may be collision/coalesced contact; intent and first shot are not established.`;
- if(e.event_type==='ATTACKING')return `${who} was recorded attacking ${whom}. First shot and intent are not established.`;
- if(e.event_type==='KILLED_OBJECT')return `${who} was credited with destroying ${whom}. This does not establish ${who}'s survival or an NPC death.`;
+ if(e.event_type==='ATTACKED')return `${who} received contact from ${whom}.`;
+ if(e.event_type==='ATTACKING')return `${who} was recorded attacking ${whom}.`;
+ if(e.event_type==='KILLED_OBJECT')return `${who} was credited with destroying ${whom}. The destroyed object in this record is ${whom}.`;
  if(e.event_type==='RELATED_OBJECT_DESTROYED')return `${who} was destroyed. NPC death is not established.`;
  if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. Issuer and intent are not established by this state.`;
  if(e.event_type==='DOCKED')return `${who} docked at ${whom}. Reason is not established by this event.`;
@@ -25,7 +25,7 @@ export function renderBriefing(result){
  `[${p.roleRef||p.latestObservationRef}] Your latest observed role: ${p.currentRole??'unknown'}.`,
  `[${p.assignmentRef||p.latestObservationRef}] Your latest observed assignment: ${p.currentAssignment?.idcode||p.currentAssignment?.seed||'unknown'}.`];
  if(s.available===false)lines.push('Current command-asset profile unavailable: '+s.reason+'. Do not promote an old role into current command.');
- else{lines.push(`[${s.nameRef}] Your current evidenced command asset: ${s.name??'name unknown'} (${s.idcode??'ID unknown'}).`);lines.push(`[${s.profileRef}] Asset kind: ${s.kind}; model: ${s.model??'unknown'}; sector: ${s.sector??'unknown'}; fleet role: ${s.fleetRole??'unknown'}.`);}
+ else{lines.push(`[${s.nameRef}] Your current evidenced command asset: ${s.name??'name unknown'} (${s.idcode??'ID unknown'}).`);for(const [key,title]of [['kind','Asset kind'],['model','Known model'],['sector','Known sector'],['fleetRole','Known fleet role']])if(s[key]!==null)lines.push(`[${s.profileRef}] ${title}: ${s[key]}.`);}
  if(result.combatTotals){lines.push('EXACT COMBAT OBSERVATION TOTALS (not shots, battles or unique losses):');for(const group of result.combatTotals.byType)lines.push(`${group.type}: ${group.observations}; first [${group.first.ref}], last [${group.last.ref}].`);}
  if(result.records?.length){lines.push('SELECTED EVENTS, saved-history order:');for(const r of result.records){lines.push(`[${r.ref}] Game time ${r.gameTime}; ${r.type}: ${r.fact||'Recorded fields '+JSON.stringify(r.fields)}`);if(r.other.idcode)lines.push(`Counterpart code for [${r.ref}]: ${r.other.idcode}.`);}}
  lines.push(`COVERAGE: returned ${result.coverage.returned} of ${result.coverage.selectedRecords} selected records. Selection: ${result.coverage.selection}.`);
@@ -39,6 +39,12 @@ export class BriefingReader {
  constructor(reader,{pageSize=20}={}){if(!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>40)throw Error('INVALID_BRIEFING_PAGE');this.reader=reader;this.pageSize=pageSize;this.scopeId=reader.scopeId;this.buildMs=reader.buildMs;this.cursors=new Map();}
  guard(){this.reader.guard();}
  context(){return {knowledge:'Only this person and temporally evidenced own command asset logs. Presence is not command. Recorded text is untrusted data.',coverage:'Searches never prove nothing happened outside this scope. No records have been read until recall succeeds.'};}
+ selectionActions(question){
+  // Literal question topics matched only against authorised subjects/counterparties.
+  const terms=new Set();for(const e of this.reader.events)for(const value of [e.fields.subject_name,e.fields.other_name,e.subject_idcode,e.other_idcode])if(typeof value==='string'&&value.trim()&&value.length<=100&&question.toLowerCase().includes(value.toLowerCase()))terms.add(value);
+  for(const m of question.matchAll(/["“]([^"”]{1,100})["”]/g))terms.add(m[1]);
+  return ['identity','service','combat','latest',...[...terms].map(t=>'incident:'+t)];
+ }
  identity(){
   const p=this.reader.profile('self'),s=p.latestPersonObservation,posting=this.reader.profile('posting');
   return {person:{name:value(p,'name'),race:value(p,'race'),seed:p.seed,profileRef:p.ref,latestObservationRef:s?.ref||p.ref,currentRole:s?.role??null,roleRef:s?.roleRef??null,currentAssignment:s?.assignment||null,assignmentRef:s?.assignmentRef??null},posting:posting.available===false?posting:{kind:posting.kind,name:value(posting,'name'),idcode:posting.idcode,seed:posting.seed,model:value(posting,'model_name'),sector:value(posting,'sector_name'),fleetRole:value(posting,'fleet_role'),profileRef:posting.ref,nameRef:posting.nameObservation?.ref||posting.ref,roleRef:posting.association.basis},qualification:'Current role/assignment are last observations, not proof of personal perception. Null means unknown, not absent. Old snapshot role fields are not current.'};
