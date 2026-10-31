@@ -33,7 +33,7 @@ export class DialogueReader {
       this.chain=this.view.ancestry(grant.run,grant.record).reverse();this.positions=new Map(this.chain.map((p,i)=>[p.run,i]));
       this.compare=(a,b)=>this.positions.get(a.run_id)-this.positions.get(b.run_id)||a.record_id-b.record_id;
       this.aliases=new Map(this.chain.map((p,i)=>[p.run,'R'+(i+1)]));
-      this.npcProfiles=this.chain.flatMap(p=>this.db.prepare("SELECT * FROM profile_versions WHERE kind='NPC' AND seed=? AND run_id=? AND record_id<=? ORDER BY record_id").all(grant.npcSeed,p.run,p.limit));
+      this.npcProfiles=this.chain.flatMap(p=>this.db.prepare("SELECT * FROM profile_versions INDEXED BY profile_seed WHERE kind='NPC' AND seed=? AND run_id=? AND record_id<=? ORDER BY record_id").all(grant.npcSeed,p.run,p.limit));
       if(!this.npcProfiles.length)throw Error('NPC_PROFILE_NOT_PRESENT');
       if(mode==='indexed')this.view.eventsAt=(run,record)=>this.candidateEvents();
       const history=this.view.historyForNpc(grant.npcSeed,{run:grant.run,record:grant.record});
@@ -114,7 +114,7 @@ export class DialogueReader {
   latestProfile(kind,identity){
     for(const p of [...this.chain].reverse()){
       const selector=identity.seed?'seed=?':'seed IS NULL AND idcode=?',key=identity.seed||identity.idcode;
-      const row=this.db.prepare('SELECT * FROM profile_versions WHERE kind=? AND '+selector+' AND run_id=? AND record_id<=? ORDER BY record_id DESC LIMIT 1').get(kind,key,p.run,p.limit);
+      const row=this.db.prepare('SELECT * FROM profile_versions'+(identity.seed?' INDEXED BY profile_seed':'')+' WHERE kind=? AND '+selector+' AND run_id=? AND record_id<=? ORDER BY record_id DESC LIMIT 1').get(kind,key,p.run,p.limit);
       if(row)return {...row,fields:JSON.parse(row.fields_json)};
     }
     return null;
