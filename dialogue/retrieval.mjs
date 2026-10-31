@@ -24,6 +24,7 @@ export class DialogueReader {
     runId(grant.run);ordinal(grant.record);if(!grant.record)throw Error('EXPLICIT_CHECKPOINT_REQUIRED');
     this.binding=structuredClone(binding);this.grant=structuredClone(grant);this.mode=mode;this.pageSize=pageSize;this.maxResultBytes=maxResultBytes;this.cursors=new Map();this.closed=false;
     this.db=inspectSnapshot(this.binding);this.info=checkPath(binding.file);
+    const validated=performance.now();
     try {
       this.db.exec('PRAGMA query_only=ON;BEGIN');
       if(!this.db.prepare('SELECT 1 FROM records WHERE run_id=? AND record_id=?').get(grant.run,grant.record))throw Error('CHECKPOINT_NOT_PRESENT');
@@ -38,6 +39,7 @@ export class DialogueReader {
       const history=this.view.historyForNpc(grant.npcSeed,{run:grant.run,record:grant.record});
       this.states=history.service_observations;this.authorise(history.observations);
       this.scopeId=digest({snapshot:snapshotId(binding),grant:this.grant,policy:'temporal-command-v1'});
+      const authorised=performance.now();
       if(mode==='indexed'){
         this.index=new DatabaseSync(':memory:');
         this.index.exec('CREATE TABLE evidence (position INTEGER PRIMARY KEY, ref TEXT UNIQUE, type TEXT, time REAL, search TEXT);CREATE INDEX evidence_type_time ON evidence(type,time,position)');
@@ -46,6 +48,7 @@ export class DialogueReader {
       }
       this.byRef=new Map(this.events.map(e=>[this.ref(e),e]));
       this.buildMs=performance.now()-started;
+      this.preparationMs={snapshotValidation:validated-started,scopePreparation:authorised-validated,searchIndex:performance.now()-authorised};
       this.guard();
     } catch(e){this.close();throw e;}
   }
