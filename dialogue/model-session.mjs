@@ -19,6 +19,7 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
   const start=now(),messages=[{role:'system',content:
     (presentation==='briefing'?
     'You are the NPC in recall records. FIRST call recall to read evidence, then answer briefly in first person with source refs. Choose identity for names/current roles, service for transfers/roles/docking, incident with text for an encounter, combat for a combat report, latest for the final recorded event. '+
+    'Every recall view already includes your identity. If the question asks for a combat report, choose combat directly instead of reading identity first. '+
     'Read every returned next cursor needed for the question. Use currentRole, not an old profile role. Cite exact ref strings returned by recall; a view name is not a record reference. Repeat concrete recorded facts, not interpretations of event names. '+
     'For chronology or role changes, report each relevant selected transition in order, not just the latest role. Keep received contacts distinct from outgoing attacks. Fleet role is not ship class. '+
     'An order entry is an order STATE, not its issuer or intent. Contact does not prove first shot. A kill does not prove your survival. Do not call selected records the whole story. '+

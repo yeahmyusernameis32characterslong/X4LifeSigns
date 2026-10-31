@@ -11,7 +11,7 @@ const sentence=e=>{
  if(e.event_type==='ATTACKING')return `${who} was recorded attacking ${whom}.`;
  if(e.event_type==='KILLED_OBJECT')return `${who} was credited with destroying ${whom}. The destroyed object in this record is ${whom}.`;
  if(e.event_type==='RELATED_OBJECT_DESTROYED')return `${who} was destroyed. NPC death is not established.`;
- if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. Issuer and intent are not established by this state.`;
+ if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. This is a state observation, NOT the time an order was issued. Issuer and intent are not established.`;
  if(e.event_type==='DOCKED')return `${who}'s log records docking at ${whom}. Reason is not established by this event.`;
  const assigned=f.assigned_idcode||f.assigned_seed||'unknown assignment',role=f.control_post||f.actual_role;
  if(e.event_type==='CONTROL_ROLE_REMOVED')return `My recorded ${role||'control'} role was removed from ${assigned}.`;
@@ -23,15 +23,17 @@ export const briefingTools=[{type:'function',function:{name:'recall',description
 
 export function renderBriefing(result){
  const {person:p,posting:s}=result.identity,lines=['SOURCED FACTS FOR YOUR ANSWER. You may quote these factual sentences. Cite the exact bracketed record refs.',
- `[${p.profileRef}] My name is ${p.name??'unknown'}.`];
+ `[${p.profileRef}] My name is ${p.name??'unknown'} (the NPC, not the vessel).`];
  if(p.race)lines.push(`[${p.profileRef}] My recorded race is ${p.race}.`);
  lines.push(`[${p.roleRef||p.latestObservationRef}] My latest observed role is ${p.currentRole??'unknown'}.`,
  `[${p.assignmentRef||p.latestObservationRef}] My latest observed assignment is ${p.currentAssignment?.idcode||p.currentAssignment?.seed||'unknown'}.`);
  if(s.available===false)lines.push('Current command-asset profile unavailable: '+s.reason+'. Do not promote an old role into current command.');
- else{lines.push(`[${s.nameRef}] My evidenced command asset is ${s.name??'name unknown'} (${s.idcode??'ID unknown'}).`);for(const [key,title]of [['kind','Its asset kind is'],['model','Its recorded model is'],['sector','Its recorded sector is'],['fleetRole','Its assigned fleet role is']])if(s[key]!==null)lines.push(`[${s.profileRef}] ${title} ${s[key]}.`);}
- if(s.available!==false&&s.fleetRole)lines.push(`Fleet role ${s.fleetRole} is an assignment, NOT the vessel's model or class.`);
+ else{lines.push(`[${s.nameRef}] My evidenced command asset is ${s.name??'name unknown'} (${s.idcode??'ID unknown'}).`);for(const [key,title]of [['kind','Its asset kind is'],['model','Its recorded model is'],['sector','Its recorded sector is'],['fleetRole','Its assigned fleet role is']])if(s[key]!==null&&!(result.combatTotals&&key==='fleetRole'))lines.push(`[${s.profileRef}] ${title} ${s[key]}.`);}
+ if(s.available!==false&&s.fleetRole&&!result.combatTotals)lines.push(`Fleet role ${s.fleetRole} is an assignment, NOT the vessel's model or class.`);
+ const identityLines=lines.splice(0); // Keep task evidence together before background identity.
  if(result.combatTotals){const names={ATTACKED:'Incoming contacts RECEIVED by the asset',ATTACKING:'Outgoing attacks BY the asset',KILLED_OBJECT:'Kill credits: the asset destroyed another object',RELATED_OBJECT_DESTROYED:'Destruction of the subject asset',MISSILE_LAUNCHED:'Missile launches by the asset'};lines.push('EXACT COMBAT OBSERVATION TOTALS (not shots, battles or unique losses):');for(const group of result.combatTotals.byType)lines.push(`${names[group.type]||group.type}: ${group.observations} observations; first [${group.first.ref}], last [${group.last.ref}].`);}
  if(result.records?.length){lines.push('SELECTED EVENTS, saved-history order:');for(const r of result.records){lines.push(`[${r.ref}] Game time ${r.gameTime}; ${r.type}: ${r.fact||'Recorded fields '+JSON.stringify(r.fields)}`);if(r.other.idcode)lines.push(`Counterpart code for [${r.ref}]: ${r.other.idcode}.`);}}
+ lines.push(...identityLines);
  lines.push(`COVERAGE: returned ${result.coverage.returned} of ${result.coverage.selectedRecords} selected records. Selection: ${result.coverage.selection}.`);
  if(result.coverage.next)lines.push('MORE SELECTED RECORDS REMAIN. Continue recall with the same view and after='+result.coverage.next+'. Do not claim complete coverage yet.');
  else lines.push('All records in this selection returned. This is NOT a complete world timeline and never proves nothing happened elsewhere.');
