@@ -12,7 +12,7 @@ const sentence=e=>{
  if(e.event_type==='ATTACKING')return `${who} was recorded attacking ${whom}.`;
  if(e.event_type==='KILLED_OBJECT')return `${who} was credited with destroying ${whom}. The destroyed object in this record is ${whom}.`;
  if(e.event_type==='RELATED_OBJECT_DESTROYED')return `${who} was destroyed. NPC death is not established.`;
- if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. This is a state observation, NOT the time an order was issued. Issuer and intent are not established.`;
+ if(e.event_type.startsWith('ORDER_'))return `${who}: order ${f.order_name||f.subject_order_name||'name unknown'}, state ${f.order_state||f.subject_order_state||'unknown'}. Recorded order holder: ${who}. Issuer: UNKNOWN. Issue time: UNKNOWN. Active execution: UNKNOWN from this state alone. This is a state observation.`;
  if(e.event_type==='DOCKED')return `${who} docked at ${whom}. This records the asset's docking, not a new NPC assignment. Reason is not established by this event.`;
  const assigned=f.assigned_idcode||f.assigned_seed||'unknown assignment',role=f.control_post||f.actual_role;
  if(e.event_type==='CONTROL_ROLE_REMOVED')return `My recorded ${role||'control'} role was removed from ${assigned}.`;
