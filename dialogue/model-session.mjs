@@ -1,6 +1,6 @@
 // Tool orchestration uses the existing Ollama /api/chat message convention.
 // The caller supplies the approved local transport/model; the model never does.
-import {BriefingReader,briefingTools} from './briefing.mjs';
+import {BriefingReader,briefingTools,renderBriefing} from './briefing.mjs';
 const briefingReaders=new WeakMap();
 export const dialogueTools = [
   {type:'function',function:{name:'history_summary',description:'For a broad briefing, first count matching authorised observation records by type and obtain first/last source refs. Counts are not shots, battles or unique losses. Follow with search_history/read_events for individual names, targets and event details. No wider knowledge is granted.',parameters:{type:'object',properties:{types:{type:'array',items:{type:'string'}},text:{type:'string'},from:{type:'number'},to:{type:'number'}},additionalProperties:false}}},
@@ -9,12 +9,13 @@ export const dialogueTools = [
   {type:'function',function:{name:'read_events',description:'Read the full recorded fields for event refs returned by your search. Foreign refs are denied. Subject/other direction, order state and participant_role matter; use details when summary evidence is insufficient.',parameters:{type:'object',properties:{refs:{type:'array',items:{type:'string'}}},required:['refs'],additionalProperties:false}}},
 ];
 
-export async function runDialogue({reader,chat,question,persona='Plain, concise and professional.',presentation='records',conversation=null,budgetMs=600000,maxContextBytes=120000,onTrace=()=>{},now=performance.now.bind(performance)}) {
+export async function runDialogue({reader,chat,question,persona='Plain, concise and professional.',presentation='records',selection='native',encoding='json',conversation=null,budgetMs=600000,maxContextBytes=120000,onTrace=()=>{},now=performance.now.bind(performance)}) {
   if(typeof question!=='string'||!question.trim()||typeof chat!=='function')throw Error('INVALID_DIALOGUE_REQUEST');
   if(!['records','briefing'].includes(presentation))throw Error('INVALID_PRESENTATION');
+  if(!['native','structured'].includes(selection)||!['json','text'].includes(encoding)||(presentation==='records'&&(selection!=='native'||encoding!=='json')))throw Error('INVALID_DIALOGUE_PROTOCOL');
   if(presentation==='briefing'&&!briefingReaders.has(reader))briefingReaders.set(reader,new BriefingReader(reader));
   const activeReader=presentation==='briefing'?briefingReaders.get(reader):reader;
-  reader.guard();if(conversation&&(conversation.scopeId!==reader.scopeId||(conversation.presentation||'records')!==presentation||!Array.isArray(conversation.messages)))throw Error('FOREIGN_CONVERSATION_SCOPE');
+  reader.guard();if(conversation&&(conversation.scopeId!==reader.scopeId||(conversation.presentation||'records')!==presentation||(conversation.selection||'native')!==selection||(conversation.encoding||'json')!==encoding||!Array.isArray(conversation.messages)))throw Error('FOREIGN_CONVERSATION_SCOPE');
   const start=now(),messages=[{role:'system',content:
     (presentation==='briefing'?
     'You are the NPC in recall records. FIRST call recall to read evidence, then answer briefly in first person with source refs. Choose identity for names/current roles, service for transfers/roles/docking, incident with text for an encounter, combat for a combat report, latest for the final recorded event. '+
@@ -35,24 +36,26 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
     'Do not invent feelings, communications, manoeuvres, player orders, causes, deaths or memories. Personality changes style only. '+
     'If evidence is incomplete, say what is known and what remains unknown. Do not describe an empty search as proof nothing happened. ')+
     'Persona: '+persona+'\n'+(presentation==='briefing'?'Host scope: ':'Host scope and reference binding: ')+JSON.stringify(activeReader.context())},...structuredClone(conversation?.messages||[]),{role:'user',content:question}];
-  const trace=[],metrics={modelCalls:0,toolCalls:0,toolErrors:0,toolMs:0,toolBytes:0,inputBytes:0,promptTokens:0,outputTokens:0,promptMs:0,generationMs:0,loadMs:0,indexBuildMs:reader.buildMs};
+  const trace=[],metrics={modelCalls:0,toolCalls:0,toolErrors:0,toolMs:0,toolBytes:0,toolContentBytes:0,formatMs:0,inputBytes:0,promptTokens:0,outputTokens:0,promptMs:0,generationMs:0,loadMs:0,indexBuildMs:reader.buildMs};
   const record=x=>{trace.push(x);onTrace(x);};
-  const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null,reusedGroundedConversation:conversation?.grounded===true},trace,conversation:{scopeId:reader.scopeId,presentation,grounded:conversation?.grounded===true||metrics.toolCalls>metrics.toolErrors,messages:messages.slice(1)}});
+  const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null,reusedGroundedConversation:conversation?.grounded===true},trace,conversation:{scopeId:reader.scopeId,presentation,selection,encoding,grounded:conversation?.grounded===true||metrics.toolCalls>metrics.toolErrors,messages:messages.slice(1)}});
   while(true){
     if(now()-start>budgetMs||Buffer.byteLength(JSON.stringify(messages))>maxContextBytes){record({kind:'interrupted',reason:'RESOURCE_BUDGET_INCOMPLETE'});return finish('INCOMPLETE');}
-    const input={messages,tools:presentation==='briefing'?briefingTools:dialogueTools};metrics.inputBytes+=Buffer.byteLength(JSON.stringify(input));
+    const needsSelection=selection==='structured'&&metrics.toolCalls===metrics.toolErrors&&conversation?.grounded!==true;
+    const input=needsSelection?{messages:[...messages,{role:'user',content:'Choose the recall request needed for my question. Return only JSON matching this schema: '+JSON.stringify(briefingTools[0].function.parameters)}],format:briefingTools[0].function.parameters}:{messages,tools:presentation==='briefing'?briefingTools:dialogueTools};metrics.inputBytes+=Buffer.byteLength(JSON.stringify(input));
     let reply;const callStarted=now();
     try{reply=await chat(input);}catch(e){record({kind:'model_error',error:e.code||e.message});return finish('INCOMPLETE');}
     metrics.modelCalls++;metrics.promptTokens+=reply.prompt_eval_count||0;metrics.outputTokens+=reply.eval_count||0;
     metrics.promptMs+=(reply.prompt_eval_duration||0)/1e6;metrics.generationMs+=(reply.eval_duration||0)/1e6;metrics.loadMs+=(reply.load_duration||0)/1e6;
     record({kind:'model',elapsedMs:now()-callStarted,reply});
-    const m=reply.message;if(!m||reply.done_reason==='length'){record({kind:'interrupted',reason:'MODEL_OUTPUT_INCOMPLETE'});return finish('INCOMPLETE');}
+    let m=reply.message;if(!m||reply.done_reason==='length'){record({kind:'interrupted',reason:'MODEL_OUTPUT_INCOMPLETE'});return finish('INCOMPLETE');}
+    if(needsSelection){try{const args=JSON.parse(m.content);record({kind:'structured_tool_selection',request:{name:'recall',arguments:args}});m={role:'assistant',tool_calls:[{function:{name:'recall',arguments:args}}]};}catch{record({kind:'interrupted',reason:'INVALID_STRUCTURED_TOOL_SELECTION'});return finish('INCOMPLETE');}}
     messages.push(m);
     if(m.tool_calls?.length){
       for(const t of m.tool_calls){
         metrics.toolCalls++;const name=t?.function?.name;let output;try{const v=activeReader.call(name,t.function.arguments);output=v.result;metrics.toolMs+=v.queryMs;metrics.toolBytes+=v.bytes;}
         catch(e){metrics.toolErrors++;output={error:e.message,incomplete:true,instruction:'Correct the tool request within your fixed grant. A refused request is not evidence of absence.'};}
-        record({kind:'tool',request:t?.function,result:output});messages.push({role:'tool',tool_name:typeof name==='string'?name:'unknown',content:JSON.stringify(output)});
+        record({kind:'tool',request:t?.function,result:output});const formatting=now(),content=presentation==='briefing'&&encoding==='text'&&!output.error?renderBriefing(output):JSON.stringify(output);metrics.formatMs+=now()-formatting;metrics.toolContentBytes+=Buffer.byteLength(content);messages.push({role:'tool',tool_name:typeof name==='string'?name:'unknown',content});
       }
       continue;
     }
