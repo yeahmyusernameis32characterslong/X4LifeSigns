@@ -9,10 +9,11 @@ export const dialogueTools = [
   {type:'function',function:{name:'read_events',description:'Read the full recorded fields for event refs returned by your search. Foreign refs are denied. Subject/other direction, order state and participant_role matter; use details when summary evidence is insufficient.',parameters:{type:'object',properties:{refs:{type:'array',items:{type:'string'}}},required:['refs'],additionalProperties:false}}},
 ];
 
-export async function runDialogue({reader,chat,question,persona='Plain, concise and professional.',presentation='records',selection='native',encoding='json',focus=null,conversation=null,budgetMs=600000,maxContextBytes=120000,onTrace=()=>{},now=performance.now.bind(performance)}) {
+export async function runDialogue({reader,chat,question,persona='Plain, concise and professional.',presentation='records',selection='native',encoding='json',focus=null,requireFocus=false,conversation=null,budgetMs=600000,maxContextBytes=120000,onTrace=()=>{},now=performance.now.bind(performance)}) {
   if(typeof question!=='string'||!question.trim()||typeof chat!=='function')throw Error('INVALID_DIALOGUE_REQUEST');
   if(!['records','briefing'].includes(presentation))throw Error('INVALID_PRESENTATION');
   if(!['native','structured'].includes(selection)||!['json','text'].includes(encoding)||(presentation==='records'&&(selection!=='native'||encoding!=='json')))throw Error('INVALID_DIALOGUE_PROTOCOL');
+  if(typeof requireFocus!=='boolean')throw Error('INVALID_FOCUS_REQUIREMENT');
   if(presentation==='records'&&focus!==null)throw Error('FOCUS_REQUIRES_BRIEFING');
   // Reuse only the same validated reader AND immutable history window.
   const focusKey=JSON.stringify(focus===null?null:{run:focus.run,from:focus.from??0,to:focus.to??Number.MAX_VALUE});
@@ -52,6 +53,9 @@ export async function runDialogue({reader,chat,question,persona='Plain, concise 
   const trace=[],failedRequests=new Set(),failedAnswers=new Set(),evidenceRefs=new Set(conversation?.evidenceRefs||[]),metrics={modelCalls:0,toolCalls:0,toolErrors:0,toolMs:0,toolBytes:0,toolContentBytes:0,formatMs:0,inputBytes:0,promptTokens:0,outputTokens:0,promptMs:0,generationMs:0,loadMs:0,indexBuildMs:reader.buildMs};
   const record=x=>{trace.push(x);onTrace(x);};
   const finish=(status,answer=null)=>({status,answer,metrics:{...metrics,totalMs:now()-start,firstUsableMs:answer?now()-start:null,reusedGroundedConversation:conversation?.grounded===true},trace,conversation:{scopeId:reader.scopeId,focusKey,presentation,selection,encoding,evidenceRefs:[...evidenceRefs],grounded:conversation?.grounded===true||metrics.toolCalls>metrics.toolErrors,messages:messages.slice(1)}});
+  // The host, not the model, defines calendar/run semantics for period questions.
+  // Do not silently substitute lifetime history when that period is unresolved.
+  if(requireFocus&&focus===null){record({kind:'interrupted',reason:'HISTORY_WINDOW_REQUIRED'});return finish('INCOMPLETE');}
   while(true){
     if(now()-start>budgetMs||Buffer.byteLength(JSON.stringify(messages))>maxContextBytes){record({kind:'interrupted',reason:'RESOURCE_BUDGET_INCOMPLETE'});return finish('INCOMPLETE');}
     const needsSelection=selection==='structured'&&metrics.toolCalls===metrics.toolErrors&&conversation?.grounded!==true;

@@ -61,6 +61,8 @@ test('history windows bind conversation reuse and cannot be overridden by model 
  await assert.rejects(runDialogue({reader,chat,presentation:'briefing',focus:{run:'R1',from:50,to:53},conversation:out.conversation,question:'Again?'}),/FOREIGN_CONVERSATION/);
  await assert.rejects(runDialogue({reader,chat,presentation:'briefing',focus:{...focus,extra:'bad'},question:'Again?'}),/ARGUMENTS/);
  const narrow=new BriefingReader(reader,{focus});assert.throws(()=>narrow.call('recall',{view:'combat',from:0}),/ARGUMENTS/);
+ const unresolved=await runDialogue({reader,chat:()=>{throw Error('MODEL_MUST_NOT_RUN');},presentation:'briefing',requireFocus:true,question:'What happened yesterday?'});
+ assert.equal(unresolved.status,'INCOMPLETE');assert.equal(unresolved.trace[0].reason,'HISTORY_WINDOW_REQUIRED');assert.equal(unresolved.metrics.toolCalls,0);assert.equal(unresolved.metrics.modelCalls,0);
 });
 test('identity bundles current person and permitted posting without old role or assignment confusion',t=>{
  const {b}=setup(t),identity=b.call('recall',{view:'identity'}).result.identity;assert.equal(identity.person.name,'Iris Vale');assert.equal(identity.person.seed,CAPTAIN);assert.equal(identity.person.currentRole,'Marine');assert.equal(identity.person.currentAssignment.idcode,'SYN-202');assert.equal(identity.posting.available,false);assert(!JSON.stringify(identity).includes('Captain'));
