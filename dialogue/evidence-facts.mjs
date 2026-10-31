@@ -28,9 +28,11 @@ function sameEntity(a,b){
   return null;
 }
 
+export const knownGameTime=t=>(typeof t==='number'||typeof t==='string'&&t.trim()!=='')&&Number.isFinite(Number(t))&&Number(t)>=0;
+
 export function evidenceSequence(rows,offset=0){
   return rows.map((r,i)=>({step:offset+i+1,ref:r.ref,previousRef:i?rows[i-1].ref:null,
     order:'SAVED_ANCESTRY_THEN_RECORD',
     relationToPrevious:i?{sameRecordedSubject:sameEntity(rows[i-1].subject,r.subject),sameRecordedCounterpart:sameEntity(rows[i-1].other,r.other),
-      clockMovedBackwards:Number(r.gameTime)<Number(rows[i-1].gameTime),causation:'NOT_ESTABLISHED'}:null}));
+      clockMovedBackwards:knownGameTime(r.gameTime)&&knownGameTime(rows[i-1].gameTime)?Number(r.gameTime)<Number(rows[i-1].gameTime):null,causation:'NOT_ESTABLISHED'}:null}));
 }

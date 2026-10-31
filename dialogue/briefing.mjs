@@ -1,7 +1,7 @@
 // Deterministic presentation over the existing authorisation, never a new grant.
 // Source refs and exact identifiers remain data. No model/incident answer oracle.
 import {randomUUID} from 'node:crypto';
-import {evidenceFacts,evidenceSequence} from './evidence-facts.mjs';
+import {evidenceFacts,evidenceSequence,knownGameTime} from './evidence-facts.mjs';
 const value=(p,k)=>p?.fields?.[k]?.state==='PRESENT'?p.fields[k].value:null;
 const validArgs=(a,keys)=>{if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!keys.includes(k)))throw Error('INVALID_ARGUMENTS');};
 const label=e=>e.fields.subject_name||e.subject_idcode||e.subject_seed||'subject';
@@ -68,7 +68,7 @@ export class BriefingReader {
   if(focus.from!==undefined&&focus.to!==undefined&&focus.from>focus.to)throw Error('INVALID_FOCUS_TIME');
   return Object.freeze({run:focus.run,from:focus.from??0,to:focus.to??Number.MAX_VALUE});
  }
- focusedEvents(){return this.reader.events.filter(e=>!this.focus||(this.reader.aliases.get(e.run_id)===this.focus.run&&Number(e.game_time)>=this.focus.from&&Number(e.game_time)<=this.focus.to));}
+ focusedEvents(){return this.reader.events.filter(e=>!this.focus||(this.reader.aliases.get(e.run_id)===this.focus.run&&knownGameTime(e.game_time)&&Number(e.game_time)>=this.focus.from&&Number(e.game_time)<=this.focus.to));}
  combatSummary(){
   if(!this.focus)return this.reader.summary({types:['ATTACKED','ATTACKING','KILLED_OBJECT','RELATED_OBJECT_DESTROYED','MISSILE_LAUNCHED']});
   const groups=new Map(),types=new Set(['ATTACKED','ATTACKING','KILLED_OBJECT','RELATED_OBJECT_DESTROYED','MISSILE_LAUNCHED']);

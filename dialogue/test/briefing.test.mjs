@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import {makeFixture,A,B,CAPTAIN,MANAGER,FOREIGN} from './fixture.mjs';
 import {DialogueReader} from '../retrieval.mjs';import {BriefingReader,renderBriefing} from '../briefing.mjs';import {runDialogue} from '../model-session.mjs';
-import {evidenceFacts,evidenceSequence} from '../evidence-facts.mjs';
+import {evidenceFacts,evidenceSequence,knownGameTime} from '../evidence-facts.mjs';
 function setup(t,grant={},options={}){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ls-briefing-')),f=makeFixture(dir),reader=new DialogueReader(f.binding,{npcSeed:CAPTAIN,run:A,record:f.record,access:'command',...grant}),b=new BriefingReader(reader,options);t.after(()=>{reader.close();assert.equal(path.dirname(dir),path.resolve(os.tmpdir()));fs.rmSync(dir,{recursive:true});});return{f,reader,b};}
 
 test('resolved roles distinguish received contact, target destruction, docking destination and assignment',t=>{
@@ -33,6 +33,8 @@ test('chronology preserves branch order and never converts matching names or pro
  const seq=evidenceSequence(rows);assert.equal(seq[1].relationToPrevious.clockMovedBackwards,true);
  assert.equal(seq[1].relationToPrevious.sameRecordedSubject,false);assert.equal(seq[1].relationToPrevious.sameRecordedCounterpart,null);
  assert.equal(seq[1].relationToPrevious.causation,'NOT_ESTABLISHED');
+ for(const time of [null,undefined,'',NaN,'UNAVAILABLE'])assert.equal(knownGameTime(time),false);
+ assert.equal(evidenceSequence([{...rows[0],gameTime:null},rows[1]])[1].relationToPrevious.clockMovedBackwards,null);
  assert.deepEqual(r.sequence.map(s=>s.ref),r.records.map(e=>e.ref));
 });
 
