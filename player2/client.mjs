@@ -11,7 +11,7 @@ export class Player2Client {
     }
   }
   credits(options){return this.transport.credits(options);}
-  async complete({messages,signal,onText=()=>{},stream=true,maxTokens=2048,temperature=0.2,responseFormat}={}){
+  async complete({messages,signal,onText=()=>{},onEvent=()=>{},stream=true,maxTokens=2048,temperature=0.2,responseFormat}={}){
     if(!Array.isArray(messages)||!messages.length||messages.some(m=>!['system','user','assistant'].includes(m.role)||typeof m.content!=='string')||Buffer.byteLength(JSON.stringify(messages))>120000)throw new Player2Error('INVALID_MESSAGES');
     if(!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>4096||!Number.isFinite(temperature)||temperature<0||temperature>2)throw new Player2Error('INVALID_GENERATION_LIMIT');
     if(responseFormat!==undefined&&(!responseFormat||!['json_object','json_schema'].includes(responseFormat.type)||Buffer.byteLength(JSON.stringify(responseFormat))>16000))throw new Player2Error('INVALID_RESPONSE_FORMAT');
@@ -24,6 +24,7 @@ export class Player2Client {
       async function* all(){yield first.value;while(true){const n=await iterator.next();if(n.done)return;yield n.value;}}
       if(first.value.contentType?.includes('text/event-stream')){
         for await(const frame of jsonFrames(all())){
+          onEvent({stage:'frame'});
           if(frame.error)throw new Player2Error('GENERATION_FAILED');
           const choice=frame.choices?.find(c=>c.index===0)||frame.choices?.[0];
           if(choice?.delta?.tool_calls?.length)throw new Player2Error('UNEXPECTED_TOOL_CALL');
@@ -33,6 +34,7 @@ export class Player2Client {
       }else{
         const bytes=[];for await(const item of all())bytes.push(item.chunk);let response;
         try{response=JSON.parse(Buffer.concat(bytes).toString('utf8'));}catch{throw new Player2Error('INVALID_RESPONSE_JSON');}
+        onEvent({stage:'json'});
         if(response.error)throw new Player2Error('GENERATION_FAILED');
         const choice=response.choices?.[0];if(choice?.message?.tool_calls?.length)throw new Player2Error('UNEXPECTED_TOOL_CALL');
         emit(choice?.message?.content);finishReason=choice?.finish_reason;usage=response.usage??null;model=response.model??null;

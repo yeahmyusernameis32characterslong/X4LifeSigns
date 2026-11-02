@@ -20,11 +20,12 @@ export async function discoverEndpoint({endpoint,portFile,platform=process.platf
 const statusCode=s=>s===401?'LOGIN_REQUIRED':s===403?'ACCESS_DENIED':s===402?'CREDITS_REQUIRED':s===429?'RATE_LIMITED':s>=500?'PROVIDER_UNAVAILABLE':'PROVIDER_REQUEST_REJECTED';
 
 export class Player2Transport {
-  constructor({endpoint,gameClientId=null,timeoutMs=30000,maxBytes=1048576,fetchImpl=fetch}={}){
+  constructor({endpoint,gameClientId=null,timeoutMs=30000,maxBytes=1048576,fetchImpl=fetch,observe=()=>{}}={}){
     this.endpoint=loopbackEndpoint(endpoint);
     if(gameClientId!==null&&(typeof gameClientId!=='string'||!gameClientId.trim()||gameClientId.length>256||/[\r\n]/.test(gameClientId)))throw new Player2Error('INVALID_GAME_CLIENT_ID');
     if(!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>600000||!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>67108864)throw new Player2Error('INVALID_TRANSPORT_LIMIT');
-    this.gameClientId=gameClientId;this.timeoutMs=timeoutMs;this.maxBytes=maxBytes;this.fetchImpl=fetchImpl;
+    if(typeof observe!=='function')throw new Player2Error('INVALID_OBSERVER');
+    this.observe=observe;this.gameClientId=gameClientId;this.timeoutMs=timeoutMs;this.maxBytes=maxBytes;this.fetchImpl=fetchImpl;
   }
   async *bytes(route,{method='GET',body,signal,contentType='application/json',accept='application/json',resource='npc-dialogue',maxBytes=this.maxBytes,allowEmpty=false}={}){
     // Routes are host-selected; a caller cannot supply an alternate authority/query.
@@ -39,9 +40,10 @@ export class Player2Transport {
     try{
       // Generation POSTs are deliberately never retried: timeout can follow billing.
       response=await this.fetchImpl(this.endpoint+route,{method,headers,body:body===undefined?undefined:contentType==='application/json'?JSON.stringify(body):body,signal:combined,redirect:'error'});
+      this.observe({stage:'headers',status:response.status,contentType:response.headers.get('content-type')});
       if(!response.ok)throw new Player2Error(statusCode(response.status),response.status);
       if(!response.body){if(allowEmpty)return;throw new Player2Error('EMPTY_RESPONSE');}
-      for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>maxBytes)throw new Player2Error('RESPONSE_LIMIT');yield {chunk,elapsedMs:performance.now()-started,contentType:response.headers.get('content-type')};}
+      for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>maxBytes)throw new Player2Error('RESPONSE_LIMIT');this.observe({stage:'bytes',bytes:chunk.byteLength});yield {chunk,elapsedMs:performance.now()-started,contentType:response.headers.get('content-type')};}
     }catch(e){if(e instanceof Player2Error)throw e;if(signal?.aborted)throw new Player2Error('CANCELLED');if(controller.signal.aborted)throw new Player2Error('TIMEOUT');throw new Player2Error('CONNECTION_FAILED');}
     finally{clearTimeout(timer);controller.abort();if(response?.body&&!response.body.locked)await response.body.cancel().catch(()=>{});}
   }

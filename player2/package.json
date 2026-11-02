@@ -1,0 +1,7 @@
+{
+  "name": "lifesigns-player2-experiments",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test test/*.test.mjs"},
+  "devDependencies": {"mpg123-decoder": "1.0.3"}
+}
