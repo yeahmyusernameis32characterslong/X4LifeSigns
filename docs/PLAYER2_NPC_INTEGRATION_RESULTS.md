@@ -137,14 +137,40 @@ The owner requested `gpt-oss-120b` after these trials. On inspection, the instal
 `GET /v1/ai_profiles` returned an empty list. The chat request schema has no
 documented `model` property. A suggested-model header is conditional on feature
 registration and may fall back to the player's default; it would not prove the
-requested model ran. The owner has been asked to select it in the Player2 app.
-No gpt-oss result or comparison is claimed until the response model is verified.
+requested model ran. The owner selected it in the Player2 app and a further five
+real requests each returned **`gpt-oss-120b`**. The same frozen bindings,
+questions, structured response format and scoped evidence were reused without
+changing the adapter.
+
+| Case | Usable reply, including retrieval | Result |
+| --- | ---: | --- |
+| Identity | 5.515s | Correct name, Captain role and Lark assignment |
+| Directed incident | 5.700s | Correct contact/attack/kill direction and unknown issuer; order at time52 narrated after kill at53, contrary to requested chronology |
+| Personnel service | 5.546s | Correct assignment, role changes and docking distinction |
+| Earlier saved branch | 6.671s | Correct Captain/Lark and no later Marine assignment; **wrong latest event**, choosing kill R1:53 instead of docking R2:2 |
+| Real combat aggregate | 18.416s | Correct identity, vessel/model and exact5/36/6/2 observation totals |
+
+The earlier-branch evidence explicitly put R2:2 at step5, after R1:53 at step4.
+The failure was not missing retrieval or future-branch leakage: the model ignored
+the supplied saved-history order, apparently preferring the higher game-time
+number. That explanation is an inference; the incorrect last event is directly
+observed. Valid reference metadata did not catch it.
+
+All five responses completed without contract rejection. Completion is not a
+full accuracy pass: chronology remains a material limitation. gpt-oss was slower
+in these five samples than the earlier default-model set. This is one sequential
+pass per model at different times, not a controlled or statistical benchmark.
+Fresh reader preparation was1.20s for the real case (mostly hashing), separate
+from its18.416s usable response time. Provider usage was null; observed rounded
+balance deltas summed to one Joule, not an exact token invoice. Speech was not
+rerun: switching the chat model does not establish a TTS change.
 
 ## Review and acceptance remaining
 
 Agent should review the implementation, scoped knowledge results and retained
 failure summaries, then decide the next native integration and speech latency
-work. A selected-model follow-up is pending the app configuration above.
+work. The selected-model follow-up is complete with the accuracy limitations
+above; no permanent model recommendation is established.
 
 Native X4 hookup, hardware input/output, voice listening quality and coexistence
 with gameplay remain unverified. No live deployment, X4 launch or PR #30 merge
