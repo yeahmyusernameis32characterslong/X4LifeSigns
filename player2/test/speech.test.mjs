@@ -11,6 +11,10 @@ test('recording conflicts do not stop another owner and uncertain connection fai
  await assert.rejects(speech.startRecording({userGesture:true}),/PROVIDER_REQUEST_REJECTED/);assert.equal(speech.recording,false);await assert.rejects(speech.stopRecording(),/MICROPHONE_NOT_OWNED/);assert.equal(stop,0);
  speech.transport.fetchImpl=async()=>{throw new Error('disconnect');};await assert.rejects(speech.startRecording({userGesture:true}),/CONNECTION_FAILED/);assert.equal(speech.recordingUnknown,true);await assert.rejects(speech.startRecording({userGesture:true}),/STATE_BUSY/);
 });
+test('an expired local recording cannot issue a global stop against a later recording',async()=>{
+ let now=0,stops=0;const speech=new Player2Speech({endpoint:'http://127.0.0.1:4315',now:()=>now,fetchImpl:async u=>{if(u.endsWith('/stop'))stops++;return new Response(null);}});
+ await speech.startRecording({userGesture:true,timeout:3});now=3001;await assert.rejects(speech.stopRecording(),/RECORDING_EXPIRED/);assert.equal(stops,0);assert(speech.recordingUnknown);
+});
 test('buffered synthesis requests an explicit stable voice and WAV, and never enables in-app playback',async()=>{
  const calls=[];const speech=new Player2Speech({endpoint:'http://127.0.0.1:4315',fetchImpl:async(u,o)=>{calls.push([u,o]);return Response.json({data:wave().toString('base64')});}});
  const result=await speech.synthesize({text:'Life Signs connected.',voiceId:'test-voice'});assert.equal(result.contentType,'audio/wav');assert.equal(result.audio.length,48);const body=JSON.parse(calls[0][1].body);assert.equal(body.play_in_app,false);assert.deepEqual(body.voice_ids,['test-voice']);assert.equal(body.audio_format,'wav');

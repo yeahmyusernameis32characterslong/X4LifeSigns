@@ -1,16 +1,18 @@
 import {Player2Transport,Player2Error} from './transport.mjs';
 
 export class Player2Speech {
-  constructor(options){this.transport=options instanceof Player2Transport?options:new Player2Transport(options);this.recording=false;this.recordingUnknown=false;}
+  constructor(options){this.transport=options instanceof Player2Transport?options:new Player2Transport(options);this.now=options?.now||performance.now.bind(performance);this.recording=false;this.recordingUnknown=false;this.recordingDeadline=0;}
   async voices({signal}={}){const r=await this.transport.json('/v1/tts/voices',{signal,resource:'npc-speech'});if(!Array.isArray(r.voices)||r.voices.some(v=>typeof v.id!=='string'))throw new Player2Error('INVALID_VOICE_CATALOGUE');return r.voices;}
   async startRecording({userGesture=false,timeout=15,signal}={}){
     if(!userGesture)throw new Player2Error('MICROPHONE_REQUIRES_USER_ACTION');if(this.recording||this.recordingUnknown)throw new Player2Error('MICROPHONE_STATE_BUSY');
     if(!Number.isFinite(timeout)||timeout<3||timeout>60)throw new Player2Error('INVALID_RECORDING_TIMEOUT');
+    this.recordingDeadline=this.now()+timeout*1000;
     try{for await(const _ of this.transport.bytes('/v1/stt/start',{method:'POST',body:{timeout},signal,resource:'npc-speech',allowEmpty:true})){}this.recording=true;}
     catch(e){if(['TIMEOUT','CANCELLED','CONNECTION_FAILED'].includes(e.code))this.recordingUnknown=true;throw e;}
   }
   async stopRecording({signal}={}){
     if(!this.recording)throw new Player2Error(this.recordingUnknown?'MICROPHONE_STATE_UNKNOWN':'MICROPHONE_NOT_OWNED');
+    if(this.now()>=this.recordingDeadline){this.recording=false;this.recordingUnknown=true;throw new Player2Error('RECORDING_EXPIRED_CHECK_PLAYER2');}
     try{const result=await this.transport.json('/v1/stt/stop',{method:'POST',signal,resource:'npc-speech'});if(typeof result.text!=='string')throw new Player2Error('INVALID_TRANSCRIPTION');this.recording=false;return result.text;}
     catch(e){this.recording=false;this.recordingUnknown=true;throw e;}
   }
