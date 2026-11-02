@@ -26,7 +26,7 @@ export class Player2Transport {
     if(!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>600000||!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>67108864)throw new Player2Error('INVALID_TRANSPORT_LIMIT');
     this.gameClientId=gameClientId;this.timeoutMs=timeoutMs;this.maxBytes=maxBytes;this.fetchImpl=fetchImpl;
   }
-  async *bytes(route,{method='GET',body,signal,contentType='application/json',accept='application/json',resource='npc-dialogue',maxBytes=this.maxBytes}={}){
+  async *bytes(route,{method='GET',body,signal,contentType='application/json',accept='application/json',resource='npc-dialogue',maxBytes=this.maxBytes,allowEmpty=false}={}){
     // Routes are host-selected; a caller cannot supply an alternate authority/query.
     if(!/^\/v1\/[a-zA-Z0-9_/-]+$/.test(route)||route.includes('..')||!['GET','POST'].includes(method))throw new Player2Error('INVALID_ROUTE');
     if(!/^[a-z0-9][a-z0-9-]{0,63}$/.test(resource))throw new Player2Error('INVALID_RESOURCE');
@@ -40,7 +40,7 @@ export class Player2Transport {
       // Generation POSTs are deliberately never retried: timeout can follow billing.
       response=await this.fetchImpl(this.endpoint+route,{method,headers,body:body===undefined?undefined:contentType==='application/json'?JSON.stringify(body):body,signal:combined,redirect:'error'});
       if(!response.ok)throw new Player2Error(statusCode(response.status),response.status);
-      if(!response.body)throw new Player2Error('EMPTY_RESPONSE');
+      if(!response.body){if(allowEmpty)return;throw new Player2Error('EMPTY_RESPONSE');}
       for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>maxBytes)throw new Player2Error('RESPONSE_LIMIT');yield {chunk,elapsedMs:performance.now()-started,contentType:response.headers.get('content-type')};}
     }catch(e){if(e instanceof Player2Error)throw e;if(signal?.aborted)throw new Player2Error('CANCELLED');if(controller.signal.aborted)throw new Player2Error('TIMEOUT');throw new Player2Error('CONNECTION_FAILED');}
     finally{clearTimeout(timer);controller.abort();if(response?.body&&!response.body.locked)await response.body.cancel().catch(()=>{});}

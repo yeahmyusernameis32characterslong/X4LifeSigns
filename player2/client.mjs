@@ -11,10 +11,11 @@ export class Player2Client {
     }
   }
   credits(options){return this.transport.credits(options);}
-  async complete({messages,signal,onText=()=>{},stream=true,maxTokens=512,temperature=0.2}={}){
+  async complete({messages,signal,onText=()=>{},stream=true,maxTokens=2048,temperature=0.2,responseFormat}={}){
     if(!Array.isArray(messages)||!messages.length||messages.some(m=>!['system','user','assistant'].includes(m.role)||typeof m.content!=='string')||Buffer.byteLength(JSON.stringify(messages))>120000)throw new Player2Error('INVALID_MESSAGES');
     if(!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>4096||!Number.isFinite(temperature)||temperature<0||temperature>2)throw new Player2Error('INVALID_GENERATION_LIMIT');
-    const started=performance.now(),body={messages,stream,max_tokens:maxTokens,temperature};
+    if(responseFormat!==undefined&&(!responseFormat||!['json_object','json_schema'].includes(responseFormat.type)||Buffer.byteLength(JSON.stringify(responseFormat))>16000))throw new Player2Error('INVALID_RESPONSE_FORMAT');
+    const started=performance.now(),body={messages,stream,max_tokens:maxTokens,temperature};if(responseFormat)body.response_format=responseFormat;
     const chunks=this.transport.bytes('/v1/chat/completions',{method:'POST',body,signal,accept:stream?'text/event-stream, application/json':'application/json'}),iterator=chunks[Symbol.asyncIterator]();
     let text='',firstTextMs=null,finishReason=null,usage=null,model=null;
     const emit=content=>{if(typeof content!=='string'||!content)return;if(firstTextMs===null)firstTextMs=performance.now()-started;text+=content;onText(content);};
