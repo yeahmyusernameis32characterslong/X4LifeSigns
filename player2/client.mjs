@@ -40,6 +40,7 @@ export class Player2Client {
         emit(choice?.message?.content);finishReason=choice?.finish_reason;usage=response.usage??null;model=response.model??null;
       }
       if(!text.trim()||finishReason!=='stop')throw new Player2Error(finishReason==='length'?'OUTPUT_INCOMPLETE':'INVALID_COMPLETION');
+      onEvent({stage:'completion',model});
       return {text,metrics:{firstTextMs,wholeTextMs:performance.now()-started,outputBytes:Buffer.byteLength(text),usage,model}};
     }finally{await iterator.return?.();}
   }

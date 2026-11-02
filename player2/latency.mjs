@@ -1,7 +1,7 @@
 // Metadata-only external instrumentation. Draft sentences NEVER authorise speech.
 export class LatencyTrace {
   constructor({now=()=>performance.now(),maxEvents=20000}={}){this.now=now;this.started=now();this.events=[];this.maxEvents=maxEvents;this.dropped=0;}
-  record(event){const allowed=['stage','bytes','status','contentType','samples','sampleRate'];const safe={ms:this.now()-this.started};for(const k of allowed)if(event[k]!==undefined)safe[k]=event[k];if(this.events.length<this.maxEvents)this.events.push(safe);else this.dropped++;}
+  record(event){const allowed=['stage','bytes','status','contentType','samples','sampleRate','model'];const safe={ms:this.now()-this.started};for(const k of allowed)if(event[k]!==undefined)safe[k]=event[k];if(this.events.length<this.maxEvents)this.events.push(safe);else this.dropped++;}
   first(stage){return this.events.find(e=>e.stage===stage)?.ms??null;}
 }
 

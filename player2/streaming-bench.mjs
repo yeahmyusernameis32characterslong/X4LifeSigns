@@ -5,12 +5,12 @@ import {discoverEndpoint,Player2Error} from './transport.mjs';import {DialogueHo
 import {LatencyTrace,naturalPrefix,completedSentence} from './latency.mjs';import {decodeWav,mpegProbe} from './audio-probe.mjs';
 
 export async function measureText({options,reader,question,selection,stream,check=()=>null}){
- const trace=new LatencyTrace(),client=new Player2Client({...options,observe:e=>trace.record(e)}),complete=client.complete.bind(client);let draft='',sentenceSeen=false,fragments=0;
- client.complete=args=>complete({...args,stream,onEvent:e=>trace.record(e)});
+ const trace=new LatencyTrace(),client=new Player2Client({...options,observe:e=>trace.record(e)}),complete=client.complete.bind(client);let draft='',sentenceSeen=false,fragments=0,model=null;
+ client.complete=args=>complete({...args,stream,onEvent:e=>{if(e.model)model=e.model;trace.record(e);}});
  const host=new DialogueHost({client,reader});
  try{const result=await host.ask({question,selection,onEvent:e=>trace.record(e),onDraft:fragment=>{draft+=fragment.text;fragments++;trace.record({stage:'content',bytes:Buffer.byteLength(fragment.text)});if(!sentenceSeen&&completedSentence(naturalPrefix(draft))){sentenceSeen=true;trace.record({stage:'draftSentence'});}}});
   trace.record({stage:'accepted'});const facts=check(result);return {status:'CONTRACT_ACCEPTED_NOT_FACT_VERIFIED',stream,model:result.metrics.model,fragments,answerBytes:result.metrics.answerBytes,factCheck:facts,events:trace.events,dropped:trace.dropped};
- }catch(e){trace.record({stage:'rejected'});return {status:'REJECTED',stream,error:e instanceof Player2Error?e.code:'LOCAL_CHECK_FAILED',events:trace.events,dropped:trace.dropped};}finally{host.close();}
+ }catch(e){trace.record({stage:'rejected'});return {status:'REJECTED',stream,model,fragments,error:e instanceof Player2Error?e.code:'LOCAL_CHECK_FAILED',events:trace.events,dropped:trace.dropped};}finally{host.close();}
 }
 export async function measureAudio({options,text,voiceId,stream}){
  // Decoder initialisation is outside request dispatch timing and disclosed.
@@ -25,7 +25,7 @@ export async function runBench(config,{text=false,audio=false}={}){
  if(!config.allowGeneration||!config.costAcknowledged||(!text&&!audio)||!Number.isInteger(config.repeats)||config.repeats<2||config.repeats>3)throw new Player2Error('EXPLICIT_BOUNDED_EXPERIMENT_REQUIRED');
  if(typeof config.output!=='string'||!config.output.endsWith('.local.jsonl'))throw new Player2Error('PRIVATE_OUTPUT_REQUIRED');
  const endpoint=await discoverEndpoint(config.player2),options={...config.player2,endpoint},control=new Player2Client(options);const out=await fs.open(config.output,'wx');let spend=0,calls=0;
- const run=async(label,fn)=>{if(++calls>30||spend>=10)throw new Player2Error('EXPERIMENT_BUDGET_REACHED');const before=await control.credits();if(before.patron_tier||before.joules<30)throw new Player2Error('AVAILABLE_BALANCE_REQUIRED');const result=await fn();const after=await control.credits(),delta=before.joules-after.joules;spend+=Math.max(0,delta);await out.write(JSON.stringify({label,trial:calls,...result,roundedJouleDelta:delta})+'\n');console.log(label,result.status);};
+ const run=async(label,fn)=>{if(++calls>30||spend>=10)throw new Player2Error('EXPERIMENT_BUDGET_REACHED');const before=await control.credits();if(before.patron_tier||before.joules<30)throw new Player2Error('AVAILABLE_BALANCE_REQUIRED');const result=await fn();const after=await control.credits(),delta=before.joules-after.joules;spend+=Math.max(0,delta);await out.write(JSON.stringify({label,trial:calls,...result,roundedJouleDelta:delta})+'\n');console.log(label,result.status);if(['TIMEOUT','CONNECTION_FAILED','CREDITS_REQUIRED','RATE_LIMITED','PROVIDER_UNAVAILABLE'].includes(result.error))throw new Player2Error('STOPPED_AFTER_UNCERTAIN_OR_UNAVAILABLE_REQUEST');};
  try{
   if(text){if(!Array.isArray(config.cases)||config.cases.length!==3)throw new Player2Error('THREE_FIXED_CASES_REQUIRED');
    for(let repeat=0;repeat<config.repeats;repeat++)for(const [index,c]of config.cases.entries())for(const stream of (repeat%2?[false,true]:[true,false])){const reader=new DialogueReader(config.binding,config.grant);try{await run('text-'+index+'-'+repeat,()=>measureText({options,reader,question:c.question,selection:c.selection,stream,check:r=>({literalChecks:(c.required||[]).map(pattern=>new RegExp(pattern,'i').test(r.text))})}));}finally{reader.close();}}
