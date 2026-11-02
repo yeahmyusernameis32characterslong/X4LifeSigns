@@ -26,13 +26,16 @@ export async function runHarness({config,generate=false,enableSpeech=false,input
   let signal=new AbortController();
   const cancel=()=>{signal?.abort();host.cancel();};process.on('SIGINT',cancel);
   try{
-    if(enableSpeech){
-    if(config.allowSpeech!==true||typeof config.voiceLedger!=='string'||typeof config.audioDirectory!=='string'){throw Error('SPEECH_NOT_CONFIGURED');}
-    checkPath(config.audioDirectory,{directory:true});speech=new Player2Speech({...config.player2,endpoint,gameClientId:client.transport.gameClientId,timeoutMs:90000});
-    const voices=await speech.voices({signal:signal.signal}),ledger=new VoiceIdentities(config.voiceLedger);ptt=new PushToTalk(speech);
-    audioOutput=new ScopedSpeechOutput({speech,voiceFor:context=>ledger.choose({...context,voices,preferredId:config.preferredVoiceId||null})});
-    audioOutput.activate({universe:config.binding.universe,npcSeed:config.grant.npcSeed,scope:reader.scopeId,loadToken:'external-harness-'+host.epoch});
-  }
+    if(enableSpeech)try{
+      if(config.allowSpeech!==true||typeof config.voiceLedger!=='string'||typeof config.audioDirectory!=='string')throw Error('SPEECH_NOT_CONFIGURED');
+      checkPath(config.audioDirectory,{directory:true});speech=new Player2Speech({...config.player2,endpoint,gameClientId:client.transport.gameClientId,timeoutMs:90000});
+      const voices=await speech.voices({signal:signal.signal}),ledger=new VoiceIdentities(config.voiceLedger);ptt=new PushToTalk(speech);
+      audioOutput=new ScopedSpeechOutput({speech,voiceFor:context=>ledger.choose({...context,voices,preferredId:config.preferredVoiceId||null})});
+      audioOutput.activate({universe:config.binding.universe,npcSeed:config.grant.npcSeed,scope:reader.scopeId,loadToken:'external-harness-'+host.epoch});
+    }catch(e){
+      audioOutput?.clear();audioOutput=null;ptt=null;speech=null;
+      output.write('Speech unavailable: '+(e.code||e.message)+'. Continuing with typed input.\n');
+    }
     rl=readline.createInterface({input,output,terminal:!!input.isTTY});
     output.write('Scoped text dialogue ready. /quit exits. Responses are generated, not verified history.\n');
     while(true){
