@@ -22,17 +22,18 @@ export async function runHarness({config,generate=false,enableSpeech=false,input
   if(!client.transport.gameClientId)throw Error('GAME_CLIENT_ID_REQUIRED');
   const reader=new DialogueReader(config.binding,config.grant),host=new DialogueHost({client,reader});
   let speech,ptt,audioOutput,lastAnswer=null;
-  const rl=readline.createInterface({input,output,terminal:!!input.isTTY});
-  let signal;
+  let rl;
+  let signal=new AbortController();
   const cancel=()=>{signal?.abort();host.cancel();};process.on('SIGINT',cancel);
   try{
-  if(enableSpeech){
+    if(enableSpeech){
     if(config.allowSpeech!==true||typeof config.voiceLedger!=='string'||typeof config.audioDirectory!=='string'){throw Error('SPEECH_NOT_CONFIGURED');}
     checkPath(config.audioDirectory,{directory:true});speech=new Player2Speech({...config.player2,endpoint,gameClientId:client.transport.gameClientId,timeoutMs:90000});
-    const voices=await speech.voices(),ledger=new VoiceIdentities(config.voiceLedger);ptt=new PushToTalk(speech);
+    const voices=await speech.voices({signal:signal.signal}),ledger=new VoiceIdentities(config.voiceLedger);ptt=new PushToTalk(speech);
     audioOutput=new ScopedSpeechOutput({speech,voiceFor:context=>ledger.choose({...context,voices,preferredId:config.preferredVoiceId||null})});
     audioOutput.activate({universe:config.binding.universe,npcSeed:config.grant.npcSeed,scope:reader.scopeId,loadToken:'external-harness-'+host.epoch});
   }
+    rl=readline.createInterface({input,output,terminal:!!input.isTTY});
     output.write('Scoped text dialogue ready. /quit exits. Responses are generated, not verified history.\n');
     while(true){
       let question=await rl.question('You> ').catch(()=>'/quit');if(question.trim()==='/quit')break;if(!question.trim())continue;
@@ -55,12 +56,12 @@ export async function runHarness({config,generate=false,enableSpeech=false,input
     process.removeListener('SIGINT',cancel);host.close();audioOutput?.clear();
     if(speech?.recording)try{await speech.stopRecording();}catch{output.write('Microphone stop could not be confirmed. Check Player2 before leaving.\n');}
     if(speech?.recordingUnknown)output.write('Microphone state is unknown; check and stop it in Player2.\n');
-    reader.close();rl.close();
+    reader.close();rl?.close();
   }
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const args=process.argv.slice(2),i=args.indexOf('--config');
-  if(i<0||!args[i+1]){console.error('Usage: node player2/harness.mjs --config <private-config.json> [--generate]');process.exitCode=1;}
-    else try{const file=path.resolve(args[i+1]);checkPath(file);const config=JSON.parse(fs.readFileSync(file,'utf8'));await runHarness({config,generate:args.includes('--generate'),enableSpeech:args.includes('--speech')});}catch(e){console.error(e.code||e.message);process.exitCode=1;}
+  if(i<0||!args[i+1]){console.error('Usage: node player2/harness.mjs --config <private-config.json> [--generate] [--speech]');process.exitCode=1;}
+  else try{const file=path.resolve(args[i+1]);checkPath(file);const config=JSON.parse(fs.readFileSync(file,'utf8'));await runHarness({config,generate:args.includes('--generate'),enableSpeech:args.includes('--speech')});}catch(e){console.error(e.code||e.message);process.exitCode=1;}
 }
