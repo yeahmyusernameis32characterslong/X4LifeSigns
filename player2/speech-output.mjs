@@ -1,6 +1,6 @@
 import {Player2Error} from './transport.mjs';
 
-export function spokenText(text){return text.replace(/\[R\d+:\d+(?:[,\s]+R\d+:\d+)*\]/g,'').replace(/\s+/g,' ').trim();}
+export function spokenText(text){return text.replace(/\[R\d+:\d+(?:[,\s]+R\d+:\d+)*\]/g,'').replace(/\s+/g,' ').replace(/\s+([.,!?;:])/g,'$1').trim();}
 
 // Buffered output never plays in Player2. A caller-owned sink must apply the
 // same cancellation signal; no stale audio is returned after a load/NPC change.
@@ -10,7 +10,7 @@ export class ScopedSpeechOutput {
     if(typeof universe!=='string'||!universe||typeof npcSeed!=='string'||!/^[0-9]+$/.test(npcSeed)||typeof scope!=='string'||!scope||typeof loadToken!=='string'||!loadToken)throw new Player2Error('INVALID_AUDIO_CONTEXT');
     this.clear();this.context=Object.freeze({universe,npcSeed,scope,loadToken});
   }
-  clear(){this.pending?.abort();this.pending=null;this.sink?.stop();this.context=null;this.generation++;}
+  clear(){this.context=null;this.pending?.abort();this.pending=null;this.generation++;try{this.sink?.stop();this.playbackStopFailed=false;}catch{this.playbackStopFailed=true;}}
   async render(result,{signal,play=false}={}){
     const context=this.context;if(!context||result.scope!==context.scope||result.status!=='GENERATED_UNVERIFIED'||typeof result.text!=='string')throw new Player2Error('STALE_AUDIO_CONTEXT');
     this.pending?.abort();const controller=new AbortController();this.pending=controller;const generation=++this.generation;

@@ -8,6 +8,10 @@ test('audio is tied to exact NPC/checkpoint context and cannot return or play af
 });
 test('voice comes from host identity, citations stay out of speech and sink receives cancellation scope',async()=>{
  let input,played;const output=new ScopedSpeechOutput({speech:{synthesize:async x=>{input=x;return {audio:Buffer.from('audio'),contentType:'audio/wav',voiceId:x.voiceId};}},voiceFor:c=>{assert.equal(c.npcSeed,'123');return 'fixed-voice';},sink:{play:async(audio,metadata)=>{played=metadata;},stop:()=>{}}});
- output.activate(context);const r=await output.render(result,{play:true});assert.equal(input.text,'Ship docked .');assert.equal(input.voiceId,'fixed-voice');assert.equal(played.context.loadToken,'load-a');assert.equal(r.status,'BUFFERED_AUDIO_READY');
- assert.equal(spokenText('Hello [R1:10, R2:20].'),'Hello .');
+ output.activate(context);const r=await output.render(result,{play:true});assert.equal(input.text,'Ship docked.');assert.equal(input.voiceId,'fixed-voice');assert.equal(played.context.loadToken,'load-a');assert.equal(r.status,'BUFFERED_AUDIO_READY');
+ assert.equal(spokenText('Hello [R1:10, R2:20].'),'Hello.');
+});
+test('a failed sink stop never preserves an old history context or prevents load invalidation',()=>{
+ const output=new ScopedSpeechOutput({speech:{},voiceFor:()=>'',sink:{stop:()=>{throw Error('device disconnected');}}});
+ output.activate(context);output.clear();assert.equal(output.context,null);assert.equal(output.playbackStopFailed,true);
 });
