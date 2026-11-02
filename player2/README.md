@@ -93,3 +93,39 @@ adapter must apply the same epoch to audio playback, not merely HTTP completion.
 
 No recorder binding (including M6) has been changed. Native controls and live
 installation need the owner's separate approval and in-game acceptance test.
+
+## Speech controls in the external harness
+
+Add `--speech` only after explicitly configuring `allowSpeech: true`, a private
+`voiceLedger` filename and an existing `audioDirectory` under ignored local
+storage. A chosen `preferredVoiceId` is optional. The ordinary typed-input path
+continues to work if Player2 speech fails.
+
+- `/record` starts Player2 microphone capture as an explicit user action.
+- `/stop` transcribes that capture and sends the resulting question through the
+  same scoped dialogue host. Capture defaults to a15-second API timeout.
+- `/say` synthesises the last accepted reply to a new WAV file. Valid citation
+  markers are omitted from spoken text. No audio is automatically played.
+- `/quit` attempts to stop a recording owned by this harness. If a start/stop
+  connection failure leaves ownership uncertain, check and stop recording in
+  Player2; the harness refuses another silent start.
+
+The reusable `PushToTalk.press/release` API is ready for a future physical-key
+binding. This is not a tested M6 binding, and no game bindings were changed.
+
+`Player2Speech` also accepts uploaded audio files for STT without opening a
+microphone, buffers explicit WAV synthesis, lists voice IDs and exposes raw
+compatibility-stream chunks. A raw chunk is not necessarily playable audio;
+container/decoder and output sink remain the caller's responsibility. Fixed
+voice IDs are persisted separately from checkpoint-scoped memories. Voice
+style instructions are provider-dependent and are not guaranteed accent,
+age or emotion controls. The installed API has no documented output-device
+selection field; select playback devices in the browser/system or future native
+sink rather than inventing a Player2 parameter.
+
+The provider's completion flag is not sufficient to detect truncation. The
+host therefore requests a JSON-schema envelope with text and evidence refs,
+refuses incomplete JSON and checks agreement between inline refs and the
+explicit reference set. This still does not establish semantic truth.
+First provider text can be a JSON prefix; first usable text is measured only
+after complete parsing and validation.

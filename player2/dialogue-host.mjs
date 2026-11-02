@@ -40,7 +40,8 @@ export class DialogueHost {
       const cited=answer.text.match(/\bR\d+:\d+\b/g)||[];
       if(!cited.length||cited.some(ref=>!refs.has(ref)))throw new Player2Error('UNGROUNDED_REFERENCE');
       // Membership is not semantic validation; never report dialogue as verified history.
-      return {version:1,requestId,epoch,scope,status:'GENERATED_UNVERIFIED',speaker:last.identity.person.name,text:answer.text,evidenceRefs:[...new Set(cited)],coverage:last.coverage,metrics:{...answer.metrics,retrievalMs:queryMs,wholeTurnMs:performance.now()-started},evidence};
+      const wholeTurnMs=performance.now()-started;
+      return {version:1,requestId,epoch,scope,status:'GENERATED_UNVERIFIED',speaker:last.identity.person.name,text:answer.text,evidenceRefs:[...new Set(cited)],coverage:last.coverage,metrics:{...answer.metrics,firstProviderTextMs:answer.metrics.firstTextMs,firstUsableTextMs:wholeTurnMs,answerBytes:Buffer.byteLength(answer.text),retrievalMs:queryMs,wholeTurnMs},evidence};
     }catch(e){if(this.epoch!==epoch||this.reader!==reader||controller.signal.aborted)throw new Player2Error('STALE_DIALOGUE');throw e;}
     finally{if(this.pending.get(requestId)===controller)this.pending.delete(requestId);}
   }
