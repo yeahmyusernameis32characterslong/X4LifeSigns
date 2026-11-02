@@ -125,7 +125,18 @@ sink rather than inventing a Player2 parameter.
 
 The provider's completion flag is not sufficient to detect truncation. The
 host therefore requests a JSON-schema envelope with text and evidence refs,
-refuses incomplete JSON and checks agreement between inline refs and the
-explicit reference set. This still does not establish semantic truth.
+refuses incomplete JSON and validates the reference set. Inline references are
+optional in structured mode; any that are present must agree with the validated
+metadata. This keeps source refs separate from natural spoken dialogue without
+claiming that reference membership establishes semantic truth.
 First provider text can be a JSON prefix; first usable text is measured only
 after complete parsing and validation.
+
+`audio-preview.html` is a local sample player with no network or microphone
+access. Select a generated sample and click Play. An explicit output picker is
+offered only where the browser exposes permission-gated
+[selectAudioOutput](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/selectAudioOutput)
+and [setSinkId](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/setSinkId)
+in a secure context; otherwise use system output settings. Browser/device
+acceptance remains a separate manual check. This is a development utility,
+not a preview or implementation of the X4 UI.

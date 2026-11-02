@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; connect-src 'none'; form-action 'none'">
+<title>Life Signs voice samples</title>
+<style>body{font:16px system-ui;color:#e8edf3;background:#141c27;max-width:44rem;margin:4rem auto;padding:1.5rem}audio{display:block;width:100%;margin:1.5rem 0}button,input{font:inherit;margin:.5rem 0;padding:.5rem}p{line-height:1.5}</style>
+<h1>Life Signs voice samples</h1>
+<p>Choose a locally generated audio file, then use Play to listen. Files stay in this browser; this page makes no network requests and never opens your microphone.</p>
+<input id="file" type="file" accept="audio/wav,audio/mpeg,audio/ogg">
+<audio id="audio" controls></audio>
+<button id="output" type="button">Choose audio output</button>
+<p id="status" role="status">No sample selected.</p>
+<p id="support"></p>
+<script>
+const audio=document.querySelector('#audio'),status=document.querySelector('#status'),button=document.querySelector('#output');let current=null;
+document.querySelector('#file').addEventListener('change',event=>{
+ const file=event.target.files[0];if(!file)return;if(file.size>16777216){status.textContent='Choose a sample smaller than 16 MiB.';return;}
+ audio.pause();if(current)URL.revokeObjectURL(current);current=URL.createObjectURL(file);audio.src=current;status.textContent='Ready: '+file.name;
+});
+const supported=window.isSecureContext&&typeof navigator.mediaDevices?.selectAudioOutput==='function'&&typeof audio.setSinkId==='function';
+button.disabled=!supported;document.querySelector('#support').textContent=supported?'Output selection requires your permission when clicked.':'This browser does not offer an output picker here. Use its audio controls or your system sound settings.';
+button.addEventListener('click',async()=>{try{const device=await navigator.mediaDevices.selectAudioOutput();await audio.setSinkId(device.deviceId);status.textContent='Audio output selected: '+(device.label||'chosen device');}catch{status.textContent='Output selection was not completed. The current output is unchanged.';}});
+audio.addEventListener('error',()=>status.textContent='The browser could not decode this sample. Try a supported WAV or MP3 file.');
+window.addEventListener('pagehide',()=>{audio.pause();if(current)URL.revokeObjectURL(current);});
+</script>
+</html>
