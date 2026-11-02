@@ -3,11 +3,12 @@ import {randomUUID} from 'node:crypto';
 import {Player2Error} from './transport.mjs';
 
 export class NativeDialogueInterface {
-  constructor(){this.loadToken=randomUUID();this.host=null;this.npcSeed=null;}
-  beginLoad(){this.host?.cancel();this.host=null;this.npcSeed=null;this.loadToken=randomUUID();return this.loadToken;}
+  constructor({speechOutput=null}={}){this.loadToken=randomUUID();this.host=null;this.npcSeed=null;this.speechOutput=speechOutput;}
+  beginLoad(){this.host?.cancel();this.speechOutput?.clear();this.host=null;this.npcSeed=null;this.loadToken=randomUUID();return this.loadToken;}
   activate({host,npcSeed}){
     if(typeof npcSeed!=='string'||!/^[0-9]+$/.test(npcSeed)||host.reader.grant.npcSeed!==npcSeed)throw new Player2Error('NPC_GRANT_MISMATCH');
     this.host?.cancel();this.host=host;this.npcSeed=npcSeed;
+    this.speechOutput?.activate({loadToken:this.loadToken,universe:host.reader.binding.universe,npcSeed,scope:host.reader.scopeId});
   }
   async request(input,{selection,focus=null,requireFocus=false}={}){
     if(!input||Object.keys(input).some(k=>!['version','requestId','loadToken','npcSeed','question'].includes(k))||typeof input.requestId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(input.requestId)||input.version!==1||input.loadToken!==this.loadToken||input.npcSeed!==this.npcSeed||!this.host)throw new Player2Error('INVALID_NATIVE_REQUEST');
