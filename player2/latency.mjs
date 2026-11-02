@@ -19,7 +19,7 @@ export function naturalPrefix(raw){
   }return null;
 }
 export function completedSentence(prefix){
-  if(!prefix)return null;let quotes=0;
-  for(let i=0;i<prefix.s.length;i++){const c=prefix.s[i];if(c==='"'||c==='“'||c==='”')quotes^=1;if(!quotes&&/[.!?]/.test(c)&&(i+1<prefix.s.length?/\s/.test(prefix.s[i+1]):prefix.closed)){const s=prefix.s.slice(0,i+1);if(!/\bR\d+:\d+\b/.test(s))return s;}}
+  if(!prefix)return null;let quotes=0;const text=prefix.s.replace(/\[R\d+:\d+(?:[,\s]+R\d+:\d+)*\]/g,'').replace(/\s+([.!?])/g,'$1');
+  for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'||c==='“'||c==='”')quotes^=1;if(!quotes&&/[.!?]/.test(c)&&(i+1<text.length?/\s/.test(text[i+1]):prefix.closed)){const s=text.slice(0,i+1);if(/[a-z]/i.test(s)&&!s.includes('[')&&! /\bR\d+:\d+\b/.test(s))return s;}}
   return null;
 }

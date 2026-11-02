@@ -33,3 +33,7 @@ test('load and interruption stop queued speech even when synthesis ignores abort
  const pending=output.renderSegments({...result,text:'First. Second.'},{segments:['First.','Second.'],approve:()=>true,onReady:()=>ready++,play:true});output.clear();if(!honors)finish({audio:Buffer.from('a'),metrics:{}});await assert.rejects(pending,/STALE_AUDIO/);assert.equal(ready,0);assert(stops>=2);
  }
 });
+test('caller interruption stops a playing sentence immediately while the next provider ignores abort',async()=>{
+ let generated=0,finish,stops=0;const controller=new AbortController();const output=new ScopedSpeechOutput({voiceFor:()=> 'fixed',speech:{synthesize:()=>++generated===1?Promise.resolve({audio:Buffer.from('a'),metrics:{}}):new Promise(r=>finish=r)},sink:{stop(){stops++;},play(){return Promise.resolve();}}});output.activate(context);
+ const pending=output.renderSegments({...result,text:'First. Second.'},{segments:['First.','Second.'],approve:()=>true,play:true,signal:controller.signal});await new Promise(r=>setImmediate(r));const before=stops;controller.abort();assert(stops>before);finish({audio:Buffer.from('late'),metrics:{}});await assert.rejects(pending,/STALE_AUDIO/);
+});

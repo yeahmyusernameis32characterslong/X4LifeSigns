@@ -4,13 +4,13 @@ import {Player2Client} from './client.mjs';import {Player2Speech} from './speech
 import {discoverEndpoint,Player2Error} from './transport.mjs';import {DialogueHost} from './dialogue-host.mjs';import {DialogueReader} from '../dialogue/retrieval.mjs';
 import {LatencyTrace,naturalPrefix,completedSentence} from './latency.mjs';import {decodeWav,mpegProbe} from './audio-probe.mjs';
 
-export async function measureText({options,reader,question,selection,stream,check=()=>null}){
+export async function measureText({options,reader,question,selection,stream,check=()=>null,onReview=()=>{}}){
  const trace=new LatencyTrace(),client=new Player2Client({...options,observe:e=>trace.record(e)}),complete=client.complete.bind(client);let draft='',sentenceSeen=false,fragments=0,model=null;
  client.complete=args=>complete({...args,stream,onEvent:e=>{if(e.model)model=e.model;trace.record(e);}});
  const host=new DialogueHost({client,reader});
  try{const result=await host.ask({question,selection,onEvent:e=>trace.record(e),onDraft:fragment=>{draft+=fragment.text;fragments++;trace.record({stage:'content',bytes:Buffer.byteLength(fragment.text)});if(!sentenceSeen&&completedSentence(naturalPrefix(draft))){sentenceSeen=true;trace.record({stage:'draftSentence'});}}});
-  trace.record({stage:'accepted'});const facts=check(result);return {status:'CONTRACT_ACCEPTED_NOT_FACT_VERIFIED',stream,model:result.metrics.model,fragments,answerBytes:result.metrics.answerBytes,factCheck:facts,events:trace.events,dropped:trace.dropped};
- }catch(e){trace.record({stage:'rejected'});return {status:'REJECTED',stream,model,fragments,error:e instanceof Player2Error?e.code:'LOCAL_CHECK_FAILED',events:trace.events,dropped:trace.dropped};}finally{host.close();}
+  trace.record({stage:'accepted'});const facts=check(result);onReview({status:'ACCEPTED',text:result.text});return {status:'CONTRACT_ACCEPTED_NOT_FACT_VERIFIED',stream,model:result.metrics.model,fragments,answerBytes:result.metrics.answerBytes,factCheck:facts,events:trace.events,dropped:trace.dropped};
+ }catch(e){trace.record({stage:'rejected'});onReview({status:'REJECTED',draft});return {status:'REJECTED',stream,model,fragments,error:e instanceof Player2Error?e.code:'LOCAL_CHECK_FAILED',events:trace.events,dropped:trace.dropped};}finally{host.close();}
 }
 export async function measureAudio({options,text,voiceId,stream}){
  // Decoder initialisation is outside request dispatch timing and disclosed.

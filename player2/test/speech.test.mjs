@@ -20,6 +20,7 @@ test('buffered synthesis requests an explicit stable voice and WAV, and never en
  const result=await speech.synthesize({text:'Life Signs connected.',voiceId:'test-voice'});assert.equal(result.contentType,'audio/wav');assert.equal(result.audio.length,48);const body=JSON.parse(calls[0][1].body);assert.equal(body.play_in_app,false);assert.deepEqual(body.voice_ids,['test-voice']);assert.equal(body.audio_format,'wav');
  await assert.rejects(speech.synthesize({text:'Hello',voiceId:'test-voice',speed:99}),/INVALID_SPEECH/);
  speech.transport.fetchImpl=async()=>Response.json({data:Buffer.from('not wave').toString('base64')});await assert.rejects(speech.synthesize({text:'Hi',voiceId:'test-voice'}),/UNEXPECTED_AUDIO_FORMAT/);
+ speech.transport.fetchImpl=async()=>Response.json({data:wave().subarray(0,46).toString('base64')});await assert.rejects(speech.synthesize({text:'Hi',voiceId:'test-voice'}),/INCOMPLETE_WAV/);
 });
 test('uploaded STT uses multipart file data and streaming audio retains bytes without pretending the codec is known',async()=>{
  const calls=[];const speech=new Player2Speech({endpoint:'http://127.0.0.1:4315',fetchImpl:async(u,o)=>{calls.push([u,o]);return u.endsWith('/stream')?new Response(wave(),{headers:{'content-type':'application/octet-stream'}}):Response.json({text:'Life Signs connected.'});}});

@@ -1,4 +1,5 @@
 import {Player2Transport,Player2Error} from './transport.mjs';
+import {decodeWav} from './audio-probe.mjs';
 
 export class Player2Speech {
   constructor(options){this.transport=options instanceof Player2Transport?options:new Player2Transport(options);this.now=options?.now||performance.now.bind(performance);this.recording=false;this.recordingUnknown=false;this.recordingDeadline=0;}
@@ -28,7 +29,8 @@ export class Player2Speech {
     const started=performance.now(),r=await this.transport.json('/v1/tts/speak',{method:'POST',body,signal,resource:'npc-speech',maxBytes:33554432});
     if(typeof r.data!=='string'||!r.data||r.data.length%4!==0||!/^[A-Za-z0-9+/]*={0,2}$/.test(r.data))throw new Player2Error('INVALID_AUDIO_DATA');
     const audio=Buffer.from(r.data,'base64');if(audio.subarray(0,4).toString()!=='RIFF'||audio.subarray(8,12).toString()!=='WAVE')throw new Player2Error('UNEXPECTED_AUDIO_FORMAT');
-    const elapsed=performance.now()-started;return {audio,contentType:'audio/wav',voiceId,metrics:{wholeAudioMs:elapsed,firstPlayableAudioMs:elapsed,bytes:audio.length,playback:'BUFFERED_CALLER_SINK'}};
+    const decoded=decodeWav(audio);
+    const elapsed=performance.now()-started;return {audio,contentType:'audio/wav',voiceId,decoded,metrics:{wholeAudioMs:elapsed,firstPlayableAudioMs:elapsed,bytes:audio.length,playback:'BUFFERED_CALLER_SINK'}};
   }
   async *streamAudio({text,voiceId,signal}={}){
     if(typeof text!=='string'||!text.trim()||text.length>2000||typeof voiceId!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(voiceId))throw new Player2Error('INVALID_SPEECH_REQUEST');
