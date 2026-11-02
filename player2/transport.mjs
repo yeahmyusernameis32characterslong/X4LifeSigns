@@ -39,6 +39,7 @@ export class Player2Transport {
     let response,bytes=0;
     try{
       // Generation POSTs are deliberately never retried: timeout can follow billing.
+      this.observe({stage:'dispatch'});
       response=await this.fetchImpl(this.endpoint+route,{method,headers,body:body===undefined?undefined:contentType==='application/json'?JSON.stringify(body):body,signal:combined,redirect:'error'});
       this.observe({stage:'headers',status:response.status,contentType:response.headers.get('content-type')});
       if(!response.ok)throw new Player2Error(statusCode(response.status),response.status);
