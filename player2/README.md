@@ -67,6 +67,38 @@ Nothing the model says is written into SQLite history.
 
 ## Modules and failure boundaries
 
+Streaming measurements and the current speech blocker are documented in
+[the latency report](../docs/PLAYER2_STREAMING_LATENCY_RESULTS.md).
+
+### Explicit external streaming experiments
+
+Install the optional MPEG decoder with `npm ci --ignore-scripts --prefix player2`.
+Use a private ignored JSON configuration, extending the harness connection
+configuration with `allowGeneration`, `costAcknowledged`, `repeats: 2`, a frozen
+reader `binding`/`grant`, and `output` pointing to an ignored `.local.jsonl` file.
+For text, provide exactly three `cases`, each with `question`, `selection` and
+optional `required` regular-expression strings. Those string checks are not
+semantic fact verification. For audio, additionally set `allowSpeech` and one
+fixed `voiceId` from the app's catalogue.
+
+```powershell
+node player2/streaming-bench.mjs --config <private-config.json> --text
+node player2/streaming-bench.mjs --config <private-config.json> --audio
+```
+
+The commands are generation opt-ins, not routine health checks. Output files
+are exclusively created. Batches stop after uncertain/balance/service failures;
+do not repeatedly restart a timed-out generation. No audio is played or stored.
+Raw timing events retain fragment sizes/cadence, not answer strings or secrets.
+An optional developer `onReview` callback is separate from those timing logs;
+private review material must remain outside Git.
+
+`ScopedSpeechOutput.renderSegments` is an optional experimental path for complete
+text independently approved by the trusted host. Provide exact sentence segments
+and an `approve(result)` callback; a model-generated approval or valid reference
+set is not independent verification. It permits one waiting audio buffer and
+interrupts the caller sink on load/cancellation. It is not enabled by the CLI.
+
 See [verified integration results and remaining gates](../docs/PLAYER2_NPC_INTEGRATION_RESULTS.md).
 
 - `transport.mjs`: discovered loopback connection, bounded bytes/time, cancellation,
