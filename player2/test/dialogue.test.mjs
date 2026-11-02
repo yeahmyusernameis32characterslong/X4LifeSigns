@@ -53,3 +53,10 @@ test('structured dialogue refuses cut-off text even when the provider incorrectl
  const host=new DialogueHost({reader:reader(),client});await assert.rejects(host.ask({question:'Dock?',selection:{view:'service'}}),/INCOMPLETE_STRUCTURED_REPLY/);
  broken=false;const result=await host.ask({question:'Dock?',selection:{view:'service'}});assert.equal(result.text,'Kite docked at Orchard [R1:60].');
 });
+test('validated structured refs can remain outside natural NPC dialogue; foreign or conflicting refs are refused',async t=>{
+ const {reader}=setup(t);let content={text:'My latest role is Marine.',evidence_refs:['R1:64']};
+ const client={complete:async()=>({text:JSON.stringify(content),metrics:{}})},host=new DialogueHost({reader:reader(),client});
+ const r=await host.ask({question:'Latest role?',selection:{view:'service'}});assert.equal(r.text,'My latest role is Marine.');assert.deepEqual(r.evidenceRefs,['R1:64']);
+ content={text:'Marine [R1:62].',evidence_refs:['R1:64']};await assert.rejects(host.ask({question:'Role?',selection:{view:'service'}}),/REFERENCE_SET_MISMATCH/);
+ content={text:'Secret.',evidence_refs:['R9:999']};await assert.rejects(host.ask({question:'Role?',selection:{view:'service'}}),/INVALID_STRUCTURED_REPLY/);
+});
