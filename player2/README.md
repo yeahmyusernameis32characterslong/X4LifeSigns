@@ -67,6 +67,8 @@ Nothing the model says is written into SQLite history.
 
 ## Modules and failure boundaries
 
+See [verified integration results and remaining gates](../docs/PLAYER2_NPC_INTEGRATION_RESULTS.md).
+
 - `transport.mjs`: discovered loopback connection, bounded bytes/time, cancellation,
   redirect refusal, safe status errors and independent SSE/NDJSON framing.
 - `client.mjs`: caller-owned chat messages, streamed/nonstreamed completions,
@@ -76,6 +78,8 @@ Nothing the model says is written into SQLite history.
   grant/epoch guard and stale-result refusal.
 - `voice-identity.mjs`: local per-universe/NPC preferences with exclusive writes;
   missing saved voices produce text fallback, not silent reassignment.
+- `speech-output.mjs`: buffers audio under the active reader/load scope and
+  rejects stale output before an optional caller-owned sink can play it.
 - `native-interface.mjs`: prepared versioned request/reply contract. It is not
   registered with MD/Lua and is not a proven native X4 dialogue path.
 
