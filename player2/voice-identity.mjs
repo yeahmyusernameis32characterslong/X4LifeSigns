@@ -20,9 +20,13 @@ export class VoiceIdentities {
     if(old&&preferredId===null){if(typeof old!=='string'||!available.includes(old))throw new Player2Error('SAVED_VOICE_UNAVAILABLE');return old;}
     const id=preferredId||available[Number(BigInt('0x'+key)%BigInt(available.length))];
     // Refuse stale concurrent writers instead of overwriting another preference.
-    if(fs.existsSync(this.file)){checkPath(this.file);const current=JSON.parse(fs.readFileSync(this.file,'utf8'));if(JSON.stringify(current)!==JSON.stringify(this.data))throw new Player2Error('VOICE_LEDGER_CHANGED');}
+    const lock=this.file+'.lock';let fd;try{fd=fs.openSync(lock,'wx',0o600);}catch{throw new Player2Error('VOICE_LEDGER_IN_USE');}
     const next={version:1,voices:{...this.data.voices,[key]:id}},temp=this.file+'.'+randomUUID()+'.tmp';
-    try{fs.writeFileSync(temp,JSON.stringify(next,null,2),{flag:'wx',mode:0o600});fs.renameSync(temp,this.file);this.data=next;}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
+    try{
+      if(fs.existsSync(this.file)){checkPath(this.file);const current=JSON.parse(fs.readFileSync(this.file,'utf8'));if(JSON.stringify(current)!==JSON.stringify(this.data))throw new Player2Error('VOICE_LEDGER_CHANGED');}
+      const content=JSON.stringify(next,null,2);if(Buffer.byteLength(content)>1048576)throw new Player2Error('VOICE_LEDGER_LIMIT');
+      fs.writeFileSync(temp,content,{flag:'wx',mode:0o600});fs.renameSync(temp,this.file);this.data=next;
+    }finally{if(fs.existsSync(temp))fs.unlinkSync(temp);fs.closeSync(fd);fs.unlinkSync(lock);}
     return id;
   }
 }

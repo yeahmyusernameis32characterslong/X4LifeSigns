@@ -8,7 +8,7 @@ export class Player2Error extends Error {
 }
 export function loopbackEndpoint(raw){
   if(typeof raw!=='string'||!/^http:\/\/127\.0\.0\.1:[0-9]{1,5}$/.test(raw))throw new Player2Error('INVALID_ENDPOINT');
-  const port=Number(raw.slice(raw.lastIndexOf(':')+1));if(port<1||port>65535)throw new Player2Error('INVALID_ENDPOINT');return new URL(raw).origin;
+  const port=Number(raw.slice(raw.lastIndexOf(':')+1));if(port<1||port>65535)throw new Player2Error('INVALID_ENDPOINT');return 'http://127.0.0.1:'+port;
 }
 export async function discoverEndpoint({endpoint,portFile,platform=process.platform,env=process.env,home=os.homedir()}={}){
   if(endpoint)return loopbackEndpoint(endpoint);

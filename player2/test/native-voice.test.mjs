@@ -7,6 +7,7 @@ test('voice preferences survive restart, catalogue reorder and save checkpoints 
  const ids=new Set();for(let i=0;i<30;i++)ids.add(reopened.choose({...key,npcSeed:String(i)}));assert(ids.size>1);
  assert.throws(()=>reopened.choose({...key,voices:voices.filter(v=>v.id!==id)}),/SAVED_VOICE_UNAVAILABLE/);
  const stale=new VoiceIdentities(file);reopened.choose({...key,npcSeed:'99'});assert.throws(()=>stale.choose({...key,npcSeed:'100'}),/VOICE_LEDGER_CHANGED/);
+ fs.writeFileSync(file+'.lock','other writer');assert.throws(()=>reopened.choose({...key,npcSeed:'101'}),/VOICE_LEDGER_IN_USE/);assert.equal(fs.readFileSync(file+'.lock','utf8'),'other writer');
 });
 test('native interface rejects foreign NPCs, caller-supplied paths and stale post-load completions',async()=>{
  const bridge=new NativeDialogueInterface();let complete,cancelled=0;

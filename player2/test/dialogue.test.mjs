@@ -38,3 +38,9 @@ test('API adapter accepts installed OpenAI-shaped JSON and streamed chunks, reje
  const bad=new Player2Client({endpoint:'http://127.0.0.1:4315',fetchImpl:async()=>Response.json({choices:[{message:{content:'partial'},finish_reason:'length'}]})});await assert.rejects(bad.complete({messages:[{role:'user',content:'Hi'}]}),/OUTPUT_INCOMPLETE/);
  const tools=new Player2Client({endpoint:'http://127.0.0.1:4315',fetchImpl:async()=>Response.json({choices:[{message:{tool_calls:[{}]},finish_reason:'tool_calls'}]})});await assert.rejects(tools.complete({messages:[{role:'user',content:'Hi'}]}),/UNEXPECTED_TOOL_CALL/);
 });
+test('read-only health retries are bounded and abortable; generation retry behaviour stays separate',async()=>{
+ let attempts=0;const client=new Player2Client({endpoint:'http://127.0.0.1:4315',fetchImpl:async()=>++attempts<2?new Response('',{status:503}):Response.json({client_version:'mock'})});
+ assert.equal((await client.health({backoffMs:0})).client_version,'mock');assert.equal(attempts,2);
+ attempts=0;const controller=new AbortController();client.transport.fetchImpl=async()=>{attempts++;controller.abort();return new Response('',{status:503});};
+ await assert.rejects(client.health({signal:controller.signal}),/CANCELLED/);assert.equal(attempts,1);
+});

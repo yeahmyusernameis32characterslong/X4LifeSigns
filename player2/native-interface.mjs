@@ -10,7 +10,7 @@ export class NativeDialogueInterface {
     this.host?.cancel();this.host=host;this.npcSeed=npcSeed;
   }
   async request(input,{selection,focus=null,requireFocus=false}={}){
-    if(!input||Object.keys(input).some(k=>!['version','requestId','loadToken','npcSeed','question'].includes(k))||input.version!==1||input.loadToken!==this.loadToken||input.npcSeed!==this.npcSeed||!this.host)throw new Player2Error('INVALID_NATIVE_REQUEST');
+    if(!input||Object.keys(input).some(k=>!['version','requestId','loadToken','npcSeed','question'].includes(k))||typeof input.requestId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(input.requestId)||input.version!==1||input.loadToken!==this.loadToken||input.npcSeed!==this.npcSeed||!this.host)throw new Player2Error('INVALID_NATIVE_REQUEST');
     const token=this.loadToken,host=this.host;const result=await host.ask({question:input.question,requestId:input.requestId,selection,focus,requireFocus});
     if(token!==this.loadToken||host!==this.host)throw new Player2Error('STALE_NATIVE_REPLY');
     return {version:1,loadToken:token,requestId:result.requestId,npcSeed:this.npcSeed,speaker:result.speaker,text:result.text,status:result.status,evidenceRefs:result.evidenceRefs};

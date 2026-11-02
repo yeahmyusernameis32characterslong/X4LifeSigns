@@ -1,8 +1,15 @@
 import {Player2Transport,Player2Error,jsonFrames} from './transport.mjs';
+import {setTimeout as delay} from 'node:timers/promises';
 
 export class Player2Client {
   constructor(options){this.transport=options instanceof Player2Transport?options:new Player2Transport(options);}
-  health(options){return this.transport.health(options);}
+  async health({signal,attempts=2,backoffMs=100}={}){
+    if(!Number.isSafeInteger(attempts)||attempts<1||attempts>3||!Number.isSafeInteger(backoffMs)||backoffMs<0||backoffMs>2000)throw new Player2Error('INVALID_RETRY_POLICY');
+    for(let i=0;;i++)try{return await this.transport.health({signal});}catch(e){
+      if(i+1>=attempts||!['CONNECTION_FAILED','PROVIDER_UNAVAILABLE','TIMEOUT'].includes(e.code))throw e;
+      try{await delay(backoffMs*2**i,undefined,{signal});}catch{throw new Player2Error('CANCELLED');}
+    }
+  }
   credits(options){return this.transport.credits(options);}
   async complete({messages,signal,onText=()=>{},stream=true,maxTokens=512,temperature=0.2}={}){
     if(!Array.isArray(messages)||!messages.length||messages.some(m=>!['system','user','assistant'].includes(m.role)||typeof m.content!=='string')||Buffer.byteLength(JSON.stringify(messages))>120000)throw new Player2Error('INVALID_MESSAGES');
