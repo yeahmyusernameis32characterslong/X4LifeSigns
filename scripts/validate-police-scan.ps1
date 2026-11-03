@@ -19,10 +19,10 @@ function Validate-Xml([string]$xml) {
     $reader = [System.Xml.XmlReader]::Create((New-Object System.IO.StringReader($xml)), $settings)
     try { while ($reader.Read()) {} } finally { $reader.Dispose() }
 }
-[xml]$source = Get-Content -LiteralPath $SourceFile
+[xml]$source = Get-Content -LiteralPath $SourceFile -Raw -Encoding UTF8
 $original = $source.OuterXml
 Validate-Xml $original
-[xml]$diff = Get-Content -LiteralPath (Join-Path $repo 'extensions/lifesigns_event_recorder/aiscripts/order.move.recon.xml')
+[xml]$diff = Get-Content -LiteralPath (Join-Path $repo 'extensions/lifesigns_event_recorder/aiscripts/order.move.recon.xml') -Raw -Encoding UTF8
 if (@($diff.diff.ChildNodes | Where-Object { $_.NodeType -eq 'Element' }).Count -ne 2) { throw 'Expected two additions only.' }
 $inserted = @()
 foreach ($add in $diff.SelectNodes('/diff/add')) {
