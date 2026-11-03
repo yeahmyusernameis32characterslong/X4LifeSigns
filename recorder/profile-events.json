@@ -796,13 +796,13 @@
     "name": "event_object_signalled",
     "type": "POLICE_SCAN_OBSERVATION",
     "selector": {
-      "group": "md.$LSPWatch",
+      "object": "player.galaxy",
       "param": "'LifeSignsPoliceScanV1'"
     },
     "handler": "RecordPoliceScan",
     "params": {
-      "Subject": "event.object",
-      "Payload": "@event.param2"
+      "Subject": "@event.param2",
+      "Payload": "@event.param3"
     }
   },
   {

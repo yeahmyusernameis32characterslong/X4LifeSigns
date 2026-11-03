@@ -48,7 +48,7 @@ can relate the officer's ship history to its captain.
 
 Two small X4 XML diff additions observe the standard `order.move.recon` routine:
 
-1. After a new scan timer is initialised, send one guarded self-signal.
+1. After a new scan timer is initialised, send one guarded observation signal.
 2. After the routine computes its findings, immediately before clearing its
    cargo finding flag, send a result self-signal containing existing flags.
 
@@ -57,6 +57,10 @@ orders, relations or target responses are changed. There is no inventory
 enumeration, extra detection roll, polling or per-hit work. The recorder writes
 one start and one result for a completed standard inspection, plus a response
 request if the game emits it. Interrupted/restarted inspections may differ.
+
+The dedicated observation signal is sent to `player.galaxy`, carrying officer
+and payload separately. It is not sent to either ship, so it does not introduce
+an unknown signal into their AI interrupt handlers.
 
 The MD listener checks owned scanner, packet shape, phase and numeric flags;
 normal load/session readiness still gates writing. Non-player police observations

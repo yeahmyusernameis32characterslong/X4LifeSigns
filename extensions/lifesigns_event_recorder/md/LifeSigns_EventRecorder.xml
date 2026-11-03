@@ -1329,12 +1329,12 @@
 </cue>
 <cue name="ProfileEventV2_57" instantiate="true" namespace="this">
 <conditions>
-<event_object_signalled group="md.$LSPWatch" param="'LifeSignsPoliceScanV1'" />
+<event_object_signalled object="player.galaxy" param="'LifeSignsPoliceScanV1'" />
 </conditions>
 <actions>
 <run_actions ref="RecordPoliceScan">
-<param name="Subject" value="event.object" />
-<param name="Payload" value="@event.param2" />
+<param name="Subject" value="@event.param2" />
+<param name="Payload" value="@event.param3" />
 </run_actions>
 </actions>
 </cue>
