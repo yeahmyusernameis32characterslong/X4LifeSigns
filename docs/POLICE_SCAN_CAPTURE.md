@@ -1,7 +1,9 @@
 # Player-owned police inspection history
 
 Implemented on `feat/police-scan-context`, based on main759fcd6.
-**Not deployed or tested in gameplay.** Player2 work remains ceased and separate.
+**Owner-authorised experimental deployment completed on 3 November 2026;
+not yet tested in gameplay.** Runtime files are from commit `0847032`.
+Player2 work remains ceased and separate.
 
 ## Existing coverage and gap
 
@@ -50,7 +52,7 @@ Two small X4 XML diff additions observe the standard `order.move.recon` routine:
 
 1. After a new scan timer is initialised, send one guarded observation signal.
 2. After the routine computes its findings, immediately before clearing its
-   cargo finding flag, send a result self-signal containing existing flags.
+   cargo finding flag, send a result galaxy signal containing existing flags.
 
 Both require a player-owned scanner. No game variables, detection probabilities,
 orders, relations or target responses are changed. There is no inventory
@@ -103,8 +105,13 @@ the current installed game's catalogue hashes. Raw game source stays local.
   both diff additions in memory, requires each selector to match once, validates
   original and modified AI XML, removes the additions and confirms the original
   actions are unchanged. No patched game source is written or redistributed.
-- Build freshness, listener-order and diff checks passed. No deployment, game
-  launch, production database mutation or merge.
+- Build freshness, listener-order and diff checks passed during implementation.
+- Deployment repeated build freshness and both installed-schema gates with X4
+  closed. Only generated recorder MD and the new AI diff were installed; hashes
+  matched source. The full previous optional extension was backed up and its
+  backup hashes verified. All other extension files, the lifecycle configuration
+  and all 37 companion manifest files remained unchanged. No game launch,
+  production database mutation or merge was performed.
 
 Reproduce schema checks with local, privately extracted X4 source placeholders:
 
@@ -118,5 +125,5 @@ powershell -NoProfile -File scripts/validate-police-scan.ps1 -SchemaDirectory <X
 ```
 
 Native signal delivery, actual policing coverage and performance still require
-a separately approved deployment/gameplay test. These additions cannot recover
+an owner-run gameplay test following deployment. These additions cannot recover
 the missing inspection findings from earlier sessions.
