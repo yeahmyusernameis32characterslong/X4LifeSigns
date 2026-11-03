@@ -1,5 +1,9 @@
 # Codex handoff: establish real Player2 text/audio streaming latency
 
+**Historical handoff — superseded by the owner's 3 November 2026 decision to
+cease Player2 work.** Do not execute the remaining tasks. Retained for research
+provenance; see [the closure record](PLAYER2_RESEARCH_CLOSURE.md).
+
 Status: **owner-authorised next focused workstream**, 2 November 2026.
 Target: draft [PR #30](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/30), branch `feat/player2-npc-integration`, starting from its current head.
 Previous results: [Player2 integration results](PLAYER2_NPC_INTEGRATION_RESULTS.md).

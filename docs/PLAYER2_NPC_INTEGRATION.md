@@ -1,6 +1,8 @@
 # PR #30: Player2 NPC dialogue and voice integration
 
-Status: owner-authorised implementation workstream. Start with research and a stand-alone working integration; live X4 installation is a separate gate.
+Status: **ceased by owner decision, 3 November 2026; preserved as research only.**
+No further Player2 integration is planned. The original objectives below are
+historical, not an active task. See [the closure record](PLAYER2_RESEARCH_CLOSURE.md).
 Repository: `yeahmyusernameis32characterslong/X4LifeSigns`
 Branch: `feat/player2-npc-integration`
 Related: [PR #29](https://github.com/yeahmyusernameis32characterslong/X4LifeSigns/pull/29), [local research workflow](LOCAL_LLM_DEVELOPMENT.md).

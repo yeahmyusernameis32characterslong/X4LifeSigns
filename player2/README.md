@@ -176,3 +176,10 @@ and [setSinkId](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElemen
 in a secure context; otherwise use system output settings. Browser/device
 acceptance remains a separate manual check. This is a development utility,
 not a preview or implementation of the X4 UI.
+# Research archive — work ceased
+
+The owner ceased Player2 work on 3 November 2026. PR #30 is being closed without
+merging. This implementation and its commands are preserved for research only;
+there is no current plan to use Player2. Do not resume experiments, integration
+or deployment without a new owner instruction.
+See [the closure record](../docs/PLAYER2_RESEARCH_CLOSURE.md).
