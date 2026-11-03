@@ -1,5 +1,6 @@
 import { generateCombatContext } from './combat-context-generator.mjs';
 import { generateTradeEvents } from './trade-event-generator.mjs';
+import { generatePoliceScans } from './police-scan-generator.mjs';
 // Source-backed history observations. No engine mutation or personnel materialisation.
 export function generateHistoryEvents(h, c) {
   const {tag,set,add,iff,otherwise,each,ret,run,lib,valid,eventReady}=h;
@@ -123,5 +124,5 @@ export function generateHistoryEvents(h, c) {
       set('$M','md.$LSPHistoryMarineQueue.{md.$LSPHistoryMarineIndex}')+add('md.$LSPHistoryMarineIndex')+
       run('RecordHistoryEvent',{Subject:'$M.{1}',Other:'$M.{2}',NpcSeed:'$M.{3}',NpcName:'$M.{4}',Type:"'BOARDING_MARINE_%s'.[$M.{5}]",Relevant:'true',Source:"'BOARDING_ROSTER'",Data:'table[$operation_reference=$M.{6}]'}))+
     iff('md.$LSPHistoryMarineIndex gt md.$LSPHistoryMarineQueue.count',set('md.$LSPHistoryMarineQueue','[]')+set('md.$LSPHistoryMarineIndex','1'))+ret('true'));
-  return {initialize,libraries:identity+combat.libraries+observe+trade.libraries+supply+boarding+tick,cues:combat.cues+trade.cues};
+  return {initialize,libraries:identity+combat.libraries+observe+trade.libraries+supply+boarding+tick+generatePoliceScans(h),cues:combat.cues+trade.cues};
 }

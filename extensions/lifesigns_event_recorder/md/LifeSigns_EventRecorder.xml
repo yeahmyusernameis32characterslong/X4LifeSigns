@@ -1327,6 +1327,28 @@
 </run_actions>
 </actions>
 </cue>
+<cue name="ProfileEventV2_57" instantiate="true" namespace="this">
+<conditions>
+<event_object_signalled group="md.$LSPWatch" param="'LifeSignsPoliceScanV1'" />
+</conditions>
+<actions>
+<run_actions ref="RecordPoliceScan">
+<param name="Subject" value="event.object" />
+<param name="Payload" value="@event.param2" />
+</run_actions>
+</actions>
+</cue>
+<cue name="ProfileEventV2_58" instantiate="true" namespace="this">
+<conditions>
+<event_object_signalled group="md.$LSPHistorySectors" param="'police'" />
+</conditions>
+<actions>
+<run_actions ref="RecordPoliceResponse">
+<param name="Subject" value="@event.param3" />
+<param name="Other" value="@event.param2" />
+</run_actions>
+</actions>
+</cue>
 <cue name="CombatLockWatch" instantiate="true" namespace="this">
 <conditions>
 <event_cue_signalled cue="CombatLockWatch" />
@@ -4536,7 +4558,7 @@
 <set_value name="md.$LSPStopped" exact="false" />
 <set_value name="md.$LSPReady" exact="true" />
 <run_actions ref="Write">
-<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|combat_context_version=1|context_limit_per_game_second=32|lock_watch_limit=64|lock_watch_scope=COMBAT_ENROLLED_ONLY|gameplay_listeners=57|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
+<param name="Body" value="'RUN_BEGIN|collector=OBJECT_PROFILES|combat_context_version=1|context_limit_per_game_second=32|lock_watch_limit=64|lock_watch_scope=COMBAT_ENROLLED_ONLY|gameplay_listeners=59|lifecycle_listeners=2|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED|max_rows=NONE|snapshot_schedule=DATABASE_INITIAL_ONLY|session_basis=RECORDER_LOCAL|loaded_at=%s|load_time_basis=UNIVERSE_GENERATED_CALLBACK|write_confirmation=UNAVAILABLE|lifesigns_universe_id=%s|lifesigns_universe_id_state=%s|identity_basis=LIFESIGNS_MD_V1|identity_save_confirmation=UNAVAILABLE|database_protocol=LSDB1|parent_run=%s|parent_record=%s'.[md.$LSPLoadedAt, md.$LSPUniverseIdText, md.$LSPUniverseIdState, md.$LSPParentRun, md.$LSPParentRecord]" />
 </run_actions>
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
@@ -4763,7 +4785,7 @@
 <do_if value="md.$LSPLevel ge 3">
 <run_actions ref="Write">
 <param name="Diagnostic" value="true" />
-<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=57|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
+<param name="Body" value="'HEALTH|collector=OBJECT_PROFILES|gameplay_listeners=59|rows_attempted=%s|writes_confirmed=UNAVAILABLE|native_getter_errors=UNAVAILABLE|active=%s|phase=%s|hosts_visited=%s|hosts_limit=%s|hosts_skipped=%s|npc_candidates_buffered=%s|npc_profiles_attempted=%s|discovery_stage=%s|discovery_entry=%s'.[md.$LSPRows, md.$LSPActive, md.$LSPPass, md.$LSPHostsVisited, md.$LSPHostCount, md.$LSPHostsSkipped, md.$LSPCandidates.count, md.$LSPNpcProfiles, md.$LSPDiscoveryStage, md.$LSPEntry]" />
 </run_actions>
 </do_if>
 </do_if>
@@ -6597,6 +6619,93 @@
 <set_value name="md.$LSPHistoryMarineQueue" exact="[]" />
 <set_value name="md.$LSPHistoryMarineIndex" exact="1" />
 </do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="RecordPoliceScan" purpose="run_actions">
+<params>
+<param name="Subject" default="null" />
+<param name="Payload" default="null" />
+</params>
+<actions>
+<do_if value="not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned and $Subject.isclass.ship)">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Payload != datatype.list">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.count != 8">
+<return value="false" />
+</do_if>
+<do_if value="not (typeof $Payload.{1} == datatype.component and $Payload.{1}.exists)">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.{2} != 'STARTED' and $Payload.{2} != 'RESULT'">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.{2} == 'RESULT'">
+<do_if value="typeof $Payload.{4} != datatype.integer">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.{4} != 0 and $Payload.{4} != 1">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Payload.{5} != datatype.integer">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.{5} != 0 and $Payload.{5} != 1">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Payload.{6} != datatype.integer">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.{6} != 0 and $Payload.{6} != 1">
+<return value="false" />
+</do_if>
+<do_if value="typeof $Payload.{7} != datatype.integer">
+<return value="false" />
+</do_if>
+<do_if value="$Payload.{7} != 0 and $Payload.{7} != 1">
+<return value="false" />
+</do_if>
+</do_if>
+<set_value name="$Data" exact="table[$scan_phase=$Payload.{2},$scan_mode=$Payload.{3},$police_faction=$Payload.{8},$observation_basis='GAME_POLICE_SCRIPT_FLAGS',$inventory_contents_recorded='false']" />
+<set_value name="$Data.$cargo_finding" exact="'NOT_EVALUATED'" />
+<set_value name="$Data.$combined_illegal_finding" exact="'NOT_EVALUATED'" />
+<set_value name="$Data.$trouble_flag_before_response" exact="'NOT_EVALUATED'" />
+<set_value name="$Data.$may_attack_at_result" exact="'NOT_EVALUATED'" />
+<do_if value="$Payload.{2} == 'RESULT'">
+<set_value name="$Data.$cargo_finding" exact="if $Payload.{4} == 1 then 'DETECTED' else 'NO_DETECTION_REPORTED'" />
+<set_value name="$Data.$combined_illegal_finding" exact="if $Payload.{5} == 1 then 'DETECTED' else 'NO_DETECTION_REPORTED'" />
+<set_value name="$Data.$trouble_flag_before_response" exact="'%s'.[$Payload.{6}]" />
+<set_value name="$Data.$may_attack_at_result" exact="'%s'.[$Payload.{7}]" />
+</do_if>
+<run_actions ref="RecordHistoryEvent">
+<param name="Subject" value="$Subject" />
+<param name="Other" value="$Payload.{1}" />
+<param name="Type" value="if $Payload.{2} == 'STARTED' then 'POLICE_SCAN_STARTED' else 'POLICE_SCAN_RESULT'" />
+<param name="Source" value="'order.move.recon:LifeSignsPoliceScanV1'" />
+<param name="Data" value="$Data" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="RecordPoliceResponse" purpose="run_actions">
+<params>
+<param name="Subject" default="null" />
+<param name="Other" default="null" />
+</params>
+<actions>
+<do_if value="not (typeof $Subject == datatype.component and $Subject.exists and $Subject.isplayerowned and $Subject.isclass.ship) or not (typeof $Other == datatype.component and $Other.exists)">
+<return value="false" />
+</do_if>
+<run_actions ref="RecordHistoryEvent">
+<param name="Subject" value="$Subject" />
+<param name="Other" value="$Other" />
+<param name="Type" value="'POLICE_RESPONSE_REQUESTED'" />
+<param name="Source" value="'event_object_signalled:police'" />
+<param name="Data" value="table[$observation_basis='GAME_SECTOR_POLICE_SIGNAL',$reason='NOT_PROVIDED_BY_SIGNAL',$execution='NOT_ESTABLISHED']" />
+</run_actions>
 <return value="true" />
 </actions>
 </library>

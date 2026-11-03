@@ -791,5 +791,31 @@
       "Payload": "@event.param",
       "Missile": "@event.param2"
     }
+  },
+  {
+    "name": "event_object_signalled",
+    "type": "POLICE_SCAN_OBSERVATION",
+    "selector": {
+      "group": "md.$LSPWatch",
+      "param": "'LifeSignsPoliceScanV1'"
+    },
+    "handler": "RecordPoliceScan",
+    "params": {
+      "Subject": "event.object",
+      "Payload": "@event.param2"
+    }
+  },
+  {
+    "name": "event_object_signalled",
+    "type": "POLICE_RESPONSE_REQUESTED",
+    "selector": {
+      "group": "md.$LSPHistorySectors",
+      "param": "'police'"
+    },
+    "handler": "RecordPoliceResponse",
+    "params": {
+      "Subject": "@event.param3",
+      "Other": "@event.param2"
+    }
   }
 ]
