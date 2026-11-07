@@ -1,5 +1,15 @@
 # X4LifeSigns testing
 
+## Housekeeping startup visibility (7 November 2026)
+
+The focused installed-LuaJIT test
+`python profiles/test/menu_startup_lua_test.py <lua51_64.dll>` reproduces the old
+stale-INACTIVE visibility failure and passes the corrected source across two
+fresh Lua states. The full existing housekeeping Lua/native/Node suite passes
+all seven outcome groups on disposable fixtures, and preview/reply Node tests
+pass 35/35. No deployment or live X4 verification is claimed. See
+[the correction and owner acceptance](docs/HOUSEKEEPING_MENU_STARTUP.md).
+
 ## Current status
 
 The optional SQLite profile integration has scoped owner-run X4 9.00 verification
