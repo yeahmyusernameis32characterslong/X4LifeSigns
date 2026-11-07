@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {ProfileStore} from '../../profiles/store.mjs';
 import {generateRecorder} from '../md-generator.mjs';
 import {parseRecord} from '../log-format.mjs';
 import {harness} from './md-harness.mjs';
@@ -46,12 +49,12 @@ test('small value ceiling stops before resource getters and leaves an explicit p
  assert.equal(Object.keys(p.fields).length,16);assert.equal(p.end.partial,'true');assert.equal(saved(h).UniverseIdentity.$StationProductionVersions.size,0);
 });
 test('existing database gets a station-only upgrade once acknowledged; restored saves retain the revision',()=>{
- const s=station(),seed='$STATION:'+s.seed;
+ const s=station([module('production','prod',{products:list([]),resources:list([])})]),seed='$STATION:'+s.seed;
  const h=setup(s,{databaseState:'READY',savedCueState:{UniverseIdentity:{$KnownProfileSeeds:new Map([[seed,true]])}}});ticks(h);
  assert.equal(stationProfiles(h).length,1);assert.equal(rows(h).some(r=>r.kind==='SNAPSHOT_BEGIN'),false);
- assert.equal(h.callCounts.NpcProfile||0,0);acknowledge(h);assert.equal(saved(h).UniverseIdentity.$StationProductionVersions.get(seed),1);
+ assert.equal(h.callCounts.NpcProfile||0,0);assert.equal(h.callCounts.QueueNewHostPersonnel||0,0);acknowledge(h);assert.equal(saved(h).UniverseIdentity.$StationProductionVersions.get(seed),1);
  const state=saved(h);ticks(h,30);assert.equal(stationProfiles(h).length,1);
- const restored=setup(s,{databaseState:'READY',savedCueState:state});ticks(restored);assert.equal(stationProfiles(restored).length,0);
+ const restored=setup(s,{databaseState:'READY',savedCueState:state});ticks(restored);assert.equal(stationProfiles(restored).length,0);assert.equal(restored.md.$LSPStationModuleWatch.length,1,'Saved revisions still restore module loss watches without profiles');
 });
 test('metadata revision is not saved before actual database acknowledgement',()=>{
  const s=station(),h=setup(s,{autoDatabase:false});
@@ -68,4 +71,70 @@ test('station ware catalogues separate production inputs, outputs, supplies and 
  assert.equal(f.station_product_1_id.value,'energycells');assert.equal(f.station_resource_1_id.value,'ore');
  assert.equal(f.station_supply_resource_1_id.value,'missilecomponents');assert.equal(f.station_trade_ware_1_id.value,'water');
  assert.equal(f.module_1_build_resource_scope.value,'BUILD_SPECIFIC_NOT_ENUMERATED');
+});
+
+function moduleEvent(h,name,event){h.cueVariables(name).event=event;h.cue(name);}
+test('module completion coalesces station refreshes and ignores ship construction and stale callbacks',()=>{
+ const s=station([module('production','p',{products:list([]),resources:list([])})]),h=setup(s);ticks(h);acknowledge(h);
+ const count=stationProfiles(h).length;
+ moduleEvent(h,'StationProductionModuleCompleted',{param:{buildanchor:s},param3:{isshipbuild:true}});ticks(h);
+ assert.equal(stationProfiles(h).length,count,'Ship builds do not refresh the shipyard');
+ s.products=list([ware('water')]);
+ for(let i=0;i<30;i++)moduleEvent(h,'StationProductionModuleCompleted',{param:{buildanchor:s},param3:{isshipbuild:false}});
+ ticks(h);assert.equal(stationProfiles(h).length,count+1);assert.equal(stationProfiles(h).at(-1).fields.station_product_1_id.value,'water');
+ acknowledge(h);ticks(h);assert.equal(stationProfiles(h).length,count+1);
+ const before=h.output.length;h.cue('InvalidateLoadedRecorder');
+ moduleEvent(h,'StationProductionModuleCompleted',{param:{buildanchor:s},param3:{isshipbuild:false}});assert.equal(h.output.length,before);
+});
+test('module destruction uses cached host and refresh arriving before ACK is retained',()=>{
+ const m=module('production','p',{products:list([]),resources:list([])}),s=station([m]),h=setup(s);ticks(h);
+ // Do not ACK the station profile yet. Its pending known key must not erase a newer change.
+ assert.equal(h.md.$LSPQueuedKeys.size,0); // Initial baseline was ACKed by synthetic fixture.
+ h.call('QueueNewProfile',{Object:s,Refresh:true});ticks(h);assert.ok(h.md.$LSPQueuedKeys.size>0);
+ m.exists=false;s.modules.operational.list=[];
+ moduleEvent(h,'StationProductionModuleDestroyed',{object:m});
+ assert.equal(h.md.$LSPStationProductionDirty.size,1);assert.equal(h.md.$LSPStationModuleHosts.size,0);
+ const count=stationProfiles(h).length;ticks(h);assert.equal(stationProfiles(h).length,count);
+ acknowledge(h);assert.equal(saved(h).UniverseIdentity.$StationProductionVersions.size,0);
+ ticks(h);assert.equal(stationProfiles(h).length,count+1);assert.equal(stationProfiles(h).at(-1).fields.station_modules_operational_count.value,'0');
+ acknowledge(h);assert.equal(saved(h).UniverseIdentity.$StationProductionVersions.get('$STATION:'+s.seed),1);
+});
+test('generated station revisions round-trip through SQLite while old checkpoints and branches stay intact',t=>{
+ const s=station([module('processingmodule','recycle',{products:list([ware('scrapmetal')]),resources:list([ware('scrap')])})]);
+ const h=setup(s);ticks(h);
+ // Only the canonical profiles stream is ingested; diagnostic rows repeat record IDs.
+ const canonical=h.output.filter(o=>o.name.startsWith('profiles-')).map(o=>parseRecord(o.line));
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'ls-station-types-')),stores=[];
+ t.after(()=>{for(const store of stores)store.close();assert.equal(path.dirname(root),path.resolve(os.tmpdir()));fs.rmSync(root,{recursive:true});});
+ const begin=canonical[0],open=run=>{const store=new ProfileStore(root,begin.fields.lifesigns_universe_id,run);stores.push(store);return store;};
+ let store=open(begin.run);store.ingest(canonical);const checkpoint=Number(canonical.at(-1).fields.record);
+ const old=store.profilesAt().find(p=>p.kind==='STATION');assert.equal(old.seed,String(s.seed));
+ assert.equal(old.fields.module_1_product_1_id.value,'scrapmetal');
+ const profileCount=store.db.prepare('SELECT count(*) AS n FROM profile_versions').get().n;
+ const offset=h.output.length;s.products=list([ware('energycells')]);
+ h.call('RequestStationProductionRefresh',{Station:s});ticks(h);acknowledge(h);
+ const update=h.output.slice(offset).filter(o=>o.name.startsWith('profiles-')).map(o=>parseRecord(o.line));store.ingest(update);store.ingest(update);
+ assert.equal(store.profilesAt().find(p=>p.kind==='STATION').fields.station_product_1_id.value,'energycells');
+ assert.equal(store.profilesAt(begin.run,checkpoint).find(p=>p.kind==='STATION').fields.station_product_count.value,'0');
+ assert.equal(store.db.prepare('SELECT count(*) AS n FROM profile_versions').get().n,profileCount+1,'Replay adds no duplicate profile');
+ assert.equal(store.db.prepare('PRAGMA user_version').get().user_version,1);
+ const branch='session-3-4-loaded-2000-01-01_00-00-01';store.close();store=open(branch);
+ store.ingest([{...begin,run:branch,fields:{...begin.fields,record:'1',parent_run:begin.run,parent_record:String(checkpoint)}}]);
+ assert.equal(store.profilesAt().find(p=>p.kind==='STATION').fields.station_product_count.value,'0','Alternative branch does not inherit later metadata');
+});
+
+test('queued station refresh rechecks ownership and skips removed objects without reading their modules',()=>{
+ const s=station(),h=setup(s,{databaseState:'READY'});ticks(h);acknowledge(h);
+ h.call('RequestStationProductionRefresh',{Station:s});h.call('ProcessStationProductionRefreshes');s.isplayerowned=false;
+ Object.defineProperty(s,'modules',{get(){throw Error('Foreign station metadata must not be read');}});
+ const count=stationProfiles(h).length;h.call('ProcessNewProfiles');
+ assert.equal(stationProfiles(h).length,count);assert.equal(h.md.$LSPQueuedKeys.size,0);assert.equal(h.md.$LSPStationProductionDirty.size,0);
+ assert.equal(h.call('RequestStationProductionRefresh',{Station:null}),false);
+ assert.equal(h.call('RequestStationProductionRefresh',{Station:s}),false);
+});
+test('station selectors use native class names rather than script datatype names',()=>{
+ const source=generateRecorder(config);
+ const selectors=[...source.matchAll(/\.isrealclass\.([a-z_]+)/g)].map(m=>m[1]);
+ for(const klass of selectors)assert.ok(['production','processingmodule','habitation','storage','buildmodule'].includes(klass),klass);
+ assert.ok(selectors.includes('storage'));assert.ok(selectors.includes('habitation'));
 });

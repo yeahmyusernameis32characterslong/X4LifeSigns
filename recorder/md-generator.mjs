@@ -278,6 +278,7 @@ export function generateRecorder(config) {
     run('ProcessOrderObservations')+
     iff('not md.$LSPSnapshotStarted and md.$LSPNeedBaseline',run('BeginSnapshot'))+
     iff('not md.$LSPActive',run('QueueStationProductionUpgrades'))+
+    iff('not md.$LSPActive',run('ProcessStationProductionRefreshes'))+
     iff('not md.$LSPActive',run('ProcessNewProfiles'))+
     iff('not md.$LSPActive',ret('true'))+
     iff("md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone",

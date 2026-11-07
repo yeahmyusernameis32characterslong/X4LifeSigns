@@ -9,6 +9,14 @@ export function generateStationProduction(h) {
       otherwise(run('StationProductionScalar',{Field:name,Value:'null',Available:'false'})));
   };
   const literal = (name, expression) => field(`'${name}'`,expression,'true');
+  const enrol=lib('EnrolStationModuleWatch',{Station:null},
+    iff('not ('+valid('$Station')+')',ret('false'))+
+    iff('not $Station.isplayerowned',ret('false'))+
+    each('$State',"['operational','construction']",
+      set('$Modules',"if $State == 'operational' then @$Station.modules.operational.list else @$Station.modules.construction.list")+
+      iff('typeof $Modules == datatype.list',each('$Module','$Modules',iff(valid('$Module'),
+        tag('add_to_group',{groupname:'md.$LSPStationModuleWatch',object:'$Module'})+
+        set("md.$LSPStationModuleHosts.{'$ref:%s'.[$Module]}",'$Station')))))+ret('true'));
   const scalar=lib('StationProductionScalar',{Field:null,Value:null,Available:'true'},
     iff('not $Available or $Value == null',set('md.$LSPStationProductionComplete','false'))+
     run('Value',{Field:'$Field',Value:'$Value',Available:'$Available'})+ret('true'));
@@ -20,7 +28,7 @@ export function generateStationProduction(h) {
       iff(`not (${room})`,run('Value',{Field:"$Prefix + '_limit'",Value:'null',Available:'false'})+tag('break'))+
       add('$WareIndex')+set('$WarePrefix',"'%s_%s'.[$Prefix,$WareIndex]")+
       field("$WarePrefix + '_id'",'$Ware.id')+field("$WarePrefix + '_name'",'$Ware.name'))+ret('true'));
-  const state=lib('StationProductionModules',{Modules:null,State:null},
+  const state=lib('StationProductionModules',{Modules:null,State:null,Station:null},
     iff('typeof $Modules != datatype.list',
       field("'station_modules_' + $State + '_count'",'null','false')+ret('false'))+
     field("'station_modules_' + $State + '_count'",'$Modules.count')+
@@ -28,6 +36,8 @@ export function generateStationProduction(h) {
       iff(`not (${room})`,run('Value',{Field:"'station_module_limit'",Value:'null',Available:'false'})+tag('break'))+
       add('md.$LSPStationModuleCount')+set('$Prefix',"'module_%s'.[md.$LSPStationModuleCount]")+
       iff(valid('$Module'),
+        tag('add_to_group',{groupname:'md.$LSPStationModuleWatch',object:'$Module'})+
+        set("md.$LSPStationModuleHosts.{'$ref:%s'.[$Module]}",'$Station')+
         field("$Prefix + '_macro'",'$Module.macro.id')+
         field("$Prefix + '_name'",'$Module.macro.name')+
         field("$Prefix + '_class'","'%s'.[$Module.realclass]",'$Module.realclass?')+
@@ -55,17 +65,17 @@ export function generateStationProduction(h) {
     iff("md.$LSPCurrentSeed != ''",set("md.$LSPStationProductionAttempted.{'$STATION:' + md.$LSPCurrentSeed}",'true'))+
     literal('station_production_version','1')+
     literal('station_module_scope',"'EXISTING_OPERATIONAL_AND_CONSTRUCTION_COMPONENTS'")+
-    literal('station_ware_scope',"'MODULE_DECLARED_TYPES_NOT_STOCKS_OR_RATES'")+
+    literal('station_ware_scope',"'DECLARED_STATION_AND_MODULE_TYPES_NOT_STOCKS_OR_RATES'")+
     ['product','resource','supply_resource','trade_ware'].map((prefix,i)=>
       iff(`${valid('$Station')} and ${room}`,run('StationProductionWares',{
         Prefix:`'station_${prefix}'`,Wares:`@$Station.${['products','resources','supplyresources','tradewares'][i]}.list`
       }))).join('')+
     iff(`${valid('$Station')} and ${room}`,
-      run('StationProductionModules',{Modules:'@$Station.modules.operational.list',State:"'operational'"})+
-      iff(room,run('StationProductionModules',{Modules:'@$Station.modules.construction.list',State:"'construction'"})))+
+      run('StationProductionModules',{Modules:'@$Station.modules.operational.list',State:"'operational'",Station:'$Station'})+
+      iff(room,run('StationProductionModules',{Modules:'@$Station.modules.construction.list',State:"'construction'",Station:'$Station'})))+
     otherwise(set('md.$LSPStationProductionComplete','false'))+
     set('md.$LSPStationProductionComplete','md.$LSPStationProductionComplete and not md.$LSPValueLimit and md.$LSPRemaining gt 0')+
     literal('station_production_complete','md.$LSPStationProductionComplete')+
     iff('md.$LSPValueLimit',set('md.$LSPStationProductionComplete','false'))+ret('true'));
-  return {libraries:scalar+wares+state+profile};
+  return {libraries:enrol+scalar+wares+state+profile};
 }

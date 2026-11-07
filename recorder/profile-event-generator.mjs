@@ -17,6 +17,8 @@ export function generateProfileEvents(h, c) {
     set('md.$LSPQueuedKeys','table[]')+set('md.$LSPEventsReady','false')+
     set('md.$LSPStationUpgradeStations','$WatchStations')+set('md.$LSPStationUpgradeIndex','1')+
     set('md.$LSPStationProductionAttempted','table[]')+
+    set('md.$LSPStationProductionDirty','table[]')+set('md.$LSPStationModuleHosts','table[]')+
+    tag('create_group',{groupname:'md.$LSPStationModuleWatch'})+
     iff('not UniverseIdentity.$StationProductionVersions?',set('UniverseIdentity.$StationProductionVersions','table[]'))+
     iff('not UniverseIdentity.$KnownProfileSeeds?',set('UniverseIdentity.$KnownProfileSeeds','table[]'))+
     history.initialize;
@@ -28,7 +30,7 @@ export function generateProfileEvents(h, c) {
     set('$KnownItem','md.$LSPKnownPending.{md.$LSPKnownIndex}')+
     iff('$KnownItem.{1} gt md.$LSPAcknowledged',tag('break'))+
     set('UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}','true')+
-    iff('$KnownItem.count ge 3',iff('$KnownItem.{3} == 1',set('UniverseIdentity.$StationProductionVersions.{$KnownItem.{2}}','1')))+
+    iff('$KnownItem.count ge 3',iff('$KnownItem.{3} == 1 and not md.$LSPStationProductionDirty.{$KnownItem.{2}}?',set('UniverseIdentity.$StationProductionVersions.{$KnownItem.{2}}','1')))+
     iff('md.$LSPQueuedKeys.{$KnownItem.{2}}?',tag('remove_value',{name:'md.$LSPQueuedKeys.{$KnownItem.{2}}'}))+add('md.$LSPKnownIndex'))+
     iff('md.$LSPKnownIndex gt md.$LSPKnownPending.count',set('md.$LSPKnownPending','[]')+set('md.$LSPKnownIndex','1'));
 
@@ -57,7 +59,34 @@ export function generateProfileEvents(h, c) {
       iff('md.$LSPStationUpgradeIndex gt md.$LSPStationUpgradeStations.count',tag('break'))+
       set('$Station','md.$LSPStationUpgradeStations.{md.$LSPStationUpgradeIndex}')+add('md.$LSPStationUpgradeIndex')+
       iff(owned('$Station'),iff('$Station.seed?',set('$Key',key("'STATION'","'%s'.[$Station.seed]"))+
+        iff('not md.$LSPStationProductionAttempted.{$Key}?',run('EnrolStationModuleWatch',{Station:'$Station'}))+
         iff('not UniverseIdentity.$StationProductionVersions.{$Key}? and not md.$LSPStationProductionAttempted.{$Key}?',run('QueueNewProfile',{Object:'$Station',Refresh:'true'})))))+ret('true'));
+  // Native callbacks only mark the affected station. Profile writes remain serial
+  // and an observation arriving before an earlier ACK cannot be silently lost.
+  const stationRefresh=lib('RequestStationProductionRefresh',{Station:null},
+    iff(`not (${eventReady}) or typeof @md.$LSPStationProductionDirty != datatype.table`,ret('false'))+
+    iff('not ('+owned('$Station')+')',ret('false'))+
+    iff('not $Station.isclass.station or not $Station.seed?',ret('false'))+
+    set('$Key',key("'STATION'","'%s'.[$Station.seed]"))+
+    set('md.$LSPStationProductionDirty.{$Key}','$Station')+
+    iff('UniverseIdentity.$StationProductionVersions.{$Key}?',tag('remove_value',{name:'UniverseIdentity.$StationProductionVersions.{$Key}'}))+ret('true'));
+  const processStationRefresh=lib('ProcessStationProductionRefreshes',{},
+    iff(`not (${eventReady}) or md.$LSPActive or md.$LSPAwaitCommit or md.$LSPDatabaseState != 'READY'`,ret('false'))+
+    set('$Processed','0')+each('$Key','md.$LSPStationProductionDirty.keys.list',
+      iff(`$Processed ge ${c.profilesPerTick}`,tag('break'))+
+      iff('not md.$LSPQueuedKeys.{$Key}?',add('$Processed')+
+        set('$Station','md.$LSPStationProductionDirty.{$Key}')+
+        iff(owned('$Station'),run('QueueNewProfile',{Object:'$Station',Refresh:'true'}))+
+        otherwise(tag('remove_value',{name:'md.$LSPStationProductionDirty.{$Key}'}))))+ret('true'));
+  const stationRefreshCues=tag('cue',{name:'StationProductionModuleCompleted',instantiate:'true'},
+    tag('conditions',{},tag('event_player_build_finished_components'))+
+    tag('actions',{},iff('not @event.param3.isshipbuild',run('RequestStationProductionRefresh',{Station:'@event.param.buildanchor'}))))+
+    tag('cue',{name:'StationProductionModuleDestroyed',instantiate:'true'},
+      tag('conditions',{},tag('event_object_destroyed',{group:'md.$LSPStationModuleWatch'}))+
+      tag('actions',{},iff(`(${eventReady}) and typeof @md.$LSPStationModuleHosts == datatype.table`,
+        set('$ModuleKey',"'$ref:%s'.[event.object]")+
+        iff('md.$LSPStationModuleHosts.{$ModuleKey}?',run('RequestStationProductionRefresh',{Station:'md.$LSPStationModuleHosts.{$ModuleKey}'})+
+          tag('remove_value',{name:'md.$LSPStationModuleHosts.{$ModuleKey}'})))));
   const crew=lib('QueueNewHostPersonnel',{Host:null},
     iff(`not (${eventReady})`,ret('false'))+
     iff('not ('+owned('$Host')+')',ret('false'))+
@@ -139,8 +168,13 @@ export function generateProfileEvents(h, c) {
     tag('do_all',{exact:String(c.profilesPerTick)},
       iff('md.$LSPNewIndex gt md.$LSPNewProfiles.count',tag('break'))+
       set('$Item','md.$LSPNewProfiles.{md.$LSPNewIndex}')+add('md.$LSPNewIndex')+
+      iff("@$Item.$refresh and $Item.$kind == 'STATION' and not ("+owned('$Item.$object')+')',
+        iff('md.$LSPQueuedKeys.{$Item.$key}?',tag('remove_value',{name:'md.$LSPQueuedKeys.{$Item.$key}'}))+
+        iff('md.$LSPStationProductionDirty.{$Item.$key}?',tag('remove_value',{name:'md.$LSPStationProductionDirty.{$Item.$key}'}))+tag('continue'))+
       iff('@$Item.$refresh or not UniverseIdentity.$KnownProfileSeeds.{$Item.$key}?',
-        iff("$Item.$kind == 'STATION'",run('StationProfile',{Station:'$Item.$object'})+iff('not @$Item.$refresh',run('QueueNewHostPersonnel',{Host:'$Item.$object'})))+
+        iff("$Item.$kind == 'STATION'",
+          iff('md.$LSPStationProductionDirty.{$Item.$key}?',tag('remove_value',{name:'md.$LSPStationProductionDirty.{$Item.$key}'}))+
+          run('StationProfile',{Station:'$Item.$object'})+iff('not @$Item.$refresh',run('QueueNewHostPersonnel',{Host:'$Item.$object'})))+
         tag('do_elseif',{value:"$Item.$kind == 'SHIP'"},run('ShipProfile',{Ship:'$Item.$object'})+run('QueueNewHostPersonnel',{Host:'$Item.$object'}))+
         otherwise(
           iff(valid('$Item.$target'),iff('@$Item.$target.people.{$Item.$template}.exists',set('$Item.$host','$Item.$target')))+
@@ -215,6 +249,6 @@ export function generateProfileEvents(h, c) {
     tag('conditions',{},tag('event_cue_signalled',{cue:'ProfileEventBusV2'})+
       tag('check_value',{value:`(${ready}) and md.$LSPBusArmedRun? and md.$LSPBusArmedRun == md.$LSPRun and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders?`}))+
     tag('actions',{},set('md.$LSPEventsReady','true')+tag('remove_value',{name:'md.$LSPBusArmedRun'})+
-      iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'"})))+patches+tag('cues',{},listeners+history.cues));
-  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+stationUpgrades+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
+      iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'"})))+patches+tag('cues',{},listeners+history.cues+stationRefreshCues));
+  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+stationUpgrades+stationRefresh+processStationRefresh+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
 }

@@ -151,6 +151,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       if (n.tag === 'set_value') { const exact = a.exact === undefined ? Number(a.min) + randomCounter++ : ev(a.exact); assign(a.name, a.operation === 'add' ? ev(a.name) + exact : exact, local); }
       else if (n.tag === 'return') return { return: ev(a.value) };
       else if (n.tag === 'break') return { break: true };
+      else if (n.tag === 'continue') return { continue: true };
       else if (n.tag === 'run_actions') { const args = Object.fromEntries(n.children.map(p => [p.attrs.name, ev(p.attrs.value)])); const result = call(a.ref, args); if (a.result) assign(a.result, result, local); }
       else if (n.tag === 'substitute_text') { let text = a.source ? ev(a.source) : ev(a.text); for (const r of n.children) text = text.split(ev(r.attrs.string)).join(ev(r.attrs.with)); assign(a.text, text, local); }
       else if (n.tag === 'debug_to_file') output.push({ name: ev(a.name), line: ev(a.text) });
@@ -169,7 +170,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
       else if (n.tag === 'add_to_group') { let group; try { group = ev(a.groupname); } catch { group = []; } if (a.replace === 'true') group = []; const items = a.list ? ev(a.list) : [ev(a.object)]; for (const item of items) if (!group.includes(item)) group.push(item); assign(a.groupname, group, local); }
       else if (n.tag === 'do_all' || n.tag === 'do_for_each') {
         const items = n.tag === 'do_all' ? Array.from({ length: ev(a.exact) }, (_, i) => i + 1) : ev(a.in);
-        for (const item of items) { if (a.counter) local[a.counter] = item; if (a.name) local[a.name] = item; const flow = execute(n.children, local); if (flow?.break) break; if (flow) return flow; }
+        for (const item of items) { if (a.counter) local[a.counter] = item; if (a.name) local[a.name] = item; const flow = execute(n.children, local); if (flow?.break) break; if (flow?.continue) continue; if (flow) return flow; }
       } else if (n.tag === 'cancel_cue') cancelledCues.add(a.cue);
       else if (n.tag === 'reset_cue') cancelledCues.delete(a.cue);
       else if (n.tag === 'signal_cue') pendingSignals.push({ cue:a.cue, param:a.param ? ev(a.param) : null });

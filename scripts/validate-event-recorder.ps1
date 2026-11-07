@@ -30,7 +30,7 @@ foreach ($parameter in $generated.SelectNodes('//param[@name="Value"]')) {
 }
 $listeners = @($generated.SelectNodes('//*[starts-with(name(),"event_")]'))
 $catalog = Get-Content -LiteralPath (Join-Path $repo 'recorder/profile-events.json') -Raw | ConvertFrom-Json
-if ($listeners.Count -ne (20 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
+if ($listeners.Count -ne (22 + $catalog.Count) -or $listeners[0].LocalName -ne 'event_universe_generated' -or $listeners[1].LocalName -ne 'event_ui_triggered' -or $listeners[1].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[1].GetAttribute('control') -ne "'reply'") { throw 'Unexpected database collector listener; review its selector and scope.' }
 if ($listeners[4].GetAttribute('screen') -ne "'LifeSignsPersonnel'" -or $listeners[4].GetAttribute('control') -ne "'role_changed'") { throw 'Unexpected personnel observer listener.' }
 if ($listeners[3].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[3].GetAttribute('control') -ne "'load_error'") { throw 'Unexpected load error listener.' }
 if ($listeners[2].GetAttribute('screen') -ne "'LifeSignsDatabase'" -or $listeners[2].GetAttribute('control') -ne "'health'") { throw 'Unexpected database health listener.' }
@@ -54,5 +54,9 @@ foreach ($trade in $trades) {
     if ($trade.HasAttribute('space') -or $trade.HasAttribute('group') -or (($trade.GetAttribute('buyer') -ne 'parent.$TradeObject') -and ($trade.GetAttribute('seller') -ne 'parent.$TradeObject'))) { throw 'Trade selector must name the individual player asset.' }
 }
 if ($generated.SelectNodes('//signal_cue[@param]').Count -ne 0) { throw 'Only signal_cue_instantly can carry a parameter.' }
+$stationCompleted = @($generated.SelectNodes('//cue[@name="StationProductionModuleCompleted"]/conditions/*'))
+$stationDestroyed = @($generated.SelectNodes('//cue[@name="StationProductionModuleDestroyed"]/conditions/*'))
+if ($stationCompleted.Count -ne 1 -or $stationCompleted[0].LocalName -ne 'event_player_build_finished_components' -or $stationCompleted[0].Attributes.Count -ne 0) { throw 'Unexpected station module completion hook.' }
+if ($stationDestroyed.Count -ne 1 -or $stationDestroyed[0].LocalName -ne 'event_object_destroyed' -or $stationDestroyed[0].Attributes.Count -ne 1 -or $stationDestroyed[0].GetAttribute('group') -ne 'md.$LSPStationModuleWatch') { throw 'Station module loss hook must name only the enrolled module group.' }
 if ($generated.SelectNodes('//create_npc | //create_npc_template').Count -ne 0) { throw 'Profile collection must not create NPCs.' }
 Write-Output 'Validated generated database-aware MD against hash-checked installed X4 9.00 schemas; reviewed universe/database-reply hooks, no NPC creation. This is not runtime verification.'
