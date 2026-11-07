@@ -23,6 +23,9 @@ export function actionProblem(code) {
     INSUFFICIENT_BACKUP_SPACE: 'There is not enough free disk space to create the required safety backup.',
     WRITER_OR_MAINTENANCE_BUSY: 'Life Signs is using this history. Wait, then refresh and try again.',
     EVIDENCE_CHANGED: 'The inputs changed. Refresh and review the action again.',
+    FILE_CHANGED: 'History changed while it was being checked. Refresh and review again.',
+    UNSUPPORTED_FILE_SIZE: 'This file size cannot be verified safely. Preserve the file and report the problem.',
+    RESOURCE_LIMIT_4_GIB: 'This build cannot verify files above 4 GiB. Update Life Signs before retrying.',
   };
   return Object.hasOwn(messages, code) ? messages[code] : 'The action could not proceed safely. Refresh and review again.';
 }
