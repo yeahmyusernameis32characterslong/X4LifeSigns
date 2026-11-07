@@ -255,6 +255,7 @@ test('scan IPC may arrive after exit, and isolated scan errors retain an actiona
 });
 
 test('action guard replies give bounded friendly instructions without exposing raw errors',t=>{
+ const diagnostics=[];t.mock.method(console,'error',text=>diagnostics.push(text));
  const f=fake(t),s=f.service;s.handle(request(s.gen,1));f.children[0].emit('message',{model});f.children[0].emit('close',0);
  s.productionMode=true;s.readSettings=()=>readSettings(f.root);
  for(const [i,code] of ['CLEAN_SAVED_HISTORY_BEFORE_COMPACTION','PRIVATE_PATH_OR_UNKNOWN_CODE','__proto__'].entries()){
@@ -264,7 +265,9 @@ test('action guard replies give bounded friendly instructions without exposing r
   assert.equal(reason,i===0?'Clean unused history first, then reclaim disk space.':'The action could not proceed safely. Refresh and review again.');
   assert.equal(s.confirmation,null);assert.equal(s.mutating,false);
  }
- for(const code of ['UNIVERSE_PROTECTED','STALE_CONFIRMATION_REFRESH','STALE_SPACE_CONFIRMATION','INSUFFICIENT_BACKUP_SPACE','WRITER_OR_MAINTENANCE_BUSY']){
+ assert.equal(diagnostics[0],'Life Signs history action blocked: CLEAN_SAVED_HISTORY_BEFORE_COMPACTION');
+ assert.equal(diagnostics.at(-1),'Life Signs history action blocked: UNKNOWN_ACTION_ERROR');
+ for(const code of ['UNIVERSE_PROTECTED','STALE_CONFIRMATION_REFRESH','STALE_SPACE_CONFIRMATION','INSUFFICIENT_BACKUP_SPACE','WRITER_OR_MAINTENANCE_BUSY','RESOURCE_LIMIT_4_GIB','UNSUPPORTED_FILE_SIZE','FILE_CHANGED']){
   assert.ok(Buffer.byteLength(actionProblem(code))<=96);assert.ok(!actionProblem(code).includes(code));assert.notEqual(actionProblem(code),actionProblem('UNKNOWN'));
  }
 });

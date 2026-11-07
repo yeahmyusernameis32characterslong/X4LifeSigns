@@ -99,7 +99,11 @@ export class PreviewService {
       if(this.stopped||this.ticket!==ticket||answered)return;
       if(message?.actionProgress){this.reply(request,'SCANNING',[['ACTION','Progress',message.actionProgress,this.productionMode?'Selected universe history':'Test copies only','']]);return;}
       answered=true;this.scanning=false;this.mutating=false;
-      if(message.error||!message.action){this.reply(request,'ERROR',[['ERROR',this.productionMode?'History action blocked':'Test action blocked',actionProblem(message.error),this.productionMode?'Refresh to inspect current state':'Close X4 and report to Codex','Preserve backups and evidence']]);return;}
+      if(message.error||!message.action){
+        const code=typeof message.error==='string'&&/^[A-Z0-9_]{1,64}$/.test(message.error)?message.error:'UNKNOWN_ACTION_ERROR';
+        console.error('Life Signs history action blocked: '+code);
+        this.reply(request,'ERROR',[['ERROR',this.productionMode?'History action blocked':'Test action blocked',actionProblem(code),this.productionMode?'Refresh to inspect current state':'Close X4 and report to Codex','Preserve backups and evidence']]);return;
+      }
       if(!execute&&request.verb!=='BACKUPS')this.confirmation={client:request.client,id,created:this.now(),value:message.action};
       else if(execute){this.model=null;this.baseModel=null;this.confirmation=null;}
       this.reply(request,'READY',message.action.rows,request.verb==='BACKUPS'?request.page:0);

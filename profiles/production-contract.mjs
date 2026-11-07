@@ -11,7 +11,18 @@ export const fail=code=>{throw Error(code);};
 export const digest=value=>createHash('sha256').update(typeof value==='string'?value:JSON.stringify(value)).digest('hex');
 export function readJson(file){if(checkPath(file).size>4*1024**2)fail('REGISTRATION_TOO_LARGE');return JSON.parse(fs.readFileSync(file,'utf8'));}
 export function writeJson(file,value){checkPath(path.dirname(file),{directory:true});checkPath(file,{missing:true});const tmp=file+'.'+randomUUID()+'.tmp',fd=fs.openSync(tmp,'wx');try{fs.writeFileSync(fd,JSON.stringify(value)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(tmp,file);}
-export function fileHash(file){const info=checkPath(file),h=createHash('sha256'),buf=Buffer.alloc(1024**2);if(info.size>4*1024**3)fail('RESOURCE_LIMIT_4_GIB');const fd=fs.openSync(file,'r');try{for(let n;(n=fs.readSync(fd,buf,0,buf.length,null));)h.update(buf.subarray(0,n));const after=fs.fstatSync(fd);if(info.ino!==after.ino||info.size!==after.size||info.mtimeMs!==after.mtimeMs)fail('FILE_CHANGED');}finally{fs.closeSync(fd);}return h.digest('hex');}
+export function fileHash(file){
+  const info=checkPath(file);
+  if(!Number.isSafeInteger(info.size)||info.size<0)fail('UNSUPPORTED_FILE_SIZE');
+  // The file is streamed through one fixed buffer; its size is not a heap limit.
+  const h=createHash('sha256'),buf=Buffer.alloc(1024**2),fd=fs.openSync(file,'r');
+  try{
+    for(let n;(n=fs.readSync(fd,buf,0,buf.length,null));)h.update(buf.subarray(0,n));
+    const after=fs.fstatSync(fd),current=checkPath(file);
+    if([after,current].some(s=>info.ino!==s.ino||info.size!==s.size||info.mtimeMs!==s.mtimeMs))fail('FILE_CHANGED');
+  }finally{fs.closeSync(fd);}
+  return h.digest('hex');
+}
 export function registered(root){return fs.existsSync(path.join(root,'local-data',REGISTRATION));}
 function alive(pid){try{process.kill(pid,0);return true;}catch(e){if(e.code==='ESRCH')return false;return true;}}
 export function productionRoot(root,{expectedId=null}={}){
