@@ -2,6 +2,7 @@
 import { WELCOME, CREATED, DATABASE_ERROR } from './profile-messages.mjs';
 import { generateProfileEvents, profileEvents } from './profile-event-generator.mjs';
 import { generatePlayerProfile } from './player-profile-generator.mjs';
+import { generateStationProduction } from './station-production-generator.mjs';
 const xml = v => String(v).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const tag = (name, attrs = {}, body) => `<${name}${Object.entries(attrs).map(([k,v]) => ` ${k}="${xml(v)}"`).join('')}${body === undefined ? ' />' : `>${body}</${name}>`}`;
 const set = (name, exact) => tag('set_value', {name, exact});
@@ -82,11 +83,13 @@ export function generateRecorder(config) {
   const beginProfile=type=>events.begin(type)+set('md.$LSPProfilePartial','false')+set('md.$LSPValueLimit','false')+set('md.$LSPRemaining',String(c.profileValueItems))+add('md.$LSPProfile')+write(`'PROFILE_BEGIN|profile=%s|kind=${type}|atomic=false'.[md.$LSPProfile]`);
   const endProfile=write("'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]")+events.end+iff('md.$LSPProfilePartial',set('md.$LSPSnapshotPartial','true'))+ret('true');
   const playerProfile=generatePlayerProfile({tag,set,iff,otherwise,ret,run,lib,write,valid,eventReady,value,missing,beginProfile,endProfile});
+  const stationProduction=generateStationProduction({tag,set,add,iff,otherwise,each,ret,run,lib,valid});
   const base=ref=>value('reference',ref,'true')+value('seed',`${ref}.seed`)+value('idcode',`${ref}.idcode`)+value('name',`${ref}.knownname`)+value('sector_name',`${ref}.sector.name`);
   const station=lib('StationProfile',{Station:null},beginProfile('STATION')+
     iff(`not md.$LSPStopped and ${valid('$Station')}`,base('$Station')+value('station_type','$Station.primarypurpose.name')+value('station_model_name','$Station.macro.name')+
       set('$Manager','null')+iff('not md.$LSPStopped and md.$LSPRemaining gt 0',set('$Manager','@$Station.assignedcontrolentity.{controlpost.manager}'))+value('manager_reference','$Manager','true')+
-      iff(valid('$Manager'),value('manager_seed','$Manager.seed'))+otherwise(missing('manager_seed','NO_ASSIGNED_MANAGER')))+
+      iff(valid('$Manager'),value('manager_seed','$Manager.seed'))+otherwise(missing('manager_seed','NO_ASSIGNED_MANAGER'))+
+      run('StationProduction',{Station:'$Station'}))+
     otherwise(missing('reference','UNAVAILABLE_REFERENCE'))+endProfile);
   const ship=lib('ShipProfile',{Ship:null},beginProfile('SHIP')+
     iff(`not md.$LSPStopped and ${valid('$Ship')}`,base('$Ship')+value('model_name','$Ship.macro.name')+
@@ -274,6 +277,8 @@ export function generateRecorder(config) {
     run('ProcessCrewRoleObservations')+
     run('ProcessOrderObservations')+
     iff('not md.$LSPSnapshotStarted and md.$LSPNeedBaseline',run('BeginSnapshot'))+
+    iff('not md.$LSPActive',run('QueueStationProductionUpgrades'))+
+    iff('not md.$LSPActive',run('ProcessStationProductionRefreshes'))+
     iff('not md.$LSPActive',run('ProcessNewProfiles'))+
     iff('not md.$LSPActive',ret('true'))+
     iff("md.$LSPPass == 'NPCS' and md.$LSPActive and not md.$LSPDiscoveryDone",
@@ -316,5 +321,5 @@ export function generateRecorder(config) {
         run('Write',{Diagnostic:'true',Body:"'DATABASE_TRANSPORT|stage=%s'.[event.param3.{3}]"}))))));
   const polling=tag('cue',{name:'Bootstrap',checkinterval:'1s'},tag('conditions',{},tag('check_value',{value:'md.$LSPPending? and md.$LSPPending and player.entity.exists and player.galaxy'}))+tag('actions',{},run('Initialize'))+
     tag('cues',{},tag('cue',{name:'ProcessingTick',instantiate:'true',checkinterval:`${c.npcTickSeconds}s`},tag('conditions',{},tag('check_value',{value:'md.$LSPReady and not md.$LSPStopped'}))+tag('actions',{},run('Tick')))));
-  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${databaseListener}${databaseHealth}${loadError}${events.crewListener}${events.renameListener}${polling}${events.cues}${loaded}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${invalidate}${initialize}${databaseReply}${tick}${events.libraries}${playerProfile.libraries}</cues></mdscript>\n`.replaceAll('><','>\n<');
+  return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated database-aware collector. Edit recorder/md-generator.mjs, then rebuild. -->\n<mdscript name="LifeSigns_EventRecorder" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../libraries/md.xsd"><cues>${identity}${lifecycle}${databaseListener}${databaseHealth}${loadError}${events.crewListener}${events.renameListener}${polling}${events.cues}${loaded}${escape}${ensureIdentity}${writer}${val}${station}${ship}${npc}${addContext}${addActor}${finishHost}${discover}${begin}${advance}${queueRun}${invalidate}${initialize}${databaseReply}${tick}${events.libraries}${playerProfile.libraries}${stationProduction.libraries}</cues></mdscript>\n`.replaceAll('><','>\n<');
 }

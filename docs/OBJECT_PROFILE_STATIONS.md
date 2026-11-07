@@ -37,6 +37,20 @@ Source locations refer to the installed X4 9.00 reference, not files in this rep
 | Sector name | `$Station.sector.name` | Resolve the sector reference and its display name. Sector inherits component name via space. | `scriptproperties.xml:40,50,1253,1309` |
 | Manager seed | `$Manager.seed` | Read directly from the assigned manager actor; a missing manager is an explicit missing relationship, not a fabricated seed. | `scriptproperties.xml:48,315,1358`; `common.xsd:3567` |
 
+## Production and resource extension (7 November 2026)
+
+The station production branch adds module and ware-type observations to the
+existing station profile. See [the field contract and validation](STATION_PRODUCTION_PROFILES.md).
+It is automated/static verified and has not been deployed or tested in X4.
+
+| Requested field | Documented collection candidate | Meaning and limitations | Source |
+| --- | --- | --- | --- |
+| Module identities, names and state | Station modules.operational.list and modules.construction.list; module macro ID/name and real class | Existing component instances, including production, processing, storage, habitation and build modules; not future plan-only entries. | scriptproperties.xml:14-35,556-558,2070-2073 |
+| Products and resources | Station products.list/resources.list; production/processing module products.list/resources.list | Ware ID/name, with inputs/outputs associated to each module. No stock quantities or recipe amounts. | scriptproperties.xml:696-709,1118-1136,1897-1899 |
+| Workforce supplies | Habitation workforce.race.name and resources.list | Declared workforce input types, separate from industrial recipes. | scriptproperties.xml:1104-1109 |
+| Storage types | Storage waretransport | Supported transport categories, not stored ware quantities. Class lookup is storage, datatype is storagemodule. | scriptproperties.xml:1139-1142; common.xsd class lookups |
+| Supply and traded types | Station supplyresources.list and tradewares.list | Unit/ammunition supply inputs and additional trade wares, separate from production. Complete shipyard build recipes are not inferred. | scriptproperties.xml:710-711 |
+
 ## Read and identity rules
 
 - Validate references and check field availability before using these chains.

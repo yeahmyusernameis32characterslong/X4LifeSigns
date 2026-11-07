@@ -1,5 +1,15 @@
 # X4LifeSigns testing
 
+## Station production/resource extension (7 November 2026)
+
+The station production branch passes `node --test recorder/test/*.test.mjs`
+(104/104), `npm test --prefix profiles` (217/217) and `npm test --prefix bridge`
+(112/112). Its eleven focused station tests include actual SQLite persistence,
+idempotent replay and saved-branch isolation on disposable databases. The
+MD passes the installed X4 9.00 schema and scoped-listener gate. These are
+automated/static results; there has been no deployment or native gameplay test.
+See [fields, refresh and remaining native checks](docs/STATION_PRODUCTION_PROFILES.md).
+
 ## Current status
 
 The optional SQLite profile integration has scoped owner-run X4 9.00 verification

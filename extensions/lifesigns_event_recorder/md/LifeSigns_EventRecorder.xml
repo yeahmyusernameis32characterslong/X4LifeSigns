@@ -1525,6 +1525,34 @@
 </cue>
 </cues>
 </cue>
+<cue name="StationProductionModuleCompleted" instantiate="true">
+<conditions>
+<event_player_build_finished_components />
+</conditions>
+<actions>
+<do_if value="not @event.param3.isshipbuild">
+<run_actions ref="RequestStationProductionRefresh">
+<param name="Station" value="@event.param.buildanchor" />
+</run_actions>
+</do_if>
+</actions>
+</cue>
+<cue name="StationProductionModuleDestroyed" instantiate="true">
+<conditions>
+<event_object_destroyed group="md.$LSPStationModuleWatch" />
+</conditions>
+<actions>
+<do_if value="((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) and typeof @md.$LSPStationModuleHosts == datatype.table">
+<set_value name="$ModuleKey" exact="'$ref:%s'.[event.object]" />
+<do_if value="md.$LSPStationModuleHosts.{$ModuleKey}?">
+<run_actions ref="RequestStationProductionRefresh">
+<param name="Station" value="md.$LSPStationModuleHosts.{$ModuleKey}" />
+</run_actions>
+<remove_value name="md.$LSPStationModuleHosts.{$ModuleKey}" />
+</do_if>
+</do_if>
+</actions>
+</cue>
 </cues>
 </cue>
 <cue name="InvalidateLoadedRecorder" instantiate="true">
@@ -1706,6 +1734,7 @@
 <actions>
 <set_value name="md.$LSPCurrentKind" exact="'STATION'" />
 <set_value name="md.$LSPCurrentSeed" exact="''" />
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -1902,6 +1931,9 @@
 </do_else>
 </do_if>
 </do_else>
+<run_actions ref="StationProduction">
+<param name="Station" value="$Station" />
+</run_actions>
 </do_if>
 <do_else>
 <do_if value="not md.$LSPStopped">
@@ -1927,7 +1959,7 @@
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
 <do_if value="md.$LSPCurrentSeed != ''">
-<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed], if md.$LSPCurrentKind == 'STATION' and md.$LSPStationProductionComplete then 1 else 0]" />
 </do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
@@ -1942,6 +1974,7 @@
 <actions>
 <set_value name="md.$LSPCurrentKind" exact="'SHIP'" />
 <set_value name="md.$LSPCurrentSeed" exact="''" />
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -2373,7 +2406,7 @@
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
 <do_if value="md.$LSPCurrentSeed != ''">
-<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed], if md.$LSPCurrentKind == 'STATION' and md.$LSPStationProductionComplete then 1 else 0]" />
 </do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
@@ -2388,6 +2421,7 @@
 <actions>
 <set_value name="md.$LSPCurrentKind" exact="'NPC'" />
 <set_value name="md.$LSPCurrentSeed" exact="''" />
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -3969,7 +4003,7 @@
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
 <do_if value="md.$LSPCurrentSeed != ''">
-<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed], if md.$LSPCurrentKind == 'STATION' and md.$LSPStationProductionComplete then 1 else 0]" />
 </do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
@@ -4497,6 +4531,15 @@
 <set_value name="md.$LSPOrderIndex" exact="1" />
 <set_value name="md.$LSPQueuedKeys" exact="table[]" />
 <set_value name="md.$LSPEventsReady" exact="false" />
+<set_value name="md.$LSPStationUpgradeStations" exact="$WatchStations" />
+<set_value name="md.$LSPStationUpgradeIndex" exact="1" />
+<set_value name="md.$LSPStationProductionAttempted" exact="table[]" />
+<set_value name="md.$LSPStationProductionDirty" exact="table[]" />
+<set_value name="md.$LSPStationModuleHosts" exact="table[]" />
+<create_group groupname="md.$LSPStationModuleWatch" />
+<do_if value="not UniverseIdentity.$StationProductionVersions?">
+<set_value name="UniverseIdentity.$StationProductionVersions" exact="table[]" />
+</do_if>
 <do_if value="not UniverseIdentity.$KnownProfileSeeds?">
 <set_value name="UniverseIdentity.$KnownProfileSeeds" exact="table[]" />
 </do_if>
@@ -4613,6 +4656,11 @@
 <break />
 </do_if>
 <set_value name="UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}" exact="true" />
+<do_if value="$KnownItem.count ge 3">
+<do_if value="$KnownItem.{3} == 1 and not md.$LSPStationProductionDirty.{$KnownItem.{2}}?">
+<set_value name="UniverseIdentity.$StationProductionVersions.{$KnownItem.{2}}" exact="1" />
+</do_if>
+</do_if>
 <do_if value="md.$LSPQueuedKeys.{$KnownItem.{2}}?">
 <remove_value name="md.$LSPQueuedKeys.{$KnownItem.{2}}" />
 </do_if>
@@ -4701,6 +4749,14 @@
 </run_actions>
 <do_if value="not md.$LSPSnapshotStarted and md.$LSPNeedBaseline">
 <run_actions ref="BeginSnapshot">
+</run_actions>
+</do_if>
+<do_if value="not md.$LSPActive">
+<run_actions ref="QueueStationProductionUpgrades">
+</run_actions>
+</do_if>
+<do_if value="not md.$LSPActive">
+<run_actions ref="ProcessStationProductionRefreshes">
 </run_actions>
 </do_if>
 <do_if value="not md.$LSPActive">
@@ -4798,6 +4854,7 @@
 <param name="Host" default="null" />
 <param name="Template" default="null" />
 <param name="Target" default="null" />
+<param name="Refresh" default="false" />
 </params>
 <actions>
 <do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table)">
@@ -4847,17 +4904,101 @@
 <do_if value="$Seed == ''">
 <set_value name="$Key" exact="'$%s:%s:%s:%s'.[$Kind,$Object,$Host,$Template]" />
 </do_if>
-<do_if value="$Seed != '' and UniverseIdentity.$KnownProfileSeeds.{$Key}?">
+<do_if value="not $Refresh and $Seed != '' and UniverseIdentity.$KnownProfileSeeds.{$Key}?">
 <return value="true" />
 </do_if>
 <do_if value="md.$LSPQueuedKeys.{$Key}?">
 <return value="true" />
 </do_if>
-<append_to_list name="md.$LSPNewProfiles" exact="table[$kind=$Kind,$object=$Object,$actor=$Actor,$host=$Host,$template=$Template,$key=$Key,$target=$Target,$origin='NEW_OBJECT_EVENT']" />
+<append_to_list name="md.$LSPNewProfiles" exact="table[$kind=$Kind,$object=$Object,$actor=$Actor,$host=$Host,$template=$Template,$key=$Key,$target=$Target,$refresh=$Refresh,$origin='NEW_OBJECT_EVENT']" />
 <set_value name="md.$LSPQueuedKeys.{$Key}" exact="md.$LSPNewProfiles.count" />
 <do_if value="$Kind == 'SHIP' or $Kind == 'STATION'">
 <add_to_group groupname="md.$LSPWatch" object="$Object" />
 </do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="QueueStationProductionUpgrades" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or md.$LSPActive or md.$LSPAwaitCommit or md.$LSPDatabaseState != 'READY'">
+<return value="false" />
+</do_if>
+<do_all exact="8">
+<do_if value="md.$LSPStationUpgradeIndex gt md.$LSPStationUpgradeStations.count">
+<break />
+</do_if>
+<set_value name="$Station" exact="md.$LSPStationUpgradeStations.{md.$LSPStationUpgradeIndex}" />
+<set_value name="md.$LSPStationUpgradeIndex" exact="1L" operation="add" />
+<do_if value="typeof $Station == datatype.component and $Station.exists and $Station.isplayerowned">
+<do_if value="$Station.seed?">
+<set_value name="$Key" exact="'$%s:%s'.['STATION', '%s'.[$Station.seed]]" />
+<do_if value="not md.$LSPStationProductionAttempted.{$Key}?">
+<run_actions ref="EnrolStationModuleWatch">
+<param name="Station" value="$Station" />
+</run_actions>
+</do_if>
+<do_if value="not UniverseIdentity.$StationProductionVersions.{$Key}? and not md.$LSPStationProductionAttempted.{$Key}?">
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="$Station" />
+<param name="Refresh" value="true" />
+</run_actions>
+</do_if>
+</do_if>
+</do_if>
+</do_all>
+<return value="true" />
+</actions>
+</library>
+<library name="RequestStationProductionRefresh" purpose="run_actions">
+<params>
+<param name="Station" />
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or typeof @md.$LSPStationProductionDirty != datatype.table">
+<return value="false" />
+</do_if>
+<do_if value="not (typeof $Station == datatype.component and $Station.exists and $Station.isplayerowned)">
+<return value="false" />
+</do_if>
+<do_if value="not $Station.isclass.station or not $Station.seed?">
+<return value="false" />
+</do_if>
+<set_value name="$Key" exact="'$%s:%s'.['STATION', '%s'.[$Station.seed]]" />
+<set_value name="md.$LSPStationProductionDirty.{$Key}" exact="$Station" />
+<do_if value="UniverseIdentity.$StationProductionVersions.{$Key}?">
+<remove_value name="UniverseIdentity.$StationProductionVersions.{$Key}" />
+</do_if>
+<return value="true" />
+</actions>
+</library>
+<library name="ProcessStationProductionRefreshes" purpose="run_actions">
+<params>
+</params>
+<actions>
+<do_if value="not ((md.$LSPReady? and md.$LSPReady and md.$LSPStopped? and not md.$LSPStopped and md.$LSPStartupVersion? and md.$LSPStartupVersion == 1 and md.$LSPInitialisedRun? and md.$LSPRun? and md.$LSPInitialisedRun == md.$LSPRun) and md.$LSPEventsReady? and md.$LSPEventsReady and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders? and typeof @md.$LSPHistoryIdentities == datatype.table and typeof @md.$LSPHistoryContacts == datatype.table and typeof @md.$LSPHistoryMarineStates == datatype.table and typeof @md.$LSPHistoryOperationHosts == datatype.table and typeof @md.$LSPHistoryOutsiderExpiry == datatype.table) or md.$LSPActive or md.$LSPAwaitCommit or md.$LSPDatabaseState != 'READY'">
+<return value="false" />
+</do_if>
+<set_value name="$Processed" exact="0" />
+<do_for_each name="$Key" in="md.$LSPStationProductionDirty.keys.list">
+<do_if value="$Processed ge 8">
+<break />
+</do_if>
+<do_if value="not md.$LSPQueuedKeys.{$Key}?">
+<set_value name="$Processed" exact="1L" operation="add" />
+<set_value name="$Station" exact="md.$LSPStationProductionDirty.{$Key}" />
+<do_if value="typeof $Station == datatype.component and $Station.exists and $Station.isplayerowned">
+<run_actions ref="QueueNewProfile">
+<param name="Object" value="$Station" />
+<param name="Refresh" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<remove_value name="md.$LSPStationProductionDirty.{$Key}" />
+</do_else>
+</do_if>
+</do_for_each>
 <return value="true" />
 </actions>
 </library>
@@ -5337,14 +5478,28 @@
 </do_if>
 <set_value name="$Item" exact="md.$LSPNewProfiles.{md.$LSPNewIndex}" />
 <set_value name="md.$LSPNewIndex" exact="1L" operation="add" />
-<do_if value="not UniverseIdentity.$KnownProfileSeeds.{$Item.$key}?">
+<do_if value="@$Item.$refresh and $Item.$kind == 'STATION' and not (typeof $Item.$object == datatype.component and $Item.$object.exists and $Item.$object.isplayerowned)">
+<do_if value="md.$LSPQueuedKeys.{$Item.$key}?">
+<remove_value name="md.$LSPQueuedKeys.{$Item.$key}" />
+</do_if>
+<do_if value="md.$LSPStationProductionDirty.{$Item.$key}?">
+<remove_value name="md.$LSPStationProductionDirty.{$Item.$key}" />
+</do_if>
+<continue />
+</do_if>
+<do_if value="@$Item.$refresh or not UniverseIdentity.$KnownProfileSeeds.{$Item.$key}?">
 <do_if value="$Item.$kind == 'STATION'">
+<do_if value="md.$LSPStationProductionDirty.{$Item.$key}?">
+<remove_value name="md.$LSPStationProductionDirty.{$Item.$key}" />
+</do_if>
 <run_actions ref="StationProfile">
 <param name="Station" value="$Item.$object" />
 </run_actions>
+<do_if value="not @$Item.$refresh">
 <run_actions ref="QueueNewHostPersonnel">
 <param name="Host" value="$Item.$object" />
 </run_actions>
+</do_if>
 </do_if>
 <do_elseif value="$Item.$kind == 'SHIP'">
 <run_actions ref="ShipProfile">
@@ -6784,6 +6939,7 @@
 <actions>
 <set_value name="md.$LSPCurrentKind" exact="'PLAYER'" />
 <set_value name="md.$LSPCurrentSeed" exact="''" />
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
 <set_value name="md.$LSPProfilePartial" exact="false" />
 <set_value name="md.$LSPValueLimit" exact="false" />
 <set_value name="md.$LSPRemaining" exact="16384" />
@@ -7365,7 +7521,7 @@
 <param name="Body" value="'PROFILE_END|profile=%s|partial=%s'.[md.$LSPProfile, md.$LSPProfilePartial]" />
 </run_actions>
 <do_if value="md.$LSPCurrentSeed != ''">
-<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed]]" />
+<append_to_list name="md.$LSPKnownPending" exact="[md.$LSPRecord, '$%s:%s'.[md.$LSPCurrentKind, md.$LSPCurrentSeed], if md.$LSPCurrentKind == 'STATION' and md.$LSPStationProductionComplete then 1 else 0]" />
 </do_if>
 <do_if value="md.$LSPProfilePartial">
 <set_value name="md.$LSPSnapshotPartial" exact="true" />
@@ -7702,6 +7858,526 @@
 <param name="EventTrace" value="true" />
 <param name="Body" value="'ENTITY_EVENT|event_type=%s|subject_kind=PLAYER|observation=NATIVE_EVENT|subject_seed=%s|subject_reference=%s|subject_name=%s|host_seed=%s|host_idcode=%s|host_reference=%s|event_object_reference=%s|previous_event_object_reference=%s|detail=%s|previous_detail=%s|shortcut=%s|source_event=%s'.[$Type,$subject_seed, $subject_reference, $subject_name, $host_seed, $host_idcode, $host_reference, $event_object_reference, $previous_event_object_reference, $detail, $previous_detail, $shortcut, $source_event]" />
 </run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="EnrolStationModuleWatch" purpose="run_actions">
+<params>
+<param name="Station" />
+</params>
+<actions>
+<do_if value="not (typeof $Station == datatype.component and $Station.exists)">
+<return value="false" />
+</do_if>
+<do_if value="not $Station.isplayerowned">
+<return value="false" />
+</do_if>
+<do_for_each name="$State" in="['operational','construction']">
+<set_value name="$Modules" exact="if $State == 'operational' then @$Station.modules.operational.list else @$Station.modules.construction.list" />
+<do_if value="typeof $Modules == datatype.list">
+<do_for_each name="$Module" in="$Modules">
+<do_if value="typeof $Module == datatype.component and $Module.exists">
+<add_to_group groupname="md.$LSPStationModuleWatch" object="$Module" />
+<set_value name="md.$LSPStationModuleHosts.{'$ref:%s'.[$Module]}" exact="$Station" />
+</do_if>
+</do_for_each>
+</do_if>
+</do_for_each>
+<return value="true" />
+</actions>
+</library>
+<library name="StationProductionScalar" purpose="run_actions">
+<params>
+<param name="Field" />
+<param name="Value" />
+<param name="Available" default="true" />
+</params>
+<actions>
+<do_if value="not $Available or $Value == null">
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
+</do_if>
+<run_actions ref="Value">
+<param name="Field" value="$Field" />
+<param name="Value" value="$Value" />
+<param name="Available" value="$Available" />
+</run_actions>
+<return value="true" />
+</actions>
+</library>
+<library name="StationProductionWares" purpose="run_actions">
+<params>
+<param name="Prefix" />
+<param name="Wares" />
+</params>
+<actions>
+<do_if value="typeof $Wares != datatype.list">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_count'" />
+<param name="Value" value="@$Wares.count" />
+<param name="Available" value="$Wares.count?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$WareIndex" exact="0" />
+<do_for_each name="$Ware" in="$Wares">
+<do_if value="not (not md.$LSPStopped and md.$LSPRemaining gt 0)">
+<run_actions ref="Value">
+<param name="Field" value="$Prefix + '_limit'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+<break />
+</do_if>
+<set_value name="$WareIndex" exact="1L" operation="add" />
+<set_value name="$WarePrefix" exact="'%s_%s'.[$Prefix,$WareIndex]" />
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$WarePrefix + '_id'" />
+<param name="Value" value="@$Ware.id" />
+<param name="Available" value="$Ware.id?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$WarePrefix + '_id'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$WarePrefix + '_name'" />
+<param name="Value" value="@$Ware.name" />
+<param name="Available" value="$Ware.name?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$WarePrefix + '_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+</do_for_each>
+<return value="true" />
+</actions>
+</library>
+<library name="StationProductionModules" purpose="run_actions">
+<params>
+<param name="Modules" />
+<param name="State" />
+<param name="Station" />
+</params>
+<actions>
+<do_if value="typeof $Modules != datatype.list">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_modules_' + $State + '_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_modules_' + $State + '_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<return value="false" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_modules_' + $State + '_count'" />
+<param name="Value" value="@$Modules.count" />
+<param name="Available" value="$Modules.count?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_modules_' + $State + '_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_for_each name="$Module" in="$Modules">
+<do_if value="not (not md.$LSPStopped and md.$LSPRemaining gt 0)">
+<run_actions ref="Value">
+<param name="Field" value="'station_module_limit'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+<break />
+</do_if>
+<set_value name="md.$LSPStationModuleCount" exact="1L" operation="add" />
+<set_value name="$Prefix" exact="'module_%s'.[md.$LSPStationModuleCount]" />
+<do_if value="typeof $Module == datatype.component and $Module.exists">
+<add_to_group groupname="md.$LSPStationModuleWatch" object="$Module" />
+<set_value name="md.$LSPStationModuleHosts.{'$ref:%s'.[$Module]}" exact="$Station" />
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_macro'" />
+<param name="Value" value="@$Module.macro.id" />
+<param name="Available" value="$Module.macro.id?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_macro'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_name'" />
+<param name="Value" value="@$Module.macro.name" />
+<param name="Available" value="$Module.macro.name?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_name'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_class'" />
+<param name="Value" value="'%s'.[$Module.realclass]" />
+<param name="Available" value="$Module.realclass?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_class'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_state'" />
+<param name="Value" value="@$State" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_state'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<do_if value="$Module.isrealclass.production or $Module.isrealclass.processingmodule">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="$Prefix + '_product'" />
+<param name="Wares" value="@$Module.products.list" />
+</run_actions>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="$Prefix + '_resource'" />
+<param name="Wares" value="@$Module.resources.list" />
+</run_actions>
+</do_if>
+</do_if>
+<do_elseif value="$Module.isrealclass.habitation">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_workforce_race'" />
+<param name="Value" value="@$Module.workforce.race.name" />
+<param name="Available" value="$Module.workforce.race.name?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_workforce_race'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="$Prefix + '_workforce_resource'" />
+<param name="Wares" value="@$Module.resources.list" />
+</run_actions>
+</do_if>
+</do_elseif>
+<do_elseif value="$Module.isrealclass.storage">
+<set_value name="$Transports" exact="@$Module.waretransport" />
+<do_if value="typeof $Transports == datatype.list">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_storage_transport_count'" />
+<param name="Value" value="@$Transports.count" />
+<param name="Available" value="$Transports.count?" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_storage_transport_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<set_value name="$TransportIndex" exact="0" />
+<do_for_each name="$Transport" in="$Transports">
+<do_if value="not (not md.$LSPStopped and md.$LSPRemaining gt 0)">
+<run_actions ref="Value">
+<param name="Field" value="'station_transport_limit'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+<break />
+</do_if>
+<set_value name="$TransportIndex" exact="1L" operation="add" />
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'%s_storage_transport_%s'.[$Prefix,$TransportIndex]" />
+<param name="Value" value="'%s'.[$Transport]" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'%s_storage_transport_%s'.[$Prefix,$TransportIndex]" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+</do_for_each>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_storage_transport_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_storage_transport_count'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_elseif>
+<do_elseif value="$Module.isrealclass.buildmodule">
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_build_resource_scope'" />
+<param name="Value" value="'BUILD_SPECIFIC_NOT_ENUMERATED'" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_build_resource_scope'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+</do_elseif>
+</do_if>
+</do_if>
+<do_else>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_reference_state'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="$Prefix + '_reference_state'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+</do_else>
+</do_for_each>
+<return value="true" />
+</actions>
+</library>
+<library name="StationProduction" purpose="run_actions">
+<params>
+<param name="Station" />
+</params>
+<actions>
+<set_value name="md.$LSPStationProductionComplete" exact="true" />
+<set_value name="md.$LSPStationModuleCount" exact="0" />
+<do_if value="md.$LSPCurrentSeed != ''">
+<set_value name="md.$LSPStationProductionAttempted.{'$STATION:' + md.$LSPCurrentSeed}" exact="true" />
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_production_version'" />
+<param name="Value" value="@1" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_production_version'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_module_scope'" />
+<param name="Value" value="'EXISTING_OPERATIONAL_AND_CONSTRUCTION_COMPONENTS'" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_module_scope'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_ware_scope'" />
+<param name="Value" value="'DECLARED_STATION_AND_MODULE_TYPES_NOT_STOCKS_OR_RATES'" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_ware_scope'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="typeof $Station == datatype.component and $Station.exists and not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="'station_product'" />
+<param name="Wares" value="@$Station.products.list" />
+</run_actions>
+</do_if>
+<do_if value="typeof $Station == datatype.component and $Station.exists and not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="'station_resource'" />
+<param name="Wares" value="@$Station.resources.list" />
+</run_actions>
+</do_if>
+<do_if value="typeof $Station == datatype.component and $Station.exists and not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="'station_supply_resource'" />
+<param name="Wares" value="@$Station.supplyresources.list" />
+</run_actions>
+</do_if>
+<do_if value="typeof $Station == datatype.component and $Station.exists and not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionWares">
+<param name="Prefix" value="'station_trade_ware'" />
+<param name="Wares" value="@$Station.tradewares.list" />
+</run_actions>
+</do_if>
+<do_if value="typeof $Station == datatype.component and $Station.exists and not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionModules">
+<param name="Modules" value="@$Station.modules.operational.list" />
+<param name="State" value="'operational'" />
+<param name="Station" value="$Station" />
+</run_actions>
+<do_if value="not md.$LSPStopped and md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionModules">
+<param name="Modules" value="@$Station.modules.construction.list" />
+<param name="State" value="'construction'" />
+<param name="Station" value="$Station" />
+</run_actions>
+</do_if>
+</do_if>
+<do_else>
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
+</do_else>
+<set_value name="md.$LSPStationProductionComplete" exact="md.$LSPStationProductionComplete and not md.$LSPValueLimit and md.$LSPRemaining gt 0" />
+<do_if value="not md.$LSPStopped">
+<do_if value="md.$LSPRemaining gt 0">
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_production_complete'" />
+<param name="Value" value="@md.$LSPStationProductionComplete" />
+<param name="Available" value="true" />
+</run_actions>
+</do_if>
+<do_else>
+<run_actions ref="StationProductionScalar">
+<param name="Field" value="'station_production_complete'" />
+<param name="Value" value="null" />
+<param name="Available" value="false" />
+</run_actions>
+</do_else>
+</do_if>
+<do_if value="md.$LSPValueLimit">
+<set_value name="md.$LSPStationProductionComplete" exact="false" />
+</do_if>
 <return value="true" />
 </actions>
 </library>
