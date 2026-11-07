@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  <!-- X4 9.00: initialise one scan timer; observe only player-owned police. -->
+  <add sel="//do_if[@value='not $time_scandone?'][do_elseif[@value='this.assignedcontrolled.isplayerowned and not $police']]">
+    <do_if value="$police and this.assignedcontrolled.isplayerowned">
+      <signal_objects object="player.galaxy" param="'LifeSignsPoliceScanV1'" param2="this.assignedcontrolled" param3="[$localtarget, 'STARTED', 'UNDETERMINED', null, null, null, null, this.zone.policefaction]"/>
+    </do_if>
+  </add>
+  <!-- Observe existing detection flags before the game clears them. No reroll. -->
+  <add sel="//do_if[@value='$police']/remove_value[@name='$illegalcargofound']" pos="before">
+    <do_if value="this.assignedcontrolled.isplayerowned">
+      <signal_objects object="player.galaxy" param="'LifeSignsPoliceScanV1'" param2="this.assignedcontrolled" param3="[$localtarget, 'RESULT', if $police_onlycargo? then 'CARGO_ONLY' else 'CARGO_AND_PILOT_INVENTORY', if $illegalcargofound? then 1 else 0, if $illegalfound? then 1 else 0, if $trouble? then 1 else 0, if this.mayattack.{$localtarget} then 1 else 0, this.zone.policefaction]"/>
+    </do_if>
+  </add>
+</diff>
