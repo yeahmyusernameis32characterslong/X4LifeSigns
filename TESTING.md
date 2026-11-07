@@ -1,5 +1,15 @@
 # X4LifeSigns testing
 
+## Large-history housekeeping checksums (7 November 2026)
+
+The large-file correction passes221/221 profile tests, including a real sparse
+file above4 GiB hashed through one buffer and independently checked with Python3.
+The focused hash/preview/reply set passes39/39. All seven installed-LuaJIT/native/
+Node housekeeping outcome groups pass on disposable fixtures. Read-only checksum
+verification against the affected larger database matches Windows/.NET without
+changing it. There has been no deployment or real cleanup. See
+[scope, checks and acceptance](docs/HOUSEKEEPING_LARGE_FILES.md).
+
 ## Current status
 
 The optional SQLite profile integration has scoped owner-run X4 9.00 verification
