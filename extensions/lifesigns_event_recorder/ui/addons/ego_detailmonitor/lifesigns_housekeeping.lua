@@ -102,8 +102,8 @@ function P.worldObserved()
 end
 function P.initial(menu)
     if not menu.isStartmenu or __LIFESIGNS_HOUSEKEEPING_WORLD_SEEN then return false end
-    local text=read(helloFile)
-    if text and text:match("|INACTIVE|END\r?\n$") then return false end
+    -- A reply file can outlive its X4 process. It controls companion readiness,
+    -- not whether this Lua runtime has entered gameplay or may show the menu.
     return true
 end
 function P.open(menu)
@@ -156,6 +156,13 @@ function P.update()
     local h=read(helloFile)
     local gen,tick,phase
     if h then gen,tick,phase=h:match("^LSDB1|HOUSEKEEPING|HELLO|([0-9a-f]+)|(%d+)|([A-Z]+)|END\r?\n$") end
+    if token(gen) and uint(tick) and phase=="INACTIVE" then
+        P.gen=nil;P.heartbeat=nil;P.heartbeatAt=nil;P.live=false
+        P.pending=nil;P.progress=nil;P.mutating=false;P.stale=true
+        if P.state~="UNAVAILABLE" then P.dirty=true end
+        P.state="UNAVAILABLE";P.awaitInitial=true
+        return
+    end
     if token(gen) and uint(tick) and (phase=="INITIAL" or phase=="TEST" or phase=="PRODUCTION") then
         P.testMode=phase=="TEST"
         P.productionMode=phase=="PRODUCTION"
