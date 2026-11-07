@@ -64,7 +64,7 @@ export function harness(source, { ships = [], stations = [], allShips = ships, a
     }
     if (value.__type === 'datatype' && key === 'isstring') return value.name === 'string';
     if (value.__type === 'datatype' && key === 'isnumeric') return value.name === 'integer';
-    if (key === 'isclass') return new Proxy({}, { get: (_, klass) => value.class === klass || value.classes?.includes(klass) || (klass === 'ship' && value.class === 'spacesuit') });
+    if (key === 'isclass' || key === 'isrealclass') return new Proxy({}, { get: (_, klass) => (key === 'isrealclass' ? value.realclass ?? value.class : value.class) === klass || value.classes?.includes(klass) || (klass === 'ship' && value.class === 'spacesuit') });
     const item = value[key];
     if (item === undefined) throw new Error(`Missing property ${key}`);
     return item;

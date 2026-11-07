@@ -15,20 +15,24 @@ export function generateProfileEvents(h, c) {
     ['NewProfiles','SettleEvents','KnownPending','CrewChanges','OrderChecks'].map(k=>set(`md.$LSP${k}`,'[]')).join('')+
     ['NewIndex','SettleIndex','KnownIndex','CrewIndex','OrderIndex'].map(k=>set(`md.$LSP${k}`,'1')).join('')+
     set('md.$LSPQueuedKeys','table[]')+set('md.$LSPEventsReady','false')+
+    set('md.$LSPStationUpgradeStations','$WatchStations')+set('md.$LSPStationUpgradeIndex','1')+
+    set('md.$LSPStationProductionAttempted','table[]')+
+    iff('not UniverseIdentity.$StationProductionVersions?',set('UniverseIdentity.$StationProductionVersions','table[]'))+
     iff('not UniverseIdentity.$KnownProfileSeeds?',set('UniverseIdentity.$KnownProfileSeeds','table[]'))+
     history.initialize;
   const observedSeed = iff("$Field == 'seed' and $State == 'PRESENT'",set('md.$LSPCurrentSeed',"'%s'.[$Value]"));
-  const begin = kind => set('md.$LSPCurrentKind',`'${kind}'`)+set('md.$LSPCurrentSeed',"''");
-  const end = iff("md.$LSPCurrentSeed != ''",tag('append_to_list',{name:'md.$LSPKnownPending',exact:`[md.$LSPRecord, ${key('md.$LSPCurrentKind','md.$LSPCurrentSeed')}]`}));
+  const begin = kind => set('md.$LSPCurrentKind',`'${kind}'`)+set('md.$LSPCurrentSeed',"''")+set('md.$LSPStationProductionComplete','false');
+  const end = iff("md.$LSPCurrentSeed != ''",tag('append_to_list',{name:'md.$LSPKnownPending',exact:`[md.$LSPRecord, ${key('md.$LSPCurrentKind','md.$LSPCurrentSeed')}, if md.$LSPCurrentKind == 'STATION' and md.$LSPStationProductionComplete then 1 else 0]`}));
   const acknowledge = tag('do_all',{exact:'md.$LSPKnownPending.count'},
     iff('md.$LSPKnownIndex gt md.$LSPKnownPending.count',tag('break'))+
     set('$KnownItem','md.$LSPKnownPending.{md.$LSPKnownIndex}')+
     iff('$KnownItem.{1} gt md.$LSPAcknowledged',tag('break'))+
     set('UniverseIdentity.$KnownProfileSeeds.{$KnownItem.{2}}','true')+
+    iff('$KnownItem.count ge 3',iff('$KnownItem.{3} == 1',set('UniverseIdentity.$StationProductionVersions.{$KnownItem.{2}}','1')))+
     iff('md.$LSPQueuedKeys.{$KnownItem.{2}}?',tag('remove_value',{name:'md.$LSPQueuedKeys.{$KnownItem.{2}}'}))+add('md.$LSPKnownIndex'))+
     iff('md.$LSPKnownIndex gt md.$LSPKnownPending.count',set('md.$LSPKnownPending','[]')+set('md.$LSPKnownIndex','1'));
 
-  const queue=lib('QueueNewProfile',{Object:'null',Host:'null',Template:'null',Target:'null'},
+  const queue=lib('QueueNewProfile',{Object:'null',Host:'null',Template:'null',Target:'null',Refresh:'false'},
     iff(`not (${eventReady})`,ret('false'))+
     set('$Kind',"''")+set('$Seed',"''")+set('$Actor','null')+
     iff(owned('$Object'),
@@ -42,11 +46,18 @@ export function generateProfileEvents(h, c) {
     iff("$Kind == 'SHIP' or $Kind == 'STATION'",run('EnrolTradeWatch',{Object:'$Object'}))+
     set('$Key',key('$Kind','$Seed'))+
     iff("$Seed == ''",set('$Key',"'$%s:%s:%s:%s'.[$Kind,$Object,$Host,$Template]"))+
-    iff("$Seed != '' and UniverseIdentity.$KnownProfileSeeds.{$Key}?",ret('true'))+
+    iff("not $Refresh and $Seed != '' and UniverseIdentity.$KnownProfileSeeds.{$Key}?",ret('true'))+
     iff('md.$LSPQueuedKeys.{$Key}?',ret('true'))+
-    tag('append_to_list',{name:'md.$LSPNewProfiles',exact:"table[$kind=$Kind,$object=$Object,$actor=$Actor,$host=$Host,$template=$Template,$key=$Key,$target=$Target,$origin='NEW_OBJECT_EVENT']"})+
+    tag('append_to_list',{name:'md.$LSPNewProfiles',exact:"table[$kind=$Kind,$object=$Object,$actor=$Actor,$host=$Host,$template=$Template,$key=$Key,$target=$Target,$refresh=$Refresh,$origin='NEW_OBJECT_EVENT']"})+
     set('md.$LSPQueuedKeys.{$Key}','md.$LSPNewProfiles.count')+
     iff("$Kind == 'SHIP' or $Kind == 'STATION'",tag('add_to_group',{groupname:'md.$LSPWatch',object:'$Object'}))+ret('true'));
+  const stationUpgrades=lib('QueueStationProductionUpgrades',{},
+    iff(`not (${eventReady}) or md.$LSPActive or md.$LSPAwaitCommit or md.$LSPDatabaseState != 'READY'`,ret('false'))+
+    tag('do_all',{exact:String(c.profilesPerTick)},
+      iff('md.$LSPStationUpgradeIndex gt md.$LSPStationUpgradeStations.count',tag('break'))+
+      set('$Station','md.$LSPStationUpgradeStations.{md.$LSPStationUpgradeIndex}')+add('md.$LSPStationUpgradeIndex')+
+      iff(owned('$Station'),iff('$Station.seed?',set('$Key',key("'STATION'","'%s'.[$Station.seed]"))+
+        iff('not UniverseIdentity.$StationProductionVersions.{$Key}? and not md.$LSPStationProductionAttempted.{$Key}?',run('QueueNewProfile',{Object:'$Station',Refresh:'true'})))))+ret('true'));
   const crew=lib('QueueNewHostPersonnel',{Host:null},
     iff(`not (${eventReady})`,ret('false'))+
     iff('not ('+owned('$Host')+')',ret('false'))+
@@ -128,8 +139,8 @@ export function generateProfileEvents(h, c) {
     tag('do_all',{exact:String(c.profilesPerTick)},
       iff('md.$LSPNewIndex gt md.$LSPNewProfiles.count',tag('break'))+
       set('$Item','md.$LSPNewProfiles.{md.$LSPNewIndex}')+add('md.$LSPNewIndex')+
-      iff('not UniverseIdentity.$KnownProfileSeeds.{$Item.$key}?',
-        iff("$Item.$kind == 'STATION'",run('StationProfile',{Station:'$Item.$object'})+run('QueueNewHostPersonnel',{Host:'$Item.$object'}))+
+      iff('@$Item.$refresh or not UniverseIdentity.$KnownProfileSeeds.{$Item.$key}?',
+        iff("$Item.$kind == 'STATION'",run('StationProfile',{Station:'$Item.$object'})+iff('not @$Item.$refresh',run('QueueNewHostPersonnel',{Host:'$Item.$object'})))+
         tag('do_elseif',{value:"$Item.$kind == 'SHIP'"},run('ShipProfile',{Ship:'$Item.$object'})+run('QueueNewHostPersonnel',{Host:'$Item.$object'}))+
         otherwise(
           iff(valid('$Item.$target'),iff('@$Item.$target.people.{$Item.$template}.exists',set('$Item.$host','$Item.$target')))+
@@ -205,5 +216,5 @@ export function generateProfileEvents(h, c) {
       tag('check_value',{value:`(${ready}) and md.$LSPBusArmedRun? and md.$LSPBusArmedRun == md.$LSPRun and md.$LSPWatch? and md.$LSPHistorySectors? and md.$LSPHistoryOutsiders?`}))+
     tag('actions',{},set('md.$LSPEventsReady','true')+tag('remove_value',{name:'md.$LSPBusArmedRun'})+
       iff('md.$LSPLevel ge 3',run('Write',{Diagnostic:'true',Body:"'LISTENER_BOOTSTRAP_READY|startup_protocol=STAGED_V1|early_restore_coverage=UNVERIFIED'"})))+patches+tag('cues',{},listeners+history.cues));
-  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
+  return { initialize, observedSeed, begin, end, acknowledge, libraries:queue+stationUpgrades+crew+observe+dispatch+process+settle+crewChange+processCrew+orderChecks+rename+history.libraries, cues, crewListener, renameListener };
 }
