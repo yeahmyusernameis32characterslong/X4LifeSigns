@@ -115,3 +115,12 @@ required explicit challenges. Remaining discrepancies are preserved and excluded
 from causal attribution. Wider access exposed previously unavailable recorded
 context; it does not establish a missing recorder event type or a definitive
 initiator. Completed answers are distinguished from retained failed tool attempts.
+
+## New retrieval-helper development experiment
+
+The owner has authorised a separate [NPC dialogue retrieval helper experiment](NPC_DIALOGUE_RETRIEVAL_HELPER.md).
+Qwen will call a scoped read-only SQLite helper directly, and Codex will verify
+its factual answers and measure latency. The earlier no-tool interviews above
+remain historical experiments; their Aria no-database-verification constraint
+does not apply to Codex's new evaluator role. Earlier transcripts remain frozen.
+This is offline development, not runtime Aria or a gameplay model selection.

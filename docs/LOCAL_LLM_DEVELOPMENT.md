@@ -279,3 +279,14 @@ The installed interface was checked against the official Ollama
 Ollama 0.40.2. Git environment/configuration controls were checked against the
 [official Git reference](https://git-scm.com/docs/git) and Windows fixture tests.
 No third-party agent framework or additional dependency was installed.
+
+## Offline NPC retrieval-helper evaluation
+
+The owner authorises [model-driven SQLite retrieval and dialogue evaluation](NPC_DIALOGUE_RETRIEVAL_HELPER.md)
+as a separate development experiment. Qwen may use the scoped read-only helper
+against authorised local history snapshots, with Codex implementing and verifying
+results. This extends the offline test interface, not Qwen's shell/write authority
+or its gameplay-runtime candidacy. Iterative local model trials and routine
+follow-ups are authorised within that objective. The standing broad-research
+method remains unchanged; earlier smoke lists and one-call trial restrictions
+do not govern this new workstream.
